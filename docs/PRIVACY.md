@@ -31,14 +31,27 @@ Adresse ist damit faktisch das Geheimnis — und Adressen sind kein Geheimnis
 im kryptografischen Sinn: sie stehen auf Studio-Geräten, in `localStorage`
 und potenziell in Pairing-Payloads.
 
-**c) Das tatsächlich by-design offene Problem ist ein anderes:** die
-Buchungs-DB. Schüler bekommen Write-Grants auf `bookings-<location>-<jahr>`
-und replizieren sie **vollständig** — inklusive der Buchungen aller anderen.
-Wer bucht, sieht, wer sonst noch in dieser Stunde ist. Das ist keine Lücke,
+**c) Das tatsächlich by-design offene Problem war ein anderes:** die
+Buchungs-DB. Schüler bekamen Write-Grants auf `bookings-<location>-<jahr>`
+und replizierten sie **vollständig** — inklusive der Buchungen aller anderen.
+Wer buchte, sah, wer sonst noch in dieser Stunde ist. Das war keine Lücke,
 sondern die direkte Folge davon, dass OrbitDB ganze Logs repliziert.
 
-Kurz: Der Ledger ist das **kleinere** Risiko (Konvention + Adresskenntnis),
-die Buchungs-DB das **größere** (systematisch, für jeden Schüler).
+> **Behoben am 2026-07-29.** Der Entwurf ist auf **eine Buchungs-DB pro
+> Schüler** umgestellt (`docs/PLAN.md` §3.3), exakt nach dem Muster des
+> Ticket-Ledgers. Damit verteilt die App keine fremden personenbezogenen
+> Daten mehr an Schüler. Ersatz für die verlorene gemeinsame Sicht ist der
+> `occupancy`-Zähler (§3.3.1): reine Zahlen pro Kurs und Termin in der
+> ohnehin replizierten `program`-DB — „noch 4 Plätze frei", ohne dass jemand
+> erfährt, **wer** die anderen acht sind.
+>
+> Die Aufstellung in §2.3 beschreibt weiterhin, **welche** Felder anfallen;
+> die Spalte „andere Schüler" steht dort jetzt auf ❌. Der Abschnitt bleibt,
+> weil die Daten weiterhin existieren — nur eben nicht mehr bei Mitschülern.
+
+Kurz: Der Ledger bleibt das kleinere Risiko (Konvention + Adresskenntnis).
+Das größere ist mit dem Zuschnitt entfallen — strukturell, nicht durch
+Kryptografie.
 
 ---
 

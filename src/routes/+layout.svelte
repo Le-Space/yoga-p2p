@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
+	import OmMark from '$lib/components/OmMark.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { children } = $props();
@@ -23,9 +24,10 @@
 		<div class="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3">
 			<a
 				href={resolve('/')}
-				class="font-mono font-bold text-text no-underline"
+				class="flex items-center gap-2 font-mono font-bold text-text no-underline"
 				data-testid="app-name"
 			>
+				<OmMark size={26} />
 				{m.app_name()}
 			</a>
 

@@ -140,19 +140,80 @@ Anwesenheit wird trotzdem als `redeem` protokolliert) und dem Fenster von
 erster bis letzter Session. Der Ledger lehnt Entwertungen kursgebundener
 Tickets für fremde Kurse ab.
 
-### 3.3 `bookings-<locationId>-<jahr>` — Buchungen (Multi-Writer via acl01, **jährlich rotiert**)
+### 3.3 `bookings-<studentDid>` — Buchungen **pro Schüler** (Multi-Writer: Schüler + Studio-Geräte)
 
-Pro Location und Jahr eine Buchungs-DB (Rotationsentscheidung aus der
-Skalierungsanalyse in 6.4: OrbitDB-Logs wachsen append-only unbegrenzt, und
-Schüler brauchen nur die laufende Periode — Kapazitätszählung ebenso).
-Schüler-DIDs erhalten beim Pairing Write-Grants auf die aktuelle Periode;
-beim Jahreswechsel legt die Inhaberin die neue DB an, Grants werden
-übernommen, Vorjahre bleiben auf Studio-Geräten archiviert (Export/Archiv
-via `orbitdb-storacha-bridge` als Option, siehe 6.4).
+> **Entwurfsänderung gegenüber Plan v2** (entschieden am 2026-07-29, Begründung
+> in [`PRIVACY.md`](./PRIVACY.md)). Ursprünglich war eine Buchungs-DB pro
+> Location und Jahr vorgesehen, auf die Schüler Write-Grants bekommen. Das war
+> die einzige Stelle, an der die App systematisch **fremde** personenbezogene
+> Daten verteilt hat: Weil OrbitDB immer ganze Logs repliziert, sah jeder
+> buchende Schüler die Buchungen aller anderen — DID, Alias, Kurs, Termin,
+> Status. Über eine Saison ergibt das ein Anwesenheitsprofil, und bei Reha-,
+> Rückbildungs- oder Präventionskursen sind das Gesundheitsdaten nach
+> DSGVO Art. 9.
+>
+> Verschlüsselung löst das nicht: Sie hinterlässt bei Payload-Verschlüsselung
+> weiterhin Schreiber-DID, Eintragszahl und Reihenfolge im Klartext und
+> handelt sich bei Multi-Writer ein Schlüsselverteilungs- und
+> Rotationsproblem ein. Der Zuschnitt löst es strukturell und ohne Kryptografie.
 
-Statusregel wie v1: Geräte des Studios setzen `confirmed | declined`,
+Eine kleine Buchungs-DB pro Schüler, exakt nach dem Muster des Ticket-Ledgers
+(3.4): Schreibrecht für den Schüler selbst und für alle registrierten,
+nicht widerrufenen Studio-Geräte. Der Schüler repliziert **nur seine eigene**;
+Studio-Geräte sammeln die aller Schüler, die sie je gesehen haben.
+
+```json
+{
+	"_id": "booking:<uuid>",
+	"type": "booking",
+	"studentDid": "did:key:…",
+	"courseId": "course:vinyasa-mi-18",
+	"date": "2026-09-09", // null bei einer als Ganzes gebuchten Reihe
+	"locationId": "location:altstadt",
+	"status": "requested | confirmed | declined | cancelled",
+	"requestedAt": "…",
+	"decidedBy": { "deviceDid": "did:key:…", "locationId": "…" },
+	"decidedAt": "…"
+}
+```
+
+**Jahres-Rotation entfällt.** Sie existierte, weil eine Standort-DB über
+Jahre auf Hunderttausende Einträge wuchs. Eine Schüler-DB hat ~120 Einträge
+pro Jahr (~0,2 MB) — nach vier Jahren unter 1 MB. Was bleibt, ist die
+_Anzahl_ der DBs auf Studio-Geräten, und dagegen wirkt Lazy-Open + LRU
+(6.4), das für die Ticket-Ledger ohnehin gebaut wird. Beide Bestände nutzen
+damit dieselbe Mechanik.
+
+Statusregel unverändert: Studio-Geräte setzen `confirmed | declined`,
 Schüler nur `requested | cancelled` (App-Logik über der DB-ACL, da OrbitDB
-keine Feld-Level-Rechte kennt — in `docs/LIMITS.md` dokumentieren).
+keine Feld-Level-Rechte kennt — in `docs/LIMITS.md` dokumentiert).
+
+#### 3.3.1 `occupancy` — Belegungszähler (Writer: Studio-Geräte)
+
+Der Zuschnitt kostet etwas, und das muss ersetzt werden: Ohne gemeinsame
+Buchungs-DB kann ein Schülergerät nicht mehr selbst zählen, ob eine Stunde
+voll ist. Deshalb schreiben Studio-Geräte einen **aggregierten, nicht
+personenbezogenen** Zähler in die `program`-DB, die alle ohnehin replizieren:
+
+```json
+{
+	"_id": "occupancy:course:vinyasa-mi-18:2026-09-09",
+	"type": "occupancy",
+	"courseId": "course:vinyasa-mi-18",
+	"date": "2026-09-09",
+	"confirmed": 8,
+	"capacity": 12,
+	"updatedBy": { "deviceDid": "did:key:…" },
+	"updatedAt": "…"
+}
+```
+
+Nur Zahlen, keine Personen — damit bleibt „noch 4 Plätze frei" für alle
+sichtbar, ohne dass jemand erfährt, **wer** die anderen acht sind. Der Zähler
+ist bewusst nur ein Anzeigewert: Verbindlich entscheidet das Studio-Gerät beim
+Bestätigen, das die Buchungs-DBs tatsächlich vor sich hat. Zwei Schüler, die
+gleichzeitig den letzten Platz anfragen, bekommen beide `requested` und einer
+danach `declined` — genau wie in jedem Studio ohne Server.
 
 ### 3.4 `tickets-<studentDid>` — Ticket-Ledger **pro Schüler** (Multi-Writer: Studio-Geräte)
 
@@ -264,26 +325,27 @@ pro Vorfall = eine Stunde.
 OrbitDB repliziert immer **ganze Datenbanken** (vollständige Logs), keine
 Ausschnitte. Die Matrix ist deshalb pro DB entschieden:
 
-| DB                     | Inhaberin                    | Studio-Gerät (Location X)             | Schüler:in                 |
-| ---------------------- | ---------------------------- | ------------------------------------- | -------------------------- |
-| `registry`             | ✅ Writer                    | ✅ read (voll)                        | ✅ read (voll)             |
-| `program`              | ✅ Writer                    | ✅ Writer/read (voll)                 | ✅ read (voll)             |
-| `bookings-<loc>`       | ✅ alle Locations            | ✅ eigene Location (weitere optional) | ✅ nur Locations mit Grant |
-| `tickets-<studentDid>` | ✅ alle (via Reconciliation) | ✅ alle bisher gesehenen Schüler      | ✅ **nur den eigenen**     |
+| DB                            | Inhaberin                    | Studio-Gerät (Location X)        | Schüler:in             |
+| ----------------------------- | ---------------------------- | -------------------------------- | ---------------------- |
+| `registry`                    | ✅ Writer                    | ✅ read (voll)                   | ✅ read (voll)         |
+| `program` (inkl. `occupancy`) | ✅ Writer                    | ✅ Writer/read (voll)            | ✅ read (voll)         |
+| `bookings-<studentDid>`       | ✅ alle (via Reconciliation) | ✅ alle bisher gesehenen Schüler | ✅ **nur die eigene**  |
+| `tickets-<studentDid>`        | ✅ alle (via Reconciliation) | ✅ alle bisher gesehenen Schüler | ✅ **nur den eigenen** |
 
 Begründungen: Die `registry` brauchen **alle** vollständig, denn sie ist die
 Offline-Verifikationsbasis für Gerätesignaturen und Widerrufe. Studio-Geräte
-akkumulieren die Ticket-Ledger aller Schüler, die sie je gesehen haben (plus
-Reconciliation) — nur so ist Check-in an jeder Location möglich. Schüler
-halten ausschließlich ihren eigenen Ledger; fremde Ledger erreichen sie nie.
+akkumulieren Buchungen und Ticket-Ledger aller Schüler, die sie je gesehen
+haben (plus Reconciliation) — nur so sind Check-in und Terminübersicht an
+jeder Location möglich. Schüler halten ausschließlich ihre eigenen Bestände;
+fremde erreichen sie nie.
 
-**Ehrlicher Privacy-Trade-off (in `LIMITS.md` und Consent-Text):** Wer als
-Schüler eine `bookings-<loc>`-DB repliziert, sieht darin auch die Buchungen
-anderer (DID, Anzeigename, Kurs, Termin, Status) — Vollreplikation ist
-OrbitDB-inhärent. Mitigation v1: Datensparsamkeit (nur DID + frei gewählter
-Alias, Pseudonym möglich) und Aufklärung im Consent. v2-Optionen: Buchungs-DB
-pro Schüler oder Feldverschlüsselung — als Upstream-/Designfrage in
-`LIMITS.md` festhalten, nicht ad hoc lösen.
+**Der Privacy-Trade-off, der hier stand, ist mit 3.3 entfallen.** Er kam
+ausschließlich aus der gemeinsamen Standort-Buchungs-DB. Was bleibt und in
+[`PRIVACY.md`](./PRIVACY.md) steht: OrbitDB hat **keine
+Lese-Zugriffskontrolle**, nur `canAppend`. Dass ein Schüler fremde Bestände
+nicht sieht, ist deshalb eine Verteilungs-Konvention — wer eine Adresse kennt,
+kann replizieren. Datensparsamkeit (DID + frei gewählter Alias, Pseudonym
+möglich) bleibt Pflicht, nicht Kür.
 
 ### 6.2 Geräteverlust — drei Fälle
 
@@ -339,33 +401,52 @@ Annahmen: ~1–2 KB pro OrbitDB-Entry, aktiver Schüler ~60 Besuche/Jahr,
 Buchung = 2 Entries, Replikation remote eher Entry-Rate-begrenzt
 (~200–500 Entries/s) als Bandbreiten-begrenzt.
 
-**Unkritisch:** `registry`, `program` und die per-Schüler-Ledger
-(~70 Events ≈ 100–140 KB pro Schüler und Jahr — nach 4 Jahren < 0,5 MB).
+> **Neu gerechnet nach der Entwurfsänderung in 3.3.** Die Tabelle unten stand
+> für gemeinsame Standort-Buchungs-DBs — der Engpass, den es so nicht mehr
+> gibt. Sie bleibt als Beleg stehen, warum der Zuschnitt pro Schüler auch
+> technisch die bessere Wahl war, nicht nur die datenschutzfreundlichere.
 
-**Kritisch:** unrotierte Buchungs-DBs und die _Anzahl_ der Ledger-DBs:
+**Auf dem Schülergerät ist damit alles unkritisch.** Ein Schüler hält
+`registry`, `program` und je eine eigene Buchungs- und Ticket-DB:
+zusammen ~190 Einträge pro Jahr, deutlich unter 0,5 MB — nach vier Jahren
+immer noch unter 1 MB. Erst-Sync und Cold Start sind damit kein Thema mehr.
 
-| Szenario              | Bookings-Entries | Größe      | Erst-Sync remote | Cold Start     |
-| --------------------- | ---------------- | ---------- | ---------------- | -------------- |
-| 100 Schüler, 1 Jahr   | ~12k             | 12–24 MB   | 25–60 s ⚠️       | ok             |
-| 100 Schüler, 3 Jahre  | ~36k             | 36–72 MB   | 1–3 min ❌       | 10–30 s ⚠️     |
-| 500 Schüler, 2 Jahre  | ~120k            | 120–240 MB | 4–10 min ❌      | Minuten ❌     |
-| 1000 Schüler, 4 Jahre | ~480k            | 0,5–1 GB   | Stunden ❌       | ❌, Mobile-RAM |
+**Der verbleibende Engpass ist die _Anzahl_ der DBs auf Studio-Geräten.**
+Sie halten pro Schüler jetzt **zwei** kleine DBs statt einer plus Anteil an
+einer großen. Bei 1000 Schülern sind das 2000 Datenbanken; bei ~50–200 ms
+Öffnungszeit je Instanz ist ein naives „alle öffnen" nicht machbar —
+Lazy-Open + LRU ist deshalb keine Optimierung mehr, sondern Voraussetzung.
 
-Vierter Engpass: Reconciliation öffnet N Ledger-DBs (~50–200 ms + Speicher je
-Instanz) — 100 Schüler: 5–20 s; 1000: Minuten, ohne Gegenmaßnahmen.
+Die alte Rechnung, die den Zuschnitt erzwungen hat:
+
+| Szenario (alt, gemeinsame Standort-DB) | Bookings-Entries | Größe      | Erst-Sync remote | Cold Start     |
+| -------------------------------------- | ---------------- | ---------- | ---------------- | -------------- |
+| 100 Schüler, 1 Jahr                    | ~12k             | 12–24 MB   | 25–60 s ⚠️       | ok             |
+| 100 Schüler, 3 Jahre                   | ~36k             | 36–72 MB   | 1–3 min ❌       | 10–30 s ⚠️     |
+| 500 Schüler, 2 Jahre                   | ~120k            | 120–240 MB | 4–10 min ❌      | Minuten ❌     |
+| 1000 Schüler, 4 Jahre                  | ~480k            | 0,5–1 GB   | Stunden ❌       | ❌, Mobile-RAM |
 
 **Gegenmaßnahmen (im Design verankert):**
 
-1. **Jahres-Rotation** der Buchungs-DBs (3.3) — Schüler replizieren nur die
-   laufende Periode; bei ~1000 Schülern ggf. Quartals-Rotation.
-2. **Lazy-Open + LRU** für Schüler-Ledger auf Studio-Geräten; Guthaben-Cache
-   pro Ticket mit Head-Hash-Invalidierung, damit Check-in nie vom
-   Öffnen aller DBs abhängt.
+1. ~~**Jahres-Rotation** der Buchungs-DBs~~ — **entfällt** mit 3.3. Eine
+   Schüler-Buchungs-DB wächst um ~0,2 MB pro Jahr; es gibt nichts zu
+   rotieren. Falls eine einzelne DB je unhandlich wird, ist Rotation
+   nachrüstbar, ohne dass sich der Zuschnitt ändert.
+2. **Lazy-Open + LRU** für Buchungs- **und** Ticket-DBs auf Studio-Geräten;
+   Guthaben- und Belegungs-Cache mit Head-Hash-Invalidierung, damit weder
+   Check-in noch Terminübersicht vom Öffnen aller DBs abhängen. Beide
+   Bestände teilen sich dieselbe Mechanik — der Zuschnitt hat die Zahl der
+   nötigen Mechanismen nicht erhöht.
 3. **Archivierung** abgeschlossener Perioden von Studio-Geräten via
    `orbitdb-storacha-bridge` (Export als CAR/Storacha), lokal nur Verweis.
-4. Alle Zahlen oben sind Schätzungen — die **Benchmarks in Abschnitt 11
+4. **`occupancy`-Zähler** (3.3.1) hält Schülergeräte von der Kapazitätsfrage
+   fern: ein Dokument pro Kurs und Termin in der ohnehin replizierten
+   `program`-DB, statt einer Buchungs-DB, die sie sonst nur zum Zählen
+   bräuchten.
+5. Alle Zahlen oben sind Schätzungen — die **Benchmarks in Abschnitt 11
    verifizieren sie** gegen Budgets; Budget-Verletzung = Design-Aktion,
-   nicht Achselzucken.
+   nicht Achselzucken. Die Szenarien messen jetzt die DB-**Anzahl**, nicht
+   mehr die Größe einer geteilten DB.
 
 ## 7. i18n (DE/EN)
 
@@ -536,11 +617,21 @@ Akzeptanzkriterien funktioniert.
   Widerruf in der UI. ✓ E2E: Write vor Grant scheitert, nach Grant gelingt,
   nach Widerruf scheitert wieder.
 - **T3.2** Buchungs-Flow inkl. Statusregeln und „lokal erfasst / bestätigt"-UI.
-  Kursreihen werden **als Ganzes** gebucht (eine Buchung = alle Sessions,
-  Kapazität zählt pro Reihe); offene Stunden pro Termin, bei Reihen mit
-  `allowDropIn` auch einzelne Sessions.
+  Buchungen liegen in `bookings-<studentDid>` (3.3) — beim Pairing legt das
+  Studio-Gerät die DB des Schülers an bzw. öffnet sie und trägt sich als
+  Writer ein. Kursreihen werden **als Ganzes** gebucht (eine Buchung = alle
+  Sessions, Kapazität zählt pro Reihe); offene Stunden pro Termin, bei Reihen
+  mit `allowDropIn` auch einzelne Sessions.
   ✓ E2E bidirektional: Bob bucht, Alice bestätigt, Bob storniert; Bob bucht
   eine Reihe komplett und eine fremde Reihen-Session als Drop-in.
+  ✓ E2E Privacy-Grenze: Carol bucht ebenfalls; Bobs Gerät repliziert Carols
+  Buchung **nicht** und kennt ihre DB-Adresse nicht. Dieser Test ist der
+  Beleg für die Entwurfsänderung in 3.3 und darf nicht gestrichen werden.
+- **T3.3** `occupancy`-Zähler (3.3.1): Studio-Geräte schreiben die
+  bestätigten Plätze pro Kurs und Termin in die `program`-DB, Schülergeräte
+  zeigen „noch N Plätze frei" daraus. ✓ E2E: Alice bestätigt eine Buchung,
+  der Zähler bei Bob steigt, ohne dass Bob eine fremde Buchung sieht;
+  Überbuchung wird beim Bestätigen abgelehnt, nicht beim Anfragen.
 
 ### M4 — Ticket-Ledger (von Anfang an multi-location-fähig)
 
@@ -625,15 +716,15 @@ Hash-Kette und Fork-Erkennung von Tag eins. Kein Umbau-Meilenstein mehr.
 
 **Szenario-Katalog (Spec-Dateien, kumulativ pro Meilenstein):**
 
-| Spec                     | Kontexte          | Kernszenarien                                                                                                                                                           |
-| ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `m1-program.spec`        | alice             | Locations/Kurse/Pakete CRUD, Reihen-Editor (Termin-Generator, Termin streichen), DE↔EN, Reload-Persistenz, Theme-Toggle ohne Flash                                      |
-| `m2-connect.spec`        | alice, carol, bob | Paste- **und** Kamera-Handshake, Share-Flow (gestubbt) inkl. Fallback, Programm-Replikation, Live-Update, Geräte-Onboarding + Widerruf, Abbruch/Retry                   |
-| `m3-booking.spec`        | alice, bob        | Write vor/nach Grant/Widerruf, Buchen→Bestätigen→Stornieren, Reihe als Ganzes + Drop-in-Session, „lokal erfasst"-Status offline                                         |
-| `m4-tickets.spec`        | alice, carol, bob | Barkauf, Kurier-Roundtrip A→B→A, abgelaufen/fremd/falscher-Kurs abgelehnt, Zeitkarte & Reihen-Ticket ohne Abzug, firstRedeem-Fensterstart, Fork-Alarm mit Beweis-Events |
-| `m5-recovery.spec`       | alice, bob        | Export/Import, Passkey-Recovery (WebAuthn-Emulator), Schüler-Restore gleiche DID, `void`+Transfer auf neue DID, Storno-nach-Entwertung-Konflikt                         |
-| `m5-reconciliation.spec` | alice, carol      | A↔B-Abgleich, Nachbelastung, Kassenbericht pro Location/Gerät                                                                                                           |
-| `a11y.spec`              | alice             | axe in Light + Dark auf allen Hauptscreens                                                                                                                              |
+| Spec                     | Kontexte          | Kernszenarien                                                                                                                                                                                                  |
+| ------------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `m1-program.spec`        | alice             | Locations/Kurse/Pakete CRUD, Reihen-Editor (Termin-Generator, Termin streichen), DE↔EN, Reload-Persistenz, Theme-Toggle ohne Flash                                                                             |
+| `m2-connect.spec`        | alice, carol, bob | Paste- **und** Kamera-Handshake, Share-Flow (gestubbt) inkl. Fallback, Programm-Replikation, Live-Update, Geräte-Onboarding + Widerruf, Abbruch/Retry                                                          |
+| `m3-booking.spec`        | alice, carol, bob | Write vor/nach Grant/Widerruf, Buchen→Bestätigen→Stornieren, Reihe als Ganzes + Drop-in-Session, „lokal erfasst"-Status offline, **Bob sieht Carols Buchung nicht**, `occupancy`-Zähler steigt ohne Fremddaten |
+| `m4-tickets.spec`        | alice, carol, bob | Barkauf, Kurier-Roundtrip A→B→A, abgelaufen/fremd/falscher-Kurs abgelehnt, Zeitkarte & Reihen-Ticket ohne Abzug, firstRedeem-Fensterstart, Fork-Alarm mit Beweis-Events                                        |
+| `m5-recovery.spec`       | alice, bob        | Export/Import, Passkey-Recovery (WebAuthn-Emulator), Schüler-Restore gleiche DID, `void`+Transfer auf neue DID, Storno-nach-Entwertung-Konflikt                                                                |
+| `m5-reconciliation.spec` | alice, carol      | A↔B-Abgleich, Nachbelastung, Kassenbericht pro Location/Gerät                                                                                                                                                  |
+| `a11y.spec`              | alice             | axe in Light + Dark auf allen Hauptscreens                                                                                                                                                                     |
 
 **CI (GitHub Actions):** PR-Gate = Lint + vitest (Ledger-Property-Tests) +
 Chromium-E2E + axe; Playwright-Traces/Screenshots als Artefakte bei Failure.
