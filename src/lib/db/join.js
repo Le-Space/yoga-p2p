@@ -12,10 +12,11 @@
 
 import { get, writable } from 'svelte/store';
 
-import { libp2pStore, ownDidStore } from '../p2p/node.js';
+import { libp2pStore, orbitdbStore, ownDidStore } from '../p2p/node.js';
 import { introduceSelf, requestStudio } from '../p2p/studio-protocol.js';
 import { devicesStore, openRegistry, registryDbStore, studioStore } from './registry.js';
 import { bookingsDbStore, openStudentBookings } from './bookings.js';
+import { openStudentTickets, ticketsDbStore } from './tickets.js';
 import { openProgram, programDbStore } from './program.js';
 import { rememberAddress } from './open.js';
 
@@ -30,7 +31,9 @@ import { rememberAddress } from './open.js';
  */
 export const pendingDevicesStore = writable(new Map());
 
-/** @param {{ peerId: string, did: string, label: string, bookingsAddress?: string | null }} hello */
+/**
+ * @param {{ peerId: string, did: string, label: string, publicKey?: string, bookingsAddress?: string | null, ticketsAddress?: string | null }} hello
+ */
 export function rememberPendingDevice(hello) {
 	pendingDevicesStore.update((pending) => {
 		const next = new Map(pending);
@@ -41,9 +44,20 @@ export function rememberPendingDevice(hello) {
 	// Open the introducing device's bookings straight away, without waiting for
 	// an approval: a booking request has to be *visible* before anyone can act
 	// on it, and reading a database somebody handed over grants nothing.
-	if (hello.bookingsAddress && isOwnStudio()) {
+	if (!isOwnStudio()) return;
+
+	if (hello.bookingsAddress) {
 		openStudentBookings(hello.did, hello.bookingsAddress).catch((error) => {
 			console.warn('Could not open the introducing device’s bookings:', error);
+		});
+	}
+
+	// The ledger too: a counter cannot sell or check in against a ledger it
+	// cannot see, and pulling the heads *before* deciding anything is the whole
+	// double-spend mechanism (docs/PLAN.md §4.3).
+	if (hello.ticketsAddress) {
+		openStudentTickets(hello.did, hello.ticketsAddress).catch((error) => {
+			console.warn('Could not open the introducing device’s ledger:', error);
 		});
 	}
 }
@@ -147,7 +161,9 @@ export async function joinStudioFromPeer(peerId) {
 				// So the studio can see this device's requests. Handing over the
 				// address is what "pairing" amounts to here — it grants nothing by
 				// itself, the write access was granted from the registry.
-				bookingsAddress: get(bookingsDbStore)?.address?.toString() ?? null
+				publicKey: get(orbitdbStore)?.identity?.publicKey ?? '',
+				bookingsAddress: get(bookingsDbStore)?.address?.toString() ?? null,
+				ticketsAddress: get(ticketsDbStore)?.address?.toString() ?? null
 			}).catch(() => {
 				// A studio that does not speak this protocol is still worth joining.
 			});

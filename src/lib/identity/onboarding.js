@@ -13,6 +13,7 @@ import { describeOwnStudio, rememberPendingDevice } from '../db/join.js';
 import { openRegistry, registryDbStore } from '../db/registry.js';
 import { openProgram, programDbStore } from '../db/program.js';
 import { grantStudioDevices, openOwnBookings } from '../db/bookings.js';
+import { grantStudioDevices as grantLedgerAccess, openOwnTickets } from '../db/tickets.js';
 import { devicesStore, studioStore } from '../db/registry.js';
 import {
 	createPasskeyCredential,
@@ -106,18 +107,19 @@ async function boot(obtainCredential) {
 		// Every device keeps its own bookings, students and studio alike: a studio
 		// device that also books classes is a person, not a special case.
 		await openOwnBookings();
+		await openOwnTickets();
 
 		// A device approved after this student paired must still be able to
 		// confirm their bookings, so the grants follow the registry rather than a
 		// one-off pairing message.
 		// Both stores: the owner comes from the studio document, the rest from the
 		// device list, and either can arrive by replication after this point.
-		devicesStore.subscribe(() => {
+		const regrant = () => {
 			grantStudioDevices().catch(() => {});
-		});
-		studioStore.subscribe(() => {
-			grantStudioDevices().catch(() => {});
-		});
+			grantLedgerAccess().catch(() => {});
+		};
+		devicesStore.subscribe(regrant);
+		studioStore.subscribe(regrant);
 
 		// Answer peers that ask which studio this device belongs to. Registered
 		// after the databases exist, so the first answer is never an empty one.

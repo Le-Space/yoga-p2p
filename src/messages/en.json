@@ -160,5 +160,12 @@
 	"occupancy_free": "{free} of {capacity} free",
 	"occupancy_full": "Fully booked",
 	"occupancy_unknown": "Occupancy unknown",
-	"booking_full_refused": "The class is full — there is no free place left to confirm."
+	"booking_full_refused": "The class is full — there is no free place left to confirm.",
+	"till_title": "Till",
+	"till_student": "Student",
+	"till_package": "Pass",
+	"till_cash_received": "Cash received",
+	"till_none": "No student device connected yet.",
+	"till_sold": "Sold: {package}",
+	"tickets_none": "No pass bought yet."
 }

@@ -2,7 +2,7 @@
 // Every later milestone adds its own m*-spec; this one keeps the foundation
 // from rotting.
 
-import { test, expect } from './fixtures.js';
+import { test, expect, onboard } from './fixtures.js';
 
 test.describe('app shell', () => {
 	test('renders the program screen', async ({ alice }) => {
@@ -97,19 +97,22 @@ test.describe('theme', () => {
 });
 
 test.describe('ticket balance', () => {
-	test('shows remaining units, freshness and the fork alarm', async ({ bob }) => {
-		await bob.goto('/tickets/');
+	test('says plainly that nothing has been bought yet', async ({ bob }) => {
+		test.setTimeout(180_000);
 
-		const cards = bob.getByTestId('ticket-card');
-		await expect(cards).toHaveCount(3);
+		// This screen used to render sample data. It now folds the device's real
+		// ledger, so a device that has bought nothing shows nothing — and says so,
+		// rather than a zero that could be mistaken for a used-up pass.
+		await bob.goto('/tickets/?ice=host');
+		await onboard(bob, 'bob');
 
-		// 10-class pass, three visits taken.
-		await expect(cards.first().getByTestId('ticket-balance')).toHaveText('7');
-		await expect(cards.first().getByTestId('ticket-as-of')).toContainText(/2026/);
-
-		// The forked pass must show its proof, not a quietly merged balance.
-		const forked = cards.nth(2);
-		await expect(forked.getByTestId('fork-alarm')).toBeVisible();
-		await expect(forked.getByTestId('fork-proof')).toHaveCount(2);
+		await expect(bob.getByTestId('tickets-empty')).toBeVisible();
+		await expect(bob.getByTestId('ticket-card')).toHaveCount(0);
 	});
+
+	// The balance card's other states — units counting down, "Stand vom …", and
+	// the fork alarm with both signed events as proof — are covered where they
+	// can be produced for real: m4-tickets.spec.js for a bought pass, and the
+	// fork alarm with T4.4. Rendering them from fixtures proved the component,
+	// not the app.
 });
