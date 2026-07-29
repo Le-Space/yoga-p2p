@@ -1,0 +1,12 @@
+# The landing page is the only public content. Everything else is application
+# UI that renders client-side and, because the app has no SSR, would serve the
+# landing page's own title and canonical to a crawler — duplicate content with
+# nothing to show for it.
+User-agent: *
+Allow: /$
+Disallow: /connect/
+Disallow: /studio/
+Disallow: /program/
+Disallow: /tickets/
+
+Sitemap: https://yoga.le-space.de/sitemap.xml

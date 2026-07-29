@@ -38,12 +38,51 @@
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
 		<meta name="theme-color" content="#0B0E15" />
 
-		<title>Yoga-Buchung</title>
+		<!--
+			SEO lives here, statically, and not in a <svelte:head> per route: the app
+			renders client-side (ssr = false), so a crawler sees this document and
+			nothing a component would have added. One consequence, recorded in
+			docs/LIMITS.md: every route serves the same title and canonical, which is
+			why robots.txt keeps the crawler on the landing page.
+		-->
+		<title>Yoga-Buchung — Kursbuchung ohne Server und ohne Konto</title>
 		<meta
 			name="description"
-			content="Local-first Kursbuchung für Yogastudios: Programm, Karten und Check-in laufen direkt zwischen den Geräten — ohne Server, ohne Konto."
+			content="Local-first Kursbuchung für Yogastudios: Programm, Karten und Check-in laufen direkt zwischen den Geräten — ohne Server, ohne Konto. Gebaut mit libp2p, OrbitDB und Passkeys."
+		/>
+		<link rel="canonical" href="https://yoga.le-space.de/" />
+		<meta name="robots" content="index, follow" />
+		<meta name="author" content="Le-Space" />
+
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Yoga-Buchung" />
+		<meta property="og:locale" content="de_DE" />
+		<meta property="og:locale:alternate" content="en_GB" />
+		<meta property="og:url" content="https://yoga.le-space.de/" />
+		<meta property="og:title" content="Yoga-Buchung — Kursbuchung ohne Server und ohne Konto" />
+		<meta
+			property="og:description"
+			content="Kurse, Karten und Check-in laufen direkt zwischen den Geräten. Kein Server, kein Relay, kein Konto."
+		/>
+		<meta property="og:image" content="https://yoga.le-space.de/og-image.png" />
+		<meta property="og:image:type" content="image/png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta
+			property="og:image:alt"
+			content="Yoga-Buchung — local-first Peer-to-Peer-Kursbuchung von Le-Space"
 		/>
 
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="Yoga-Buchung — Kursbuchung ohne Server und ohne Konto" />
+		<meta
+			name="twitter:description"
+			content="Kurse, Karten und Check-in laufen direkt zwischen den Geräten. Kein Server, kein Relay, kein Konto."
+		/>
+		<meta name="twitter:image" content="https://yoga.le-space.de/og-image.png" />
+
+		<meta name="application-name" content="Yoga-Buchung" />
+		<meta name="apple-mobile-web-app-title" content="Yoga-Buchung" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

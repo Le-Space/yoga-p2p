@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	One entry on purpose. The other routes are application screens behind a
+	passkey, not pages: they carry no indexable content and share this page's
+	metadata (see the note in src/app.html).
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+	<url>
+		<loc>https://yoga.le-space.de/</loc>
+		<changefreq>weekly</changefreq>
+		<priority>1.0</priority>
+	</url>
+</urlset>
