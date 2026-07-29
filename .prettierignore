@@ -7,3 +7,11 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Written by the Paraglide plugin on every build. The project's own nested
+# .gitignore keeps them out of git, but Prettier only reads the root one — so
+# without this a fresh CI checkout formats differently than a local tree that
+# has already built once.
+/project.inlang/*
+!/project.inlang/settings.json
+/src/lib/paraglide/
