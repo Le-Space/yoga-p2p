@@ -15,6 +15,7 @@ import { get, writable } from 'svelte/store';
 import { libp2pStore, ownDidStore } from '../p2p/node.js';
 import { introduceSelf, requestStudio } from '../p2p/studio-protocol.js';
 import { devicesStore, openRegistry, registryDbStore, studioStore } from './registry.js';
+import { bookingsDbStore, openStudentBookings } from './bookings.js';
 import { openProgram, programDbStore } from './program.js';
 import { rememberAddress } from './open.js';
 
@@ -29,13 +30,22 @@ import { rememberAddress } from './open.js';
  */
 export const pendingDevicesStore = writable(new Map());
 
-/** @param {{ peerId: string, did: string, label: string }} hello */
+/** @param {{ peerId: string, did: string, label: string, bookingsAddress?: string | null }} hello */
 export function rememberPendingDevice(hello) {
 	pendingDevicesStore.update((pending) => {
 		const next = new Map(pending);
 		next.set(hello.did, { ...hello, seenAt: new Date().toISOString() });
 		return next;
 	});
+
+	// Open the introducing device's bookings straight away, without waiting for
+	// an approval: a booking request has to be *visible* before anyone can act
+	// on it, and reading a database somebody handed over grants nothing.
+	if (hello.bookingsAddress && isOwnStudio()) {
+		openStudentBookings(hello.did, hello.bookingsAddress).catch((error) => {
+			console.warn('Could not open the introducing device’s bookings:', error);
+		});
+	}
 }
 
 /** @param {string} did */
@@ -133,7 +143,11 @@ export async function joinStudioFromPeer(peerId) {
 		if (ownDid) {
 			await introduceSelf(libp2p, peerId, {
 				did: ownDid,
-				label: navigator.userAgent.slice(0, 80)
+				label: navigator.userAgent.slice(0, 80),
+				// So the studio can see this device's requests. Handing over the
+				// address is what "pairing" amounts to here — it grants nothing by
+				// itself, the write access was granted from the registry.
+				bookingsAddress: get(bookingsDbStore)?.address?.toString() ?? null
 			}).catch(() => {
 				// A studio that does not speak this protocol is still worth joining.
 			});
