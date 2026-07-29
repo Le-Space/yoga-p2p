@@ -12,6 +12,7 @@
 	import {
 		coursesStore,
 		courseWindow,
+		occupancyStore,
 		deactivateCourse,
 		localized,
 		packagesStore,
@@ -23,6 +24,7 @@
 	import { canEditProgram } from '$lib/db/join.js';
 	import { nextOccurrence } from '$lib/program/sessions.js';
 	import { requestBooking } from '$lib/db/bookings.js';
+	import { readOccupancy } from '$lib/db/occupancy.js';
 	import { devicesStore, studioStore } from '$lib/db/registry.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -114,6 +116,21 @@
 		// rather than pushing it into another week.
 		sessions = sessions.filter((session) => session.date !== date);
 	}
+
+	/**
+	 * Free places for a course, as published by the studio.
+	 *
+	 * `null` means nobody has published a count yet — which is the truth on a
+	 * device that has just joined, and better said than guessed.
+	 *
+	 * @param {any} course
+	 */
+	function places(course) {
+		const date = course.mode === 'series' ? null : nextOccurrence(course, today);
+		return readOccupancy($occupancyStore, course._id, date);
+	}
+
+	const today = new Date().toISOString().slice(0, 10);
 
 	/**
 	 * Book a course.
@@ -218,6 +235,7 @@
 		<ul class="mt-3 grid gap-2" data-testid="course-list">
 			{#each $coursesStore as entry (entry._id)}
 				{@const window = courseWindow(entry)}
+				{@const free = places(entry)}
 				<li
 					class="flex flex-wrap items-baseline gap-3 border-b border-border pb-2"
 					data-testid="course-item"
@@ -225,6 +243,7 @@
 					data-mode={entry.mode}
 					data-sessions={entry.sessions?.length ?? 0}
 					data-active={entry.active}
+					data-free={free ? Math.max(0, free.capacity - free.confirmed) : ''}
 				>
 					<span class="flex-1">
 						{localized(entry.title, getLocale())}
@@ -239,6 +258,25 @@
 							{/if}
 						</span>
 					</span>
+					<!--
+						Published by the studio, because a student device holds only its
+						own booking and cannot count a class itself (docs/PLAN.md §3.3.1).
+						Saying "unknown" is honest on a device that has not yet seen a
+						count; guessing zero would not be.
+					-->
+					<span class="text-sm text-faint" data-testid="course-occupancy">
+						{#if !free}
+							{m.occupancy_unknown()}
+						{:else if free.capacity - free.confirmed <= 0}
+							<span class="text-warning">{m.occupancy_full()}</span>
+						{:else}
+							{m.occupancy_free({
+								free: free.capacity - free.confirmed,
+								capacity: free.capacity
+							})}
+						{/if}
+					</span>
+
 					{#if entry.active}
 						<button
 							type="button"

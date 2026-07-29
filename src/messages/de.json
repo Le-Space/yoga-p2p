@@ -156,5 +156,9 @@
 	"booking_status_declined": "Abgelehnt",
 	"booking_status_cancelled": "Storniert",
 	"booking_local_only": "Lokal erfasst — noch nicht beim Studio angekommen",
-	"booking_series_whole": "Ganze Reihe"
+	"booking_series_whole": "Ganze Reihe",
+	"occupancy_free": "{free} von {capacity} frei",
+	"occupancy_full": "Ausgebucht",
+	"occupancy_unknown": "Belegung unbekannt",
+	"booking_full_refused": "Der Kurs ist voll — es gibt keinen freien Platz mehr zu bestätigen."
 }

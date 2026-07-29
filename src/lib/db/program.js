@@ -17,6 +17,7 @@ import { seriesWindow } from '../program/sessions.js';
 export const programDbStore = writable(/** @type {any} */ (null));
 export const coursesStore = writable(/** @type {any[]} */ ([]));
 export const packagesStore = writable(/** @type {any[]} */ ([]));
+export const occupancyStore = writable(/** @type {any[]} */ ([]));
 
 // See the note in registry.js: handles below a stopped node are dead, and
 // clearing them here means no screen can hold one by accident.
@@ -25,6 +26,7 @@ nodeStatusStore.subscribe(({ state }) => {
 	programDbStore.set(null);
 	coursesStore.set([]);
 	packagesStore.set([]);
+	occupancyStore.set([]);
 });
 
 /**
@@ -49,6 +51,7 @@ export async function refreshProgram() {
 
 	coursesStore.set(documents.filter((doc) => doc.type === 'course'));
 	packagesStore.set(documents.filter((doc) => doc.type === 'package'));
+	occupancyStore.set(documents.filter((doc) => doc.type === 'occupancy'));
 }
 
 /**

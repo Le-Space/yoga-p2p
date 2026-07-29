@@ -17,6 +17,8 @@
 	} from '$lib/db/bookings.js';
 	import { canEditProgram } from '$lib/db/join.js';
 	import { coursesStore, localized } from '$lib/db/program.js';
+	import { hasFreePlace, syncOccupancy } from '$lib/db/occupancy.js';
+	import { studentBookingsStore as allStudentBookings } from '$lib/db/bookings.js';
 	import { devicesStore, studioStore } from '$lib/db/registry.js';
 	import { ownDidStore } from '$lib/p2p/node.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
@@ -77,6 +79,23 @@
 	async function decide(booking, status) {
 		const own = $ownDidStore;
 		const device = $devicesStore.find((entry) => entry.deviceDid === own);
+		const course = $coursesStore.find((entry) => entry._id === booking.courseId);
+
+		// Capacity is checked here and nowhere earlier: a request is a wish, and
+		// this device is the only one that can see how many places are actually
+		// taken (docs/PLAN.md §3.3.1).
+		if (
+			status === 'confirmed' &&
+			course &&
+			!hasFreePlace({
+				courseId: booking.courseId,
+				date: booking.date ?? null,
+				capacity: Number(course.capacity)
+			})
+		) {
+			error = m.booking_full_refused();
+			return;
+		}
 
 		await run(() =>
 			decideBooking({
@@ -91,7 +110,20 @@
 				}
 			})
 		);
+
+		await run(async () => {
+			await syncOccupancy(own ?? '');
+		});
 	}
+
+	// Republish whenever a student's bookings change here — a cancellation frees
+	// a place just as much as a confirmation takes one, and it arrives by
+	// replication rather than through a button on this screen.
+	$effect(() => {
+		void $allStudentBookings;
+		if (!isStudioDevice) return;
+		syncOccupancy($ownDidStore ?? '').catch(() => {});
+	});
 </script>
 
 <h1 class="text-3xl font-bold">{m.bookings_title()}</h1>
