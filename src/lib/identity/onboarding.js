@@ -8,8 +8,8 @@
 import { derived, get, writable } from 'svelte/store';
 
 import { startNode, ownDidStore, orbitdbStore, libp2pStore } from '../p2p/node.js';
-import { serveStudio } from '../p2p/studio-protocol.js';
-import { describeOwnStudio } from '../db/join.js';
+import { listenForDevices, serveStudio } from '../p2p/studio-protocol.js';
+import { describeOwnStudio, rememberPendingDevice } from '../db/join.js';
 import { openRegistry, registryDbStore } from '../db/registry.js';
 import { openProgram, programDbStore } from '../db/program.js';
 import {
@@ -104,6 +104,7 @@ async function boot(obtainCredential) {
 		// Answer peers that ask which studio this device belongs to. Registered
 		// after the databases exist, so the first answer is never an empty one.
 		await serveStudio(get(libp2pStore), describeOwnStudio);
+		await listenForDevices(get(libp2pStore), rememberPendingDevice);
 
 		bootStore.set({ state: 'ready', error: null });
 	} catch (/** @type {any} */ error) {

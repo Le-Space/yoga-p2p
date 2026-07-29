@@ -12,12 +12,14 @@
 		deactivateLocation,
 		devicesStore,
 		locationsStore,
+		registerDevice,
 		revokeDevice,
 		saveLocation,
 		saveStudio,
 		studioStore
 	} from '$lib/db/registry.js';
 	import { localized } from '$lib/db/program.js';
+	import { forgetPendingDevice, pendingDevicesStore } from '$lib/db/join.js';
 	import { ownDidStore } from '$lib/p2p/node.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -26,6 +28,45 @@
 	let error = $state('');
 
 	let location = $state({ id: '', nameDe: '', nameEn: '', address: '' });
+
+	const ROLES = [
+		{ value: 'front-desk', label: () => m.pending_device_role_frontdesk() },
+		{ value: 'teacher', label: () => m.pending_device_role_teacher() },
+		{ value: 'owner', label: () => m.pending_device_role_owner() }
+	];
+
+	/**
+	 * Per-device form state, keyed by DID.
+	 *
+	 * Seeded in an effect rather than on demand from the template: Svelte cannot
+	 * bind to a function call, so each draft has to exist as a plain property
+	 * before the form renders.
+	 */
+	let drafts = $state(
+		/** @type {Record<string, { role: string, locationId: string, label: string }>} */ ({})
+	);
+
+	$effect(() => {
+		for (const did of $pendingDevicesStore.keys()) {
+			if (!drafts[did]) drafts[did] = { role: 'front-desk', locationId: '', label: '' };
+		}
+	});
+
+	/** @param {{ did: string, label: string }} device */
+	async function approve(device) {
+		const draft = drafts[device.did];
+
+		await run(async () => {
+			await registerDevice({
+				deviceDid: device.did,
+				role: /** @type {any} */ (draft.role),
+				locationId: draft.locationId,
+				// Falls back to what the device reported about itself, trimmed.
+				label: draft.label || device.label || device.did.slice(-8)
+			});
+			forgetPendingDevice(device.did);
+		});
+	}
 
 	// The studio document arrives asynchronously; seed the field once it does,
 	// without clobbering what the user is typing.
@@ -178,6 +219,74 @@
 				{m.location_add()}
 			</button>
 		</form>
+	</section>
+
+	<section class="mt-6 rounded-card border border-border bg-surface p-6">
+		<h2 class="eyebrow">{m.pending_devices_title()}</h2>
+
+		{#each [...$pendingDevicesStore.values()].filter((d) => drafts[d.did]) as device (device.did)}
+			<form
+				class="mt-4 grid max-w-lg gap-3 border-b border-border pb-4"
+				data-testid="pending-device"
+				data-device-did={device.did}
+				onsubmit={(event) => {
+					event.preventDefault();
+					approve(device);
+				}}
+			>
+				<p class="font-mono text-xs break-all text-faint">{device.did}</p>
+
+				<div class="grid grid-cols-2 gap-3">
+					<label class="grid gap-1 text-sm">
+						{m.pending_device_role()}
+						<select
+							data-testid="pending-device-role"
+							bind:value={drafts[device.did].role}
+							class="rounded-control border p-2"
+						>
+							{#each ROLES as role (role.value)}
+								<option value={role.value}>{role.label()}</option>
+							{/each}
+						</select>
+					</label>
+
+					<label class="grid gap-1 text-sm">
+						{m.pending_device_location()}
+						<select
+							data-testid="pending-device-location"
+							bind:value={drafts[device.did].locationId}
+							required
+							class="rounded-control border p-2"
+						>
+							<option value="" disabled></option>
+							{#each $locationsStore.filter((entry) => entry.active) as entry (entry._id)}
+								<option value={entry._id}>{localized(entry.name, getLocale())}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+
+				<label class="grid gap-1 text-sm">
+					{m.pending_device_label()}
+					<input
+						data-testid="pending-device-label"
+						bind:value={drafts[device.did].label}
+						class="rounded-control border p-2"
+					/>
+					<span class="text-xs text-faint">{m.pending_device_hint()}</span>
+				</label>
+
+				<button
+					type="submit"
+					data-testid="pending-device-register"
+					class="justify-self-start rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast"
+				>
+					{m.pending_device_register()}
+				</button>
+			</form>
+		{:else}
+			<p class="mt-3 text-faint" data-testid="pending-devices-empty">{m.pending_devices_none()}</p>
+		{/each}
 	</section>
 
 	<section class="mt-6 rounded-card border border-border bg-surface p-6">

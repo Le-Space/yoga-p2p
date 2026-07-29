@@ -130,5 +130,15 @@
 	"join_busy": "Opening the studio …",
 	"join_success": "Connected to “{studio}” — the programme is replicating.",
 	"join_failed": "Could not open the studio: {reason}",
-	"guest_readonly": "You are viewing this studio as a guest. Only the studio itself can make changes."
+	"guest_readonly": "You are viewing this studio as a guest. Only the studio itself can make changes.",
+	"pending_devices_title": "Devices awaiting approval",
+	"pending_devices_none": "No device is waiting. Connect one first via “Connect”.",
+	"pending_device_role": "Role",
+	"pending_device_role_owner": "Owner",
+	"pending_device_role_frontdesk": "Front desk",
+	"pending_device_role_teacher": "Teacher",
+	"pending_device_location": "Location",
+	"pending_device_label": "Label for the device",
+	"pending_device_register": "Approve device",
+	"pending_device_hint": "Name the device, not the person."
 }

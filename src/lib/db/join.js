@@ -13,10 +13,39 @@
 import { get, writable } from 'svelte/store';
 
 import { libp2pStore, ownDidStore } from '../p2p/node.js';
-import { requestStudio } from '../p2p/studio-protocol.js';
-import { openRegistry, registryDbStore, studioStore } from './registry.js';
+import { introduceSelf, requestStudio } from '../p2p/studio-protocol.js';
+import { devicesStore, openRegistry, registryDbStore, studioStore } from './registry.js';
 import { openProgram, programDbStore } from './program.js';
 import { rememberAddress } from './open.js';
+
+/**
+ * Devices that have introduced themselves but are not registered yet.
+ *
+ * Kept in memory only: an introduction is a claim from a peer, and claims do
+ * not belong in the registry until the owner has acted on one. Keyed by DID so
+ * a device reconnecting does not queue up twice.
+ *
+ * @type {import('svelte/store').Writable<Map<string, { peerId: string, did: string, label: string, seenAt: string }>>}
+ */
+export const pendingDevicesStore = writable(new Map());
+
+/** @param {{ peerId: string, did: string, label: string }} hello */
+export function rememberPendingDevice(hello) {
+	pendingDevicesStore.update((pending) => {
+		const next = new Map(pending);
+		next.set(hello.did, { ...hello, seenAt: new Date().toISOString() });
+		return next;
+	});
+}
+
+/** @param {string} did */
+export function forgetPendingDevice(did) {
+	pendingDevicesStore.update((pending) => {
+		const next = new Map(pending);
+		next.delete(did);
+		return next;
+	});
+}
 
 export const joinStore = writable(
 	/** @type {{ state: 'idle' | 'joining' | 'joined' | 'error', error: string | null, studioName: string | null }} */ ({
@@ -40,6 +69,27 @@ export function isOwnStudio() {
 	// device that can be looking at it is the one that just created it.
 	if (!studio?.ownerDid) return true;
 	return studio.ownerDid === own;
+}
+
+/**
+ * True when this device is a registered, unrevoked studio device.
+ *
+ * The registry is the authority, not local state: a device learns it was
+ * approved — or revoked — by replicating the entry the owner wrote. That is the
+ * same document the ledger checks signatures against, so the editor a device
+ * shows itself and the writes its peers will accept cannot drift apart.
+ */
+export function isRegisteredDevice() {
+	const own = get(ownDidStore);
+	if (!own) return false;
+
+	const device = get(devicesStore).find((entry) => entry.deviceDid === own);
+	return Boolean(device) && !device.revokedAt;
+}
+
+/** Owner, or an approved device: the two ways to hold write access. */
+export function canEditProgram() {
+	return isOwnStudio() || isRegisteredDevice();
 }
 
 /**
@@ -76,6 +126,19 @@ export async function joinStudioFromPeer(peerId) {
 	joinStore.set({ state: 'joining', error: null, studioName: null });
 
 	try {
+		// Say who we are before asking anything. The studio cannot register a
+		// device whose DID it never learned, and the introduction has to happen
+		// while the connection is up.
+		const ownDid = get(ownDidStore);
+		if (ownDid) {
+			await introduceSelf(libp2p, peerId, {
+				did: ownDid,
+				label: navigator.userAgent.slice(0, 80)
+			}).catch(() => {
+				// A studio that does not speak this protocol is still worth joining.
+			});
+		}
+
 		const announcement = await requestStudio(libp2p, peerId);
 		if (!announcement) {
 			throw new Error('That device does not offer a studio.');

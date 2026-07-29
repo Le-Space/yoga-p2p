@@ -20,8 +20,8 @@
 		saveSeriesCourse
 	} from '$lib/db/program.js';
 	import { generateSessions } from '$lib/program/sessions.js';
-	import { isOwnStudio } from '$lib/db/join.js';
-	import { studioStore } from '$lib/db/registry.js';
+	import { canEditProgram } from '$lib/db/join.js';
+	import { devicesStore, studioStore } from '$lib/db/registry.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import * as m from '$lib/paraglide/messages.js';
 
@@ -45,10 +45,13 @@
 
 	let error = $state('');
 
-	// A guest replicates the programme read-only: the databases were created
-	// with the owner in their access controller, so a write from here is refused
-	// by the ACL. Hiding the forms is honesty about that, not the enforcement.
-	let canEdit = $derived(Boolean($studioStore) && isOwnStudio());
+	// The owner, or a device the owner approved. Everyone else replicates the
+	// programme read-only: the ACL refuses their writes, and hiding the forms is
+	// honesty about that rather than the enforcement.
+	//
+	// Reads $devicesStore so an approval — or a revocation — arriving by
+	// replication changes what this device offers, without a reload.
+	let canEdit = $derived(Boolean($studioStore) && Boolean($devicesStore) && canEditProgram());
 
 	let course = $state({
 		id: '',

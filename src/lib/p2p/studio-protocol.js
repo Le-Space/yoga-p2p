@@ -20,6 +20,17 @@ import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
 
 export const STUDIO_PROTOCOL = '/yoga/studio/1.0.0';
 
+/**
+ * The other direction: a device telling the studio who it is.
+ *
+ * A separate protocol rather than a reply on the studio stream, because these
+ * streams have no half-close — only `close()`, which shuts the writable end and
+ * then waits for the remote. Two one-way exchanges are trivially correct;
+ * a request/response over one stream would need careful choreography for no
+ * gain at this size.
+ */
+export const DEVICE_HELLO_PROTOCOL = '/yoga/device-hello/1.0.0';
+
 /** A joining device should never be asked to buffer more than this. */
 const MAX_ANNOUNCEMENT_BYTES = 8 * 1024;
 const READ_TIMEOUT_MS = 15_000;
@@ -67,6 +78,62 @@ export async function serveStudio(libp2p, describe) {
 /** @param {any} libp2p */
 export async function stopServingStudio(libp2p) {
 	await libp2p.unhandle(STUDIO_PROTOCOL).catch(() => {});
+	await libp2p.unhandle(DEVICE_HELLO_PROTOCOL).catch(() => {});
+}
+
+/**
+ * Listen for devices introducing themselves.
+ *
+ * An introduction is a claim, not a credential: it says "this peer says its DID
+ * is X". Nothing is granted here. The owner sees the claim, decides, and writes
+ * the registry entry — and from then on the DID is what signatures are checked
+ * against, so a lie would simply produce events nobody can verify.
+ *
+ * @param {any} libp2p
+ * @param {(hello: { peerId: string, did: string, label: string }) => void} onHello
+ */
+export async function listenForDevices(libp2p, onHello) {
+	await libp2p.handle(
+		DEVICE_HELLO_PROTOCOL,
+		async (/** @type {any} */ stream, /** @type {any} */ connection) => {
+			try {
+				const hello = JSON.parse(await readAll(stream));
+				if (typeof hello?.did !== 'string' || !hello.did) return;
+
+				onHello({
+					peerId: String(connection.remotePeer),
+					did: hello.did,
+					label: typeof hello.label === 'string' ? hello.label.slice(0, 120) : ''
+				});
+			} catch (error) {
+				console.warn('Malformed device introduction ignored:', error);
+			} finally {
+				await stream.close().catch(() => {});
+			}
+		},
+		{ maxInboundStreams: 8 }
+	);
+}
+
+/**
+ * Introduce this device to a studio.
+ *
+ * @param {any} libp2p
+ * @param {string | any} peerId
+ * @param {{ did: string, label: string }} self
+ */
+export async function introduceSelf(libp2p, peerId, self) {
+	const peer = typeof peerId === 'string' ? peerIdFromString(peerId) : peerId;
+
+	const stream = await libp2p.dialProtocol(peer, DEVICE_HELLO_PROTOCOL, {
+		signal: AbortSignal.timeout(READ_TIMEOUT_MS)
+	});
+
+	try {
+		stream.send(uint8ArrayFromString(JSON.stringify(self)));
+	} finally {
+		await stream.close().catch(() => {});
+	}
 }
 
 /**

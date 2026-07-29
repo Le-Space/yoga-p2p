@@ -11,6 +11,7 @@ import { get, writable } from 'svelte/store';
 
 import { openDocuments, readAll } from './open.js';
 import { nodeStatusStore, ownDidStore } from '../p2p/node.js';
+import { programDbStore } from './program.js';
 
 export const registryDbStore = writable(/** @type {any} */ (null));
 export const studioStore = writable(/** @type {any} */ (null));
@@ -128,6 +129,12 @@ export async function deactivateLocation(locationId) {
 export async function registerDevice({ deviceDid, role, locationId, label }) {
 	const db = requireDb();
 
+	// The grant comes first. If the registry entry landed and the ACL write
+	// failed, the studio would show a registered device that cannot actually
+	// write — the confusing half. The other order fails safe: an unrecorded
+	// grant is harmless, because the ledger judges events by the registry.
+	await grantProgramWrite(deviceDid);
+
 	await db.put({
 		_id: `device:${deviceDid}`,
 		type: 'device',
@@ -140,6 +147,20 @@ export async function registerDevice({ deviceDid, role, locationId, label }) {
 	});
 
 	await refreshRegistry();
+}
+
+/**
+ * Let a device write to the programme.
+ *
+ * The registry itself stays owner-only (docs/PLAN.md §3.1) — it is the root of
+ * trust, and a front-desk device that could edit it could register itself.
+ *
+ * @param {string} deviceDid
+ */
+async function grantProgramWrite(deviceDid) {
+	const program = get(programDbStore);
+	if (!program?.access?.grant) return;
+	await program.access.grant('write', deviceDid);
 }
 
 /**
@@ -156,8 +177,17 @@ export async function revokeDevice(deviceDid) {
 	const existing = await db.get(`device:${deviceDid}`);
 	if (!existing) throw new Error(`No device ${deviceDid}`);
 
+	// Both halves, and the registry entry first this time: the timestamp is what
+	// the ledger judges past events against, and it must exist even if pulling
+	// the ACL grant fails. A device that still holds the grant but is marked
+	// revoked writes entries every peer refuses — noisy, but not harmful.
 	await db.put({ ...existing.value, revokedAt: new Date().toISOString() });
 	await refreshRegistry();
+
+	const program = get(programDbStore);
+	if (program?.access?.revoke) {
+		await program.access.revoke('write', deviceDid);
+	}
 }
 
 /**
