@@ -115,12 +115,17 @@ export async function connectViaPaste(offerer, answerer) {
 	await openConnect(offerer, 'offerer');
 	await openConnect(answerer, 'answerer');
 
+	// Capture what each field holds before acting, so the reads below can wait
+	// for a *new* value rather than any value.
+	const previousOffer = await currentPayload(offerer);
+	const previousAnswer = await currentPayload(answerer);
+
 	await offerer.getByTestId('create-offer').click();
-	const offer = await readPayload(offerer);
+	const offer = await readPayload(offerer, { changedFrom: previousOffer });
 
 	await answerer.getByTestId('inbound-payload').fill(offer);
 	await answerer.getByTestId('submit-inbound').click();
-	const answer = await readPayload(answerer);
+	const answer = await readPayload(answerer, { changedFrom: previousAnswer });
 
 	await offerer.getByTestId('inbound-payload').fill(answer);
 	await offerer.getByTestId('submit-inbound').click();
@@ -143,11 +148,36 @@ export async function connectViaPaste(offerer, answerer) {
  *
  * @param {Page} page
  */
-export async function readPayload(page) {
+/**
+ * What the payload field holds right now, or '' when it does not exist yet.
+ *
+ * The field only renders once there is a payload, so asking a fresh device for
+ * its current value would wait for an element that is not coming.
+ *
+ * @param {Page} page
+ */
+export async function currentPayload(page) {
 	const field = page.getByTestId('payload');
+	return (await field.count()) > 0 ? field.inputValue() : '';
+}
+
+export async function readPayload(page, { changedFrom = '' } = {}) {
+	const field = page.getByTestId('payload');
+
+	// Waiting for "not empty" is not enough on a page that already ran a
+	// handshake: the field still holds the previous payload, so the read races
+	// the new one and can hand back a stale offer. The peer then answers an
+	// offer the other side has already replaced, and the session ids disagree.
 	await expect
-		.poll(async () => (await field.inputValue()).length, { timeout: 60_000 })
-		.toBeGreaterThan(0);
+		.poll(
+			async () => {
+				const value = await field.inputValue();
+				return value.length > 0 && value !== changedFrom;
+			},
+			{ timeout: 60_000 }
+		)
+		.toBe(true);
+
 	return field.inputValue();
 }
 
@@ -170,8 +200,9 @@ export { expect };
  * @returns {Promise<{ answerer: Page, close: () => Promise<void> }>}
  */
 export async function connectViaCamera(offerer, who = 'scanner') {
+	const previousOffer = await currentPayload(offerer);
 	await offerer.getByTestId('create-offer').click();
-	const offer = await readPayload(offerer);
+	const offer = await readPayload(offerer, { changedFrom: previousOffer });
 
 	// A payload too large for one code is a real limit, not a test problem
 	// (docs/LIMITS.md §1.6) — say so rather than fail somewhere in the decoder.

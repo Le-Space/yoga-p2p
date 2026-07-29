@@ -13,6 +13,7 @@
 	// exactly how it gets installed from an IPFS gateway.
 	const NAV = /** @type {const} */ ([
 		{ path: '/program', testid: 'nav-program', label: () => m.nav_program() },
+		{ path: '/bookings', testid: 'nav-bookings', label: () => m.nav_bookings() },
 		{ path: '/studio', testid: 'nav-studio', label: () => m.nav_registry() },
 		{ path: '/tickets', testid: 'nav-tickets', label: () => m.nav_tickets() },
 		{ path: '/connect', testid: 'nav-connect', label: () => m.nav_connect() }

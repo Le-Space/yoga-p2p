@@ -140,5 +140,21 @@
 	"pending_device_location": "Location",
 	"pending_device_label": "Label for the device",
 	"pending_device_register": "Approve device",
-	"pending_device_hint": "Name the device, not the person."
+	"pending_device_hint": "Name the device, not the person.",
+	"nav_bookings": "Bookings",
+	"bookings_title": "Bookings",
+	"bookings_mine": "My bookings",
+	"bookings_mine_none": "Nothing booked yet.",
+	"bookings_incoming": "Requests",
+	"bookings_incoming_none": "No open requests.",
+	"booking_book": "Book",
+	"booking_cancel": "Cancel",
+	"booking_confirm": "Confirm",
+	"booking_decline": "Decline",
+	"booking_status_requested": "Requested",
+	"booking_status_confirmed": "Confirmed",
+	"booking_status_declined": "Declined",
+	"booking_status_cancelled": "Cancelled",
+	"booking_local_only": "Recorded locally — has not reached the studio yet",
+	"booking_series_whole": "Whole series"
 }

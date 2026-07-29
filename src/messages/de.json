@@ -140,5 +140,21 @@
 	"pending_device_location": "Standort",
 	"pending_device_label": "Bezeichnung des Geräts",
 	"pending_device_register": "Gerät freigeben",
-	"pending_device_hint": "Gib dem Gerät einen Namen, der das Gerät beschreibt — nicht die Person."
+	"pending_device_hint": "Gib dem Gerät einen Namen, der das Gerät beschreibt — nicht die Person.",
+	"nav_bookings": "Buchungen",
+	"bookings_title": "Buchungen",
+	"bookings_mine": "Meine Buchungen",
+	"bookings_mine_none": "Noch nichts gebucht.",
+	"bookings_incoming": "Anfragen",
+	"bookings_incoming_none": "Keine offenen Anfragen.",
+	"booking_book": "Buchen",
+	"booking_cancel": "Stornieren",
+	"booking_confirm": "Bestätigen",
+	"booking_decline": "Ablehnen",
+	"booking_status_requested": "Angefragt",
+	"booking_status_confirmed": "Bestätigt",
+	"booking_status_declined": "Abgelehnt",
+	"booking_status_cancelled": "Storniert",
+	"booking_local_only": "Lokal erfasst — noch nicht beim Studio angekommen",
+	"booking_series_whole": "Ganze Reihe"
 }

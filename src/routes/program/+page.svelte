@@ -21,6 +21,8 @@
 	} from '$lib/db/program.js';
 	import { generateSessions } from '$lib/program/sessions.js';
 	import { canEditProgram } from '$lib/db/join.js';
+	import { nextOccurrence } from '$lib/program/sessions.js';
+	import { requestBooking } from '$lib/db/bookings.js';
 	import { devicesStore, studioStore } from '$lib/db/registry.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -111,6 +113,30 @@
 		// Dropped, not replaced: cancelling for a holiday shortens the course
 		// rather than pushing it into another week.
 		sessions = sessions.filter((session) => session.date !== date);
+	}
+
+	/**
+	 * Book a course.
+	 *
+	 * A series is booked as a whole — one booking covers every session, and the
+	 * date stays null (docs/PLAN.md §3.2). An open weekly class is booked for its
+	 * next occurrence, which is the only date a student could mean.
+	 *
+	 * @param {any} course
+	 */
+	async function book(course) {
+		await run(async () => {
+			const date =
+				course.mode === 'series'
+					? null
+					: nextOccurrence(course, new Date().toISOString().slice(0, 10));
+
+			await requestBooking({
+				courseId: course._id,
+				date,
+				locationId: course.locationId
+			});
+		});
 	}
 
 	async function submitCourse(/** @type {SubmitEvent} */ event) {
@@ -214,6 +240,16 @@
 						</span>
 					</span>
 					{#if entry.active}
+						<button
+							type="button"
+							data-testid="course-book"
+							onclick={() => book(entry)}
+							class="rounded-control bg-accent px-3 py-1 text-sm font-medium text-accent-contrast"
+						>
+							{m.booking_book()}
+						</button>
+					{/if}
+					{#if entry.active && canEdit}
 						<button
 							type="button"
 							data-testid="course-deactivate"
