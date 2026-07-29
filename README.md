@@ -65,13 +65,14 @@ Logik muss ohne Browser testbar sein.
 
 ## Dokumente
 
-| Datei                                | Inhalt                                                 |
-| ------------------------------------ | ------------------------------------------------------ |
-| [`docs/PLAN.md`](docs/PLAN.md)       | Architektur, Datenmodell, Meilensteine — verbindlich   |
-| [`docs/DESIGN.md`](docs/DESIGN.md)   | Le-Space-Tokens mit Quelle je Wert, Kontrast-Messwerte |
-| [`docs/LIMITS.md`](docs/LIMITS.md)   | Entwurfsgrenzen und Upstream-Fragen                    |
-| [`docs/TESTING.md`](docs/TESTING.md) | Teststrategie, Checkliste für echte Geräte             |
-| [`CLAUDE.md`](CLAUDE.md)             | Konventionen für die Arbeit mit Claude Code            |
+| Datei                                | Inhalt                                                            |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| [`docs/PLAN.md`](docs/PLAN.md)       | Architektur, Datenmodell, Meilensteine — verbindlich              |
+| [`docs/DESIGN.md`](docs/DESIGN.md)   | Le-Space-Tokens mit Quelle je Wert, Kontrast-Messwerte            |
+| [`docs/LIMITS.md`](docs/LIMITS.md)   | Entwurfsgrenzen und Upstream-Fragen                               |
+| [`docs/PRIVACY.md`](docs/PRIVACY.md) | Personenbezogene Daten und Metadaten, Wirkung von Verschlüsselung |
+| [`docs/TESTING.md`](docs/TESTING.md) | Teststrategie, Checkliste für echte Geräte                        |
+| [`CLAUDE.md`](CLAUDE.md)             | Konventionen für die Arbeit mit Claude Code                       |
 
 ## Lizenz
 

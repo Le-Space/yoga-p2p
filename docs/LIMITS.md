@@ -39,15 +39,24 @@ verbinden. Der Remote-Pfad (Copy & Paste über Messenger) schlägt dort fehl;
 der Studio-Pfad (QR, gleiches Netz) ist davon nicht betroffen. Der
 Verbindungs-Assistent muss diesen Fall ehrlich benennen statt endlos zu drehen.
 
-### 1.3 Privacy: OrbitDB repliziert ganze Datenbanken
+### 1.3 Privacy: OrbitDB repliziert ganze Datenbanken — und kennt keine Leserechte
 
-Es gibt keine Teil-Replikation. Wer eine `bookings-<location>`-DB repliziert,
-hat damit auch die Buchungen aller anderen darin: DID, Anzeigename, Kurs,
-Termin, Status.
+Zwei getrennte Punkte, die oft vermischt werden:
 
-Mitigation v1: Datensparsamkeit (nur DID + frei gewählter Alias, Pseudonym
-möglich) und Aufklärung im Consent-Text. v2-Optionen: Buchungs-DB pro Schüler
-oder Feldverschlüsselung. Das ist eine Entwurfsfrage, keine ad-hoc-Lösung.
+**Voll-Replikation.** Es gibt keine Teil-Replikation. Wer eine
+`bookings-<location>`-DB repliziert, hat damit auch die Buchungen aller
+anderen darin: DID, Anzeigename, Kurs, Termin, Status.
+
+**Keine Lese-ACL.** Der Access Controller regelt ausschließlich `canAppend`.
+Wer eine Datenbankadresse kennt und einen Peer erreicht, der sie hält, kann
+sie vollständig lesen. „Schüler replizieren nur den eigenen Ticket-Ledger" ist
+deshalb eine Verteilungs-Konvention, keine durchgesetzte Grenze.
+
+Vollständige Aufstellung der betroffenen Daten und Metadaten, was
+Verschlüsselung daran ändert und was nicht:
+[`docs/PRIVACY.md`](./PRIVACY.md). Die dortige Empfehlung ist ein anderer
+Zuschnitt (Buchungs-DB pro Schüler), nicht Verschlüsselung — bei Multi-Writer
+handelt man sich sonst ein Schlüsselverteilungs- und Rotationsproblem ein.
 
 ### 1.4 Feld-Level-Rechte fehlen in OrbitDB-ACLs
 
