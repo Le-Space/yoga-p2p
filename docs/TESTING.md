@@ -21,10 +21,25 @@ damit nie mehrdeutig.
 Alle Verbindungs-Tests laufen mit `?ice=host`: keine STUN-Abfrage, keine
 Abhängigkeit vom Netz des CI-Runners, deterministische Kandidatenmenge.
 
-**Noch offen:** `connectViaCamera` (Fake-Video-Capture mit gerendertem
-Offer-QR) ist für T2.1 vorgesehen. Die Chromium-Flags stehen bereits in
-`playwright.config.js`; es fehlt die Erzeugung der `.y4m`-Datei aus dem
-gerenderten QR-Bild.
+`connectViaCamera(offerer)` fährt denselben Handshake über die **Kamera**: Der
+Offer wird als QR-Video erzeugt und dem antwortenden Browser als Webcam
+untergeschoben. Damit läuft der Decoder der App gegen einen echten
+`MediaStream` — der Unterschied zwischen „den Scan-Pfad testen" und „ein Mock
+davon testen", und der Scan-Pfad ist der, der an der Rezeption benutzt wird.
+
+Zwei Eigenheiten, die den Aufbau erklären:
+
+- Die Fake-Kamera ist ein **Launch-Flag**, keine Kontext-Option. Die
+  antwortende Seite bekommt deshalb einen eigenen Browser, und die Videodatei
+  muss vor dem Start existieren.
+- Das `.y4m` entsteht in `e2e/qr-video.js` in reinem Node aus der
+  QR-Modulmatrix, die `qrcode` ohnehin liefert — **nicht** über ffmpeg. ffmpeg
+  ist hier und auf GitHubs Runnern zwar installiert, aber ein unausgesprochenes
+  Systembinary ist genau die Abhängigkeit, die auf einem anderen Rechner
+  bricht.
+
+Passt ein Payload nicht in einen scannbaren Code, sagt der Helfer das
+ausdrücklich (`docs/LIMITS.md` §1.6), statt irgendwo im Decoder zu scheitern.
 
 ## Identität
 
