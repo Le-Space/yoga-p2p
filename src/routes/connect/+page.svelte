@@ -8,16 +8,12 @@
 	 * because a failed handshake has no server-side retry to fall back on and a
 	 * vague error would leave people stuck.
 	 */
-	import { onDestroy, onMount } from 'svelte';
-	import {
-		connectedPeersStore,
-		nodeStatusStore,
-		peerIdStore,
-		signallingStore,
-		startNode,
-		stopNode
-	} from '$lib/p2p/node.js';
+	import { onDestroy } from 'svelte';
+	import StudioGate from '$lib/components/StudioGate.svelte';
+	import { connectedPeersStore, peerIdStore, signallingStore } from '$lib/p2p/node.js';
 	import { fitsInQrCode, renderQrCode, scanWithCamera, sharePayload } from '$lib/p2p/qr.js';
+	import { joinStore, joinStudioFromPeer } from '$lib/db/join.js';
+	import { studioStore } from '$lib/db/registry.js';
 	import * as m from '$lib/paraglide/messages.js';
 
 	/** @type {'idle' | 'offering' | 'answering' | 'connecting' | 'connected' | 'failed'} */
@@ -37,19 +33,31 @@
 	/** @type {AbortController | null} */
 	let scanAbort = null;
 
-	onMount(() => {
-		// No passkey yet — identity onboarding lands with M2 (T2.3). The node
-		// still starts so the handshake itself can be exercised end to end.
-		startNode().catch((error) => {
-			failure = error?.message ?? String(error);
-			step = 'failed';
-		});
-	});
-
+	// The node belongs to the session, not to this page. Starting and stopping it
+	// here was the bug behind "the registry is not open": leaving the page tore
+	// down the databases the studio screens were still holding. StudioGate owns
+	// the lifecycle now; this page only cancels its own scanner.
 	onDestroy(() => {
 		scanAbort?.abort();
-		stopNode();
 	});
+
+	/**
+	 * Ask the other device which studio it belongs to, and open it here.
+	 *
+	 * Only for a device that has not set up a studio of its own — a studio
+	 * owner connecting to a student must not be pulled into the student's empty
+	 * one. An unnamed studio is the marker for "this device has never been set
+	 * up", which is exactly the case a student device is in.
+	 */
+	async function joinIfGuest(/** @type {string} */ remotePeerId) {
+		if ($studioStore?.name) return;
+
+		try {
+			await joinStudioFromPeer(remotePeerId);
+		} catch {
+			// Surfaced through joinStore; the connection itself stays usable.
+		}
+	}
 
 	async function showPayload(/** @type {string} */ text) {
 		payload = text;
@@ -93,11 +101,12 @@
 
 			if (kind === 'offer') {
 				step = 'answering';
-				const { answer, connected } = await $signallingStore.acceptOffer(trimmed);
+				const { answer, remotePeerId, connected } = await $signallingStore.acceptOffer(trimmed);
 				await showPayload(answer);
 				connected
-					.then(() => {
+					.then(async () => {
 						step = 'connected';
+						await joinIfGuest(remotePeerId);
 					})
 					.catch((/** @type {any} */ error) => {
 						failure = error?.message ?? String(error);
@@ -107,8 +116,9 @@
 			}
 
 			step = 'connecting';
-			await $signallingStore.acceptAnswer(trimmed);
+			const remotePeerId = await $signallingStore.acceptAnswer(trimmed);
 			step = 'connected';
+			await joinIfGuest(remotePeerId);
 		} catch (/** @type {any} */ error) {
 			failure = error?.message ?? String(error);
 			step = 'failed';
@@ -154,118 +164,138 @@
 <h1 class="text-3xl font-bold">{m.connect_title()}</h1>
 <p class="mt-2 max-w-xl text-muted">{m.connect_intro()}</p>
 
-<p class="mt-4 font-mono text-sm text-faint" data-testid="own-peer-id">
-	{$peerIdStore ?? '…'}
-</p>
+<!--
+	Gated like the studio screens, and for the same reason: a connection is only
+	worth anything once this device has an identity other devices can grant
+	something to.
+-->
+<StudioGate>
+	<p class="mt-4 font-mono text-sm text-faint" data-testid="own-peer-id">
+		{$peerIdStore ?? '…'}
+	</p>
 
-<p class="mt-1 text-sm" data-testid="connection-status" data-step={step}>
-	{#if step === 'connected'}
-		<span class="text-success">
-			{m.connect_status_connected({ peer: $connectedPeersStore[0] ?? '' })}
-		</span>
-	{:else if step === 'failed'}
-		<span class="text-danger">{m.connect_status_failed({ reason: failure })}</span>
-	{:else if step === 'connecting' || step === 'answering'}
-		<span class="text-muted">{m.connect_status_connecting()}</span>
-	{:else}
-		<span class="text-muted">{m.connect_status_idle()}</span>
-	{/if}
-</p>
-
-<div class="mt-6 flex flex-wrap gap-3">
-	<button
-		type="button"
-		data-testid="create-offer"
-		disabled={$nodeStatusStore.state !== 'ready'}
-		onclick={createOffer}
-		class="rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast disabled:opacity-50"
-	>
-		{m.connect_create_offer()}
-	</button>
-
-	<button
-		type="button"
-		data-testid="scan-qr"
-		disabled={$nodeStatusStore.state !== 'ready' || scanning}
-		onclick={scan}
-		class="rounded-control border border-border px-4 py-2"
-	>
-		{m.connect_scan()}
-	</button>
-</div>
-
-{#if payload}
-	<section class="mt-6 rounded-card border border-border bg-surface p-6">
-		{#if qrDataUrl}
-			<!-- The QR field keeps a light ground in both themes; see tokens.css. -->
-			<div class="qr-field inline-block">
-				<img src={qrDataUrl} alt={m.connect_scan()} data-testid="qr-image" width="280" />
-			</div>
-		{:else if qrError}
-			<p class="text-sm text-warning" data-testid="qr-too-large">{qrError}</p>
+	<p class="mt-1 text-sm" data-testid="connection-status" data-step={step}>
+		{#if step === 'connected'}
+			<span class="text-success">
+				{m.connect_status_connected({ peer: $connectedPeersStore[0] ?? '' })}
+			</span>
+		{:else if step === 'failed'}
+			<span class="text-danger">{m.connect_status_failed({ reason: failure })}</span>
+		{:else if step === 'connecting' || step === 'answering'}
+			<span class="text-muted">{m.connect_status_connecting()}</span>
+		{:else}
+			<span class="text-muted">{m.connect_status_idle()}</span>
 		{/if}
+	</p>
 
-		<label class="mt-4 block text-sm text-muted" for="payload">{m.connect_copy()}</label>
+	{#if $joinStore.state !== 'idle'}
+		<p class="mt-1 text-sm" data-testid="join-status" data-state={$joinStore.state}>
+			{#if $joinStore.state === 'joined'}
+				<span class="text-success">{m.join_success({ studio: $joinStore.studioName ?? '' })}</span>
+			{:else if $joinStore.state === 'error'}
+				<span class="text-danger">{m.join_failed({ reason: $joinStore.error ?? '' })}</span>
+			{:else}
+				<span class="text-muted">{m.join_busy()}</span>
+			{/if}
+		</p>
+	{/if}
+
+	<div class="mt-6 flex flex-wrap gap-3">
+		<button
+			type="button"
+			data-testid="create-offer"
+			disabled={!$signallingStore}
+			onclick={createOffer}
+			class="rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast disabled:opacity-50"
+		>
+			{m.connect_create_offer()}
+		</button>
+
+		<button
+			type="button"
+			data-testid="scan-qr"
+			disabled={!$signallingStore || scanning}
+			onclick={scan}
+			class="rounded-control border border-border px-4 py-2"
+		>
+			{m.connect_scan()}
+		</button>
+	</div>
+
+	{#if payload}
+		<section class="mt-6 rounded-card border border-border bg-surface p-6">
+			{#if qrDataUrl}
+				<!-- The QR field keeps a light ground in both themes; see tokens.css. -->
+				<div class="qr-field inline-block">
+					<img src={qrDataUrl} alt={m.connect_scan()} data-testid="qr-image" width="280" />
+				</div>
+			{:else if qrError}
+				<p class="text-sm text-warning" data-testid="qr-too-large">{qrError}</p>
+			{/if}
+
+			<label class="mt-4 block text-sm text-muted" for="payload">{m.connect_copy()}</label>
+			<textarea
+				id="payload"
+				data-testid="payload"
+				readonly
+				rows="4"
+				class="mt-1 w-full rounded-control border p-2 font-mono text-xs"
+				value={payload}></textarea>
+
+			<div class="mt-3 flex gap-3">
+				<button
+					type="button"
+					data-testid="copy-payload"
+					onclick={copy}
+					class="rounded-control border border-border px-3 py-1.5 text-sm"
+				>
+					{copied ? m.connect_copied() : m.connect_copy()}
+				</button>
+				<button
+					type="button"
+					data-testid="share-payload"
+					onclick={share}
+					class="rounded-control border border-border px-3 py-1.5 text-sm"
+				>
+					{m.connect_share()}
+				</button>
+			</div>
+		</section>
+	{/if}
+
+	<section class="mt-6 rounded-card border border-border bg-surface p-6">
+		<label class="block text-sm text-muted" for="inbound">
+			{step === 'offering' ? m.connect_waiting_answer() : m.connect_paste()}
+		</label>
 		<textarea
-			id="payload"
-			data-testid="payload"
-			readonly
+			id="inbound"
+			data-testid="inbound-payload"
 			rows="4"
-			class="mt-1 w-full rounded-control border p-2 font-mono text-xs"
-			value={payload}></textarea>
-
-		<div class="mt-3 flex gap-3">
-			<button
-				type="button"
-				data-testid="copy-payload"
-				onclick={copy}
-				class="rounded-control border border-border px-3 py-1.5 text-sm"
-			>
-				{copied ? m.connect_copied() : m.connect_copy()}
-			</button>
-			<button
-				type="button"
-				data-testid="share-payload"
-				onclick={share}
-				class="rounded-control border border-border px-3 py-1.5 text-sm"
-			>
-				{m.connect_share()}
-			</button>
-		</div>
+			bind:value={inbound}
+			class="mt-1 w-full rounded-control border p-2 font-mono text-xs"></textarea>
+		<button
+			type="button"
+			data-testid="submit-inbound"
+			disabled={!$signallingStore}
+			onclick={() => handleInbound(inbound)}
+			class="mt-3 rounded-control border border-border px-3 py-1.5 text-sm disabled:opacity-50"
+		>
+			{m.connect_paste()}
+		</button>
 	</section>
-{/if}
 
-<section class="mt-6 rounded-card border border-border bg-surface p-6">
-	<label class="block text-sm text-muted" for="inbound">
-		{step === 'offering' ? m.connect_waiting_answer() : m.connect_paste()}
-	</label>
-	<textarea
-		id="inbound"
-		data-testid="inbound-payload"
-		rows="4"
-		bind:value={inbound}
-		class="mt-1 w-full rounded-control border p-2 font-mono text-xs"></textarea>
-	<button
-		type="button"
-		data-testid="submit-inbound"
-		disabled={$nodeStatusStore.state !== 'ready'}
-		onclick={() => handleInbound(inbound)}
-		class="mt-3 rounded-control border border-border px-3 py-1.5 text-sm disabled:opacity-50"
-	>
-		{m.connect_paste()}
-	</button>
-</section>
-
-<!-- Kept mounted so the scanner can start without a layout shift; hidden until used. -->
-<div class:hidden={!scanning} class="mt-6">
-	<video bind:this={video} data-testid="scanner-video" class="w-full max-w-sm rounded-card"></video>
-	<canvas bind:this={canvas} class="hidden"></canvas>
-	<button
-		type="button"
-		data-testid="cancel-scan"
-		onclick={() => scanAbort?.abort()}
-		class="mt-2 rounded-control border border-border px-3 py-1.5 text-sm"
-	>
-		{m.connect_status_idle()}
-	</button>
-</div>
+	<!-- Kept mounted so the scanner can start without a layout shift; hidden until used. -->
+	<div class:hidden={!scanning} class="mt-6">
+		<video bind:this={video} data-testid="scanner-video" class="w-full max-w-sm rounded-card"
+		></video>
+		<canvas bind:this={canvas} class="hidden"></canvas>
+		<button
+			type="button"
+			data-testid="cancel-scan"
+			onclick={() => scanAbort?.abort()}
+			class="mt-2 rounded-control border border-border px-3 py-1.5 text-sm"
+		>
+			{m.connect_status_idle()}
+		</button>
+	</div>
+</StudioGate>

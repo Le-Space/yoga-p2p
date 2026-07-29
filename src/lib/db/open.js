@@ -80,7 +80,47 @@ export async function openDocuments({ key, name, address }) {
 	});
 
 	rememberAddress(key, db.address.toString());
+	recordReplicationErrors(db);
+	openDatabases.set(db.address.toString(), { key, db });
+
 	return db;
+}
+
+/**
+ * Replication problems OrbitDB reported.
+ *
+ * OrbitDB's sync emits its failures as `error` events and carries on. Nobody
+ * listening means a database that never replicates looks exactly like one with
+ * nothing in it — which cost real debugging time once already.
+ *
+ * @type {{ address: string, message: string, name: string, at: string }[]}
+ */
+export const replicationErrors = [];
+
+/**
+ * Every database this device currently has open, keyed by address.
+ *
+ * Opening is funnelled through this module, so this is the one place that can
+ * answer "what is actually open, and how much is in it" — the question that
+ * separates "did not replicate" from "replicated into a different database".
+ *
+ * @type {Map<string, any>}
+ */
+export const openDatabases = new Map();
+
+/** @param {any} db */
+function recordReplicationErrors(db) {
+	db.events.on('error', (/** @type {any} */ error) => {
+		replicationErrors.push({
+			address: db.address.toString(),
+			name: error?.name ?? 'Error',
+			message: error?.message ?? String(error),
+			at: new Date().toISOString()
+		});
+		// Bounded: this is a diagnostic, not a log store.
+		if (replicationErrors.length > 50) replicationErrors.shift();
+		console.warn('OrbitDB replication error', db.address.toString(), error);
+	});
 }
 
 /**

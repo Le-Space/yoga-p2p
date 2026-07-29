@@ -100,6 +100,48 @@ verweist auf Copy & Paste. Multi-Frame-QR (BC-UR) ist bewusst auf v2 verschoben.
 
 ### 2.2 `@le-space/orbitdb-identity-provider-webauthn-did`
 
+#### Das Identitätsdokument ist über Reloads nicht stabil — blockiert T2.2
+
+**Der schwerwiegendste offene Punkt.** Die DID bleibt über Seitenladevorgänge
+konstant (sie stammt aus dem Passkey), das **Identitätsdokument** dazu aber
+nicht: Gemessen am 2026-07-29 ergaben drei Reloads **drei verschiedene
+Identitäts-Hashes bei einer stabilen DID**.
+
+Warum das die Replikation zerstört: Jeder OrbitDB-Eintrag verweist über
+`entry.identity` auf den **Hash** des Dokuments, das ihn signiert hat. Ein
+prüfendes Gerät muss genau dieses Dokument auflösen; gelingt das nicht, gibt
+`canAppend` false zurück, und OrbitDB **verwirft den Eintrag endgültig** — ohne
+Retry und ohne Fehler, den jemand mitbekäme. Sichtbar wird nur:
+`Could not append entry: Key "<hash>" is not allowed to write to the log`.
+
+Beobachtetes Verhalten in `e2e/m2-studio-join.spec.js`: Alices **Registry
+repliziert** zu Bob (2 Einträge), ihr **Programm nicht** (0 Einträge). Der
+Unterschied ist allein, welche Sitzung den jeweiligen Eintrag signiert hat.
+Mesh, Subscriptions, Sync-Peers und Zugriffsrechte sind auf beiden Seiten
+nachweislich korrekt — geprüft über `window.__yoga` (siehe
+`src/lib/p2p/node.js`).
+
+Ausgeschlossen wurde:
+
+- **Gossipsub** — 16.1.0 auf beiden Seiten, Mesh gegraftet, Topics abonniert.
+- **Ein persistenter Keystore** (`KeyStore` + `LevelStorage`) — eingebaut, weil
+  ein Keystore, der bei jedem Laden neue Schlüssel erzeugt, ohnehin falsch ist.
+  Er behebt die Hash-Instabilität **nicht**.
+- **Ein verzögerter Resync** (`sync.stop()`/`start()`, auch mit Pause) — holt
+  verworfene Einträge nicht zurück.
+
+Verdacht: die Warnung `Failed to extract real public key from WebAuthn
+credential, using fallback: Error: Insufficient data`, die der Provider bei
+jedem Start ausgibt. Der Fallback erzeugt offenbar bei jedem Lauf ein anderes
+Schlüsselmaterial.
+
+Bis das behoben ist, ist T2.2 nur zur Hälfte erfüllt: Beitritt und
+Registry-Replikation funktionieren, laufende Programmänderungen nicht. Der
+zugehörige Test steht als `test.fixme` im Spec und wird grün, sobald der
+Provider stabile Dokumente liefert.
+
+#### Weitere Punkte
+
 - **Typen zu streng**: `createCredential`, `writeLargeBlobMetadata`,
   `readLargeBlobMetadata` und die Provider-Factory deklarieren jede Option als
   Pflichtfeld, obwohl die Implementierung sie defaultet; Rückgaben sind

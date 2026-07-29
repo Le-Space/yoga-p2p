@@ -2,7 +2,7 @@
 // depends on this working, so it is the one scenario that must never be
 // skipped or made conditional.
 
-import { test, expect, connectViaPaste, readPayload, CONNECT_URL } from './fixtures.js';
+import { test, expect, connectViaPaste, openConnect, readPayload } from './fixtures.js';
 
 test.describe('QR handshake', () => {
 	test('connects two devices over copy & paste', async ({ alice, bob }) => {
@@ -11,8 +11,7 @@ test.describe('QR handshake', () => {
 	});
 
 	test('renders the offer as a scannable QR code', async ({ alice }) => {
-		await alice.goto(CONNECT_URL);
-		await expect(alice.getByTestId('create-offer')).toBeEnabled({ timeout: 60_000 });
+		await openConnect(alice, 'alice');
 		await alice.getByTestId('create-offer').click();
 
 		const payload = await readPayload(alice);
@@ -30,8 +29,7 @@ test.describe('QR handshake', () => {
 	});
 
 	test('refuses an offer created by the same device', async ({ alice }) => {
-		await alice.goto(CONNECT_URL);
-		await expect(alice.getByTestId('create-offer')).toBeEnabled({ timeout: 60_000 });
+		await openConnect(alice, 'alice');
 		await alice.getByTestId('create-offer').click();
 
 		const ownOffer = await readPayload(alice);
@@ -42,9 +40,8 @@ test.describe('QR handshake', () => {
 	});
 
 	test('refuses a payload that was tampered with', async ({ alice, bob }) => {
-		await alice.goto(CONNECT_URL);
-		await bob.goto(CONNECT_URL);
-		await expect(alice.getByTestId('create-offer')).toBeEnabled({ timeout: 60_000 });
+		await openConnect(alice, 'alice');
+		await openConnect(bob, 'bob');
 
 		await alice.getByTestId('create-offer').click();
 		const offer = await readPayload(alice);
@@ -73,8 +70,7 @@ test.describe('share flow', () => {
 			};
 		});
 
-		await alice.goto(CONNECT_URL);
-		await expect(alice.getByTestId('create-offer')).toBeEnabled({ timeout: 60_000 });
+		await openConnect(alice, 'alice');
 		await alice.getByTestId('create-offer').click();
 		const payload = await readPayload(alice);
 
@@ -85,8 +81,7 @@ test.describe('share flow', () => {
 	});
 
 	test('falls back to the clipboard where there is no share sheet', async ({ alice }) => {
-		await alice.goto(CONNECT_URL);
-		await expect(alice.getByTestId('create-offer')).toBeEnabled({ timeout: 60_000 });
+		await openConnect(alice, 'alice');
 		await alice.getByTestId('create-offer').click();
 		const payload = await readPayload(alice);
 

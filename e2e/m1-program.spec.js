@@ -134,6 +134,28 @@ test.describe('registry and programme', () => {
 		await expect(alice.locator('[data-location-id="location:west"]')).toContainText('Studio West');
 	});
 
+	test('the studio survives a detour through the connection screen', async ({ alice }) => {
+		test.setTimeout(240_000);
+
+		// Regression: /connect used to start and stop the node itself, so leaving
+		// it tore down the databases the studio screens were holding — while the
+		// gate still reported "ready". The editor rendered over closed databases
+		// and the next write failed with "the registry is not open".
+		await onboard(alice);
+		await alice.getByTestId('studio-name').fill('Yoga Eggenfelden');
+		await alice.getByTestId('studio-save').click();
+
+		await alice.goto('/connect/?ice=host');
+		await expect(alice.getByTestId('studio-ready')).toBeVisible(READY);
+
+		await alice.goto('/studio/');
+		await expect(alice.getByTestId('studio-ready')).toBeVisible(READY);
+
+		// The real proof is a *write* going through, not just the screen showing.
+		await addLocation(alice, { id: 'west', de: 'Studio West', en: 'West Studio' });
+		await expect(alice.getByTestId('studio-error')).toHaveCount(0);
+	});
+
 	test('a deactivated location stays in the registry', async ({ alice }) => {
 		test.setTimeout(180_000);
 

@@ -126,5 +126,9 @@
 	"weekday_3": "Mittwoch",
 	"weekday_4": "Donnerstag",
 	"weekday_5": "Freitag",
-	"weekday_6": "Samstag"
+	"weekday_6": "Samstag",
+	"join_busy": "Studio wird geöffnet …",
+	"join_success": "Mit „{studio}\" verbunden — Programm wird repliziert.",
+	"join_failed": "Studio konnte nicht geöffnet werden: {reason}",
+	"guest_readonly": "Du siehst dieses Studio als Gast. Änderungen kann nur das Studio selbst vornehmen."
 }

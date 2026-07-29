@@ -12,7 +12,8 @@
 		bootIfIdentityKnown,
 		createIdentityAndBoot,
 		hasIdentity,
-		recoverIdentityAndBoot
+		recoverIdentityAndBoot,
+		studioReady
 	} from '$lib/identity/onboarding.js';
 	import { ownDidStore } from '$lib/p2p/node.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -50,7 +51,7 @@
 	}
 </script>
 
-{#if $bootStore.state === 'ready'}
+{#if $studioReady}
 	<div data-testid="studio-ready" data-did={$ownDidStore}>
 		{@render children?.()}
 	</div>

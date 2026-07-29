@@ -10,12 +10,23 @@
 import { get, writable } from 'svelte/store';
 
 import { openDocuments, readAll } from './open.js';
-import { ownDidStore } from '../p2p/node.js';
+import { nodeStatusStore, ownDidStore } from '../p2p/node.js';
 
 export const registryDbStore = writable(/** @type {any} */ (null));
 export const studioStore = writable(/** @type {any} */ (null));
 export const locationsStore = writable(/** @type {any[]} */ ([]));
 export const devicesStore = writable(/** @type {any[]} */ ([]));
+
+// A stopped node leaves every handle below it dead. Clearing them here, rather
+// than expecting each caller to remember, is what keeps a closed database from
+// being handed to a screen that still thinks it can write.
+nodeStatusStore.subscribe(({ state }) => {
+	if (state !== 'idle') return;
+	registryDbStore.set(null);
+	studioStore.set(null);
+	locationsStore.set([]);
+	devicesStore.set([]);
+});
 
 /**
  * Open the registry, or create it for a brand-new studio.
