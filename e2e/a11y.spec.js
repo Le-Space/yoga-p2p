@@ -5,7 +5,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect } from './fixtures.js';
 
-const SCREENS = ['/', '/tickets/', '/connect/?ice=host'];
+// /studio and /program are checked in their onboarding state — that is the
+// first screen a real owner sees, and a form is exactly where contrast and
+// labelling go wrong.
+const SCREENS = ['/', '/tickets/', '/connect/?ice=host', '/studio/', '/program/'];
 const THEMES = /** @type {const} */ (['light', 'dark']);
 
 for (const theme of THEMES) {

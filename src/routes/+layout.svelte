@@ -11,7 +11,8 @@
 	// what keeps the app working when it is served from a subpath — which is
 	// exactly how it gets installed from an IPFS gateway.
 	const NAV = /** @type {const} */ ([
-		{ path: '/', testid: 'nav-program', label: () => m.nav_program() },
+		{ path: '/program', testid: 'nav-program', label: () => m.nav_program() },
+		{ path: '/studio', testid: 'nav-studio', label: () => m.nav_registry() },
 		{ path: '/tickets', testid: 'nav-tickets', label: () => m.nav_tickets() },
 		{ path: '/connect', testid: 'nav-connect', label: () => m.nav_connect() }
 	]);

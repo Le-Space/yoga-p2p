@@ -1,0 +1,176 @@
+// The registry: studio, locations and devices (docs/PLAN.md §3.1).
+//
+// This is the root of trust. Every other database's signatures are verified
+// against it, which is why *all* roles replicate it in full — a device that
+// cannot read the registry cannot tell a revoked device from a current one.
+//
+// Single writer: the owner. Studio devices read it and are granted write access
+// to the databases they need, never to this one.
+
+import { get, writable } from 'svelte/store';
+
+import { openDocuments, readAll } from './open.js';
+import { ownDidStore } from '../p2p/node.js';
+
+export const registryDbStore = writable(/** @type {any} */ (null));
+export const studioStore = writable(/** @type {any} */ (null));
+export const locationsStore = writable(/** @type {any[]} */ ([]));
+export const devicesStore = writable(/** @type {any[]} */ ([]));
+
+/**
+ * Open the registry, or create it for a brand-new studio.
+ *
+ * @param {object} [options]
+ * @param {string} [options.address] join an existing studio's registry
+ */
+export async function openRegistry({ address } = {}) {
+	const db = await openDocuments({ key: 'registry', name: 'yoga-registry', address });
+
+	registryDbStore.set(db);
+	db.events.on('update', () => refreshRegistry());
+	await refreshRegistry();
+
+	return db;
+}
+
+export async function refreshRegistry() {
+	const db = get(registryDbStore);
+	if (!db) return;
+
+	const documents = await readAll(db);
+
+	studioStore.set(documents.find((doc) => doc.type === 'studio') ?? null);
+	locationsStore.set(documents.filter((doc) => doc.type === 'location'));
+	devicesStore.set(documents.filter((doc) => doc.type === 'device'));
+}
+
+/**
+ * Name the studio, and record who owns it.
+ *
+ * @param {{ name: string }} studio
+ */
+export async function saveStudio({ name }) {
+	const db = requireDb();
+	const ownerDid = get(ownDidStore);
+
+	await db.put({
+		_id: 'studio',
+		type: 'studio',
+		name,
+		// The owner DID is written once, at creation. Later edits must not be
+		// able to hand the studio to someone else by renaming it.
+		ownerDid: get(studioStore)?.ownerDid ?? ownerDid
+	});
+
+	await refreshRegistry();
+}
+
+/**
+ * @param {object} location
+ * @param {string} location.id short slug, e.g. `altstadt`
+ * @param {{ de: string, en: string }} location.name
+ * @param {string} [location.address]
+ * @param {boolean} [location.active]
+ */
+export async function saveLocation({ id, name, address = '', active = true }) {
+	const db = requireDb();
+
+	await db.put({
+		_id: `location:${id}`,
+		type: 'location',
+		name,
+		address,
+		active
+	});
+
+	await refreshRegistry();
+}
+
+/**
+ * Deactivate rather than delete.
+ *
+ * A location that ever hosted a class is referenced by `issuedBy` and
+ * `redeemedBy` on signed ticket events. Removing it would leave those events
+ * pointing at nothing and break the cash reconciliation for that location.
+ *
+ * @param {string} locationId full `_id`, e.g. `location:altstadt`
+ */
+export async function deactivateLocation(locationId) {
+	const db = requireDb();
+	const existing = await db.get(locationId);
+	if (!existing) throw new Error(`No location ${locationId}`);
+
+	await db.put({ ...existing.value, active: false });
+	await refreshRegistry();
+}
+
+/**
+ * Register a studio device (docs/PLAN.md §4.1). Pairing itself is M2 — this is
+ * the registry half, which is what the ledger verifies against.
+ *
+ * @param {object} device
+ * @param {string} device.deviceDid
+ * @param {'owner' | 'front-desk' | 'teacher'} device.role
+ * @param {string} device.locationId
+ * @param {string} device.label
+ */
+export async function registerDevice({ deviceDid, role, locationId, label }) {
+	const db = requireDb();
+
+	await db.put({
+		_id: `device:${deviceDid}`,
+		type: 'device',
+		deviceDid,
+		role,
+		locationId,
+		label,
+		grantedAt: new Date().toISOString(),
+		revokedAt: null
+	});
+
+	await refreshRegistry();
+}
+
+/**
+ * Revoke a device.
+ *
+ * The timestamp is the whole point: revocation is not retroactive. Events the
+ * device signed before this moment stay valid, everything after is refused
+ * (docs/LIMITS.md §1.5).
+ *
+ * @param {string} deviceDid
+ */
+export async function revokeDevice(deviceDid) {
+	const db = requireDb();
+	const existing = await db.get(`device:${deviceDid}`);
+	if (!existing) throw new Error(`No device ${deviceDid}`);
+
+	await db.put({ ...existing.value, revokedAt: new Date().toISOString() });
+	await refreshRegistry();
+}
+
+/**
+ * The device half of the registry in the shape the ledger reducer expects.
+ *
+ * @returns {Map<string, import('../ledger').DeviceRecord>}
+ */
+export function deviceRegistry() {
+	return new Map(
+		get(devicesStore).map((device) => [
+			device.deviceDid,
+			{
+				deviceDid: device.deviceDid,
+				role: device.role,
+				locationId: device.locationId,
+				grantedAt: device.grantedAt,
+				revokedAt: device.revokedAt ?? null
+			}
+		])
+	);
+}
+
+function requireDb() {
+	const db = get(registryDbStore);
+	if (!db) throw new Error('The registry is not open.');
+	return db;
+}
