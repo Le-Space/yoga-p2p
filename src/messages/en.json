@@ -156,5 +156,9 @@
 	"booking_status_declined": "Declined",
 	"booking_status_cancelled": "Cancelled",
 	"booking_local_only": "Recorded locally — has not reached the studio yet",
-	"booking_series_whole": "Whole series"
+	"booking_series_whole": "Whole series",
+	"occupancy_free": "{free} of {capacity} free",
+	"occupancy_full": "Fully booked",
+	"occupancy_unknown": "Occupancy unknown",
+	"booking_full_refused": "The class is full — there is no free place left to confirm."
 }

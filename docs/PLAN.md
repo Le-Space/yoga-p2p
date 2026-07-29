@@ -633,6 +633,12 @@ Akzeptanzkriterien funktioniert.
   der Zähler bei Bob steigt, ohne dass Bob eine fremde Buchung sieht;
   Überbuchung wird beim Bestätigen abgelehnt, nicht beim Anfragen.
 
+**Offen aus T3.2**, bewusst nicht stillschweigend übergangen: Kursreihen
+werden gebucht (`date: null`) und zählen als **eine** Buchung gegen die
+Kapazität der Reihe, aber `allowDropIn` — der Besuch eines einzelnen
+Reihentermins per Karte — ist noch nicht umgesetzt. Dafür fehlt eine
+Terminauswahl in der UI; die Datenseite trägt es bereits (`date` je Buchung).
+
 ### M4 — Ticket-Ledger (von Anfang an multi-location-fähig)
 
 Zusammengelegt aus alt-M4 und dem Kern von alt-M6: Der Ledger wird gleich
