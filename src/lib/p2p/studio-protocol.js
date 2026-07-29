@@ -90,7 +90,7 @@ export async function stopServingStudio(libp2p) {
  * against, so a lie would simply produce events nobody can verify.
  *
  * @param {any} libp2p
- * @param {(hello: { peerId: string, did: string, label: string, bookingsAddress: string | null }) => void} onHello
+ * @param {(hello: { peerId: string, did: string, label: string, publicKey: string, bookingsAddress: string | null, ticketsAddress: string | null }) => void} onHello
  */
 export async function listenForDevices(libp2p, onHello) {
 	await libp2p.handle(
@@ -104,7 +104,12 @@ export async function listenForDevices(libp2p, onHello) {
 					peerId: String(connection.remotePeer),
 					did: hello.did,
 					label: typeof hello.label === 'string' ? hello.label.slice(0, 120) : '',
-					bookingsAddress: typeof hello.bookingsAddress === 'string' ? hello.bookingsAddress : null
+					// The signing key, not the DID: the DID comes from the passkey, the
+					// signing key from OrbitDB's keystore, and only the latter can
+					// verify a ledger event's signature.
+					publicKey: typeof hello.publicKey === 'string' ? hello.publicKey : '',
+					bookingsAddress: typeof hello.bookingsAddress === 'string' ? hello.bookingsAddress : null,
+					ticketsAddress: typeof hello.ticketsAddress === 'string' ? hello.ticketsAddress : null
 				});
 			} catch (error) {
 				console.warn('Malformed device introduction ignored:', error);
@@ -121,7 +126,7 @@ export async function listenForDevices(libp2p, onHello) {
  *
  * @param {any} libp2p
  * @param {string | any} peerId
- * @param {{ did: string, label: string, bookingsAddress?: string | null }} self
+ * @param {{ did: string, label: string, publicKey?: string, bookingsAddress?: string | null, ticketsAddress?: string | null }} self
  */
 export async function introduceSelf(libp2p, peerId, self) {
 	const peer = typeof peerId === 'string' ? peerIdFromString(peerId) : peerId;

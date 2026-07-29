@@ -10,7 +10,7 @@
 import { get, writable } from 'svelte/store';
 
 import { openDocuments, readAll } from './open.js';
-import { nodeStatusStore, ownDidStore } from '../p2p/node.js';
+import { nodeStatusStore, orbitdbStore, ownDidStore } from '../p2p/node.js';
 import { programDbStore } from './program.js';
 
 export const registryDbStore = writable(/** @type {any} */ (null));
@@ -74,7 +74,43 @@ export async function saveStudio({ name }) {
 		ownerDid: get(studioStore)?.ownerDid ?? ownerDid
 	});
 
+	await registerOwnerDevice();
 	await refreshRegistry();
+}
+
+/**
+ * Record the owner's own device in the registry.
+ *
+ * She is a device like any other, and leaving her out has bitten three times:
+ * the ledger refuses events from devices it cannot find, so tickets she issued
+ * were rejected as `unknown-device`; and grants driven off the device list
+ * silently skipped the one person who must always be able to write. The special
+ * cases those needed are gone now that the entry exists.
+ *
+ * Role `owner`, and no location: locations are usually created after the studio
+ * is named, and an empty one is honest until she edits it. The ledger judges by
+ * DID and signature, not by location.
+ */
+async function registerOwnerDevice() {
+	const db = requireDb();
+	const own = get(ownDidStore);
+	const orbitdb = get(orbitdbStore);
+	if (!own) return;
+
+	const existing = await db.get(`device:${own}`);
+	if (existing) return;
+
+	await db.put({
+		_id: `device:${own}`,
+		type: 'device',
+		deviceDid: own,
+		role: 'owner',
+		locationId: '',
+		label: 'owner',
+		publicKey: orbitdb?.identity?.publicKey ?? '',
+		grantedAt: new Date().toISOString(),
+		revokedAt: null
+	});
 }
 
 /**
@@ -125,8 +161,10 @@ export async function deactivateLocation(locationId) {
  * @param {'owner' | 'front-desk' | 'teacher'} device.role
  * @param {string} device.locationId
  * @param {string} device.label
+ * @param {string} [device.publicKey] the OrbitDB signing key, needed to verify
+ *   this device's ledger events — the DID alone cannot do it
  */
-export async function registerDevice({ deviceDid, role, locationId, label }) {
+export async function registerDevice({ deviceDid, role, locationId, label, publicKey = '' }) {
 	const db = requireDb();
 
 	// The grant comes first. If the registry entry landed and the ACL write
@@ -142,6 +180,7 @@ export async function registerDevice({ deviceDid, role, locationId, label }) {
 		role,
 		locationId,
 		label,
+		publicKey,
 		grantedAt: new Date().toISOString(),
 		revokedAt: null
 	});

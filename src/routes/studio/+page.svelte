@@ -52,7 +52,7 @@
 		}
 	});
 
-	/** @param {{ did: string, label: string }} device */
+	/** @param {{ did: string, label: string, publicKey?: string }} device */
 	async function approve(device) {
 		const draft = drafts[device.did];
 
@@ -61,6 +61,8 @@
 				deviceDid: device.did,
 				role: /** @type {any} */ (draft.role),
 				locationId: draft.locationId,
+				// Without it the ledger cannot verify anything this device signs.
+				publicKey: device.publicKey ?? '',
 				// Falls back to what the device reported about itself, trimmed.
 				label: draft.label || device.label || device.did.slice(-8)
 			});

@@ -100,13 +100,22 @@ test.describe('device onboarding', () => {
 		await expect(alice.locator('[data-course-id="course:vinyasa-mi-18"]')).toHaveCount(1);
 	});
 
-	test('the studio lists no pending device before anyone connects', async ({ alice }) => {
+	test('the studio starts with only the owner’s own device', async ({ alice }) => {
 		test.setTimeout(180_000);
 
 		await alice.goto('/studio/?ice=host');
 		await onboard(alice, 'alice');
 
+		// Nothing is waiting for approval …
 		await expect(alice.getByTestId('pending-devices-empty')).toBeVisible();
-		await expect(alice.getByTestId('device-empty')).toBeVisible();
+
+		// … and the device list holds exactly one entry: hers. She is a device
+		// like any other — the ledger refuses events from devices it cannot find,
+		// so an owner missing from her own registry could not issue a ticket.
+		await alice.getByTestId('studio-name').fill('Yoga Eggenfelden');
+		await alice.getByTestId('studio-save').click();
+
+		await expect(alice.getByTestId('device-item')).toHaveCount(1);
+		await expect(alice.getByTestId('device-item')).toContainText('owner');
 	});
 });

@@ -160,5 +160,12 @@
 	"occupancy_free": "{free} von {capacity} frei",
 	"occupancy_full": "Ausgebucht",
 	"occupancy_unknown": "Belegung unbekannt",
-	"booking_full_refused": "Der Kurs ist voll — es gibt keinen freien Platz mehr zu bestätigen."
+	"booking_full_refused": "Der Kurs ist voll — es gibt keinen freien Platz mehr zu bestätigen.",
+	"till_title": "Kasse",
+	"till_student": "Schüler:in",
+	"till_package": "Karte",
+	"till_cash_received": "Bar erhalten",
+	"till_none": "Noch kein Schülergerät verbunden.",
+	"till_sold": "Verkauft: {package}",
+	"tickets_none": "Noch keine Karte gekauft."
 }
