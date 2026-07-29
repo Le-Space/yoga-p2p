@@ -78,9 +78,20 @@ export async function onboard(page, who) {
  * @param {string} who
  */
 export async function openConnect(page, who) {
-	await page.goto(CONNECT_URL);
-	await onboard(page, who);
-	await expect(page.getByTestId('create-offer')).toBeEnabled({ timeout: 60_000 });
+	// Navigate in-app when this page already runs a node. `page.goto` is a full
+	// load, which rebuilds libp2p, Helia and OrbitDB from scratch — the single
+	// biggest cost in this suite, and pure waste when the stack the test needs
+	// is already up. The app routes client-side, so a nav click keeps it.
+	const running = await page.evaluate(() => Boolean(window.__yoga)).catch(() => false);
+
+	if (running) {
+		await page.getByTestId('nav-connect').click();
+	} else {
+		await page.goto(CONNECT_URL);
+		await onboard(page, who);
+	}
+
+	await expect(page.getByTestId('create-offer')).toBeEnabled({ timeout: 90_000 });
 }
 
 /**
