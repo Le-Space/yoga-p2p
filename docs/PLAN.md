@@ -1,0 +1,709 @@
+# Yoga-Buchung — Local-First P2P PWA (Plan v2)
+
+Relay-freie, local-first Peer-to-Peer-PWA für Yogastudios mit **mehreren Locations**.
+Signalisierung ausschließlich über `@le-space/libp2p-webrtc-qr` (QR-Scan) mit
+Copy-&-Paste-Fallback. Kein Relay, kein Signaling-Server, kein Backend.
+Zahlungsmittel v1: **nur Barzahlung**. Zweisprachig **DE/EN**. Dark & Bright Mode
+im Le-Space-Stil. Vorbereitet für die Umsetzung mit **Claude Code**.
+
+Baut auf: `simple-todo` (`acl01`: mutable DID-Write-Grants, `passkey01`:
+WebAuthn/Passkey-DID) und `NiKrause/libp2p-webrtc-qr`.
+
+---
+
+## 1. Rollen und Grundidee
+
+**Studio-Inhaberin** (Root-Identität) registriert Locations und Geräte.
+**Front-Desk/Lehrer:innen-Geräte** verkaufen und entwerten Tickets an ihrer
+Location. **Schüler:innen** replizieren Programm und eigene Tickets, buchen
+Stunden — und fungieren als **Sync-Kuriere** zwischen Locations (Abschnitt 5).
+
+Ohne Relay gibt es zwei Sync-Gelegenheiten:
+
+1. **Im Studio (QR):** Kamera-Scan des signierten SDP-Payloads → direkte
+   WebRTC-Verbindung → Replikation, Ticketkauf, Entwertung. Hauptpfad.
+2. **Remote (Copy & Paste / Teilen):** Offer/Answer als Text über beliebigen
+   Kanal — in der UI per Web Share API direkt in Signal, WhatsApp, E-Mail
+   etc. teilbar, Copy-&-Paste als universeller Fallback. Beide Seiten
+   gleichzeitig online; kein TURN → symmetrische NATs
+   können scheitern. UI braucht einen geführten Verbindungs-Assistenten mit
+   ehrlichem Fehlerpfad.
+
+Buchungen sind **nicht asynchron** wie bei einem Server. Die UI unterscheidet
+überall sichtbar zwischen _lokal erfasst_ und _angekommen/bestätigt_ („Stand
+vom …").
+
+## 2. Technologie-Stack
+
+- **Frontend:** SvelteKit (adapter-static), pnpm, PWA via vite-plugin-pwa
+- **P2P:** js-libp2p mit `@le-space/libp2p-webrtc-qr` als einzigem Transport
+- **Daten:** Helia (IPFS) + OrbitDB, Persistenz LevelBlockstore/IndexedDB
+  (nicht MemoryStorage wie im `main`-Kapitel von simple-todo)
+- **Identität:** Passkey-DID (`passkey01` / `Le-Space/orbitdb-identity-provider-webauthn-did`)
+- **ACL:** Mutable DID-Write-Grants nach `acl01`, plus Geräteregister (Abschnitt 4)
+- **i18n:** Paraglide JS, DE/EN
+- **Styling:** Tailwind CSS mit Le-Space-Design-Tokens als CSS Custom Properties
+  (Abschnitt 8)
+- **Tests:** Playwright E2E, Chromium zuerst (webrtc-qr-CI-Limit)
+
+## 3. Studio-Modell: Locations und Geräteregister
+
+Oberste Einheit ist das **Studio** mit der Inhaberinnen-DID als Root of Trust.
+
+### 3.1 `registry` — Studio, Locations, Geräte (Single Writer: Inhaberin)
+
+```json
+{ "_id": "studio", "type": "studio",
+  "name": "Yoga Eggenfelden", "ownerDid": "did:key:…" }
+
+{ "_id": "location:altstadt", "type": "location",
+  "name": { "de": "Studio Altstadt", "en": "Old Town Studio" },
+  "address": "…", "active": true }
+
+{ "_id": "device:<deviceDid>", "type": "device",
+  "deviceDid": "did:key:…",
+  "role": "owner | front-desk | teacher",
+  "locationId": "location:altstadt",
+  "label": "iPad Empfang Altstadt",
+  "grantedAt": "…", "revokedAt": null }
+```
+
+Das ist das acl01-Grant-Muster eine Ebene höher: Geräte werden per
+P2P-Pairing mit dem Inhaberinnen-Gerät registriert, Grants sind widerrufbar
+(`revokedAt`). Jedes registrierte Gerät hält eine Kopie der Registry und kann
+damit Signaturen anderer Studio-Geräte **offline** verifizieren.
+
+### 3.2 `program` — Kurse & Pakete (Writer: owner + berechtigte Geräte)
+
+Wie v1, plus `locationId` pro Kurs. Pakete gelten studioweit (eine 10er-Karte
+ist an allen Locations einlösbar — das ist der Sinn von Multi-Location).
+
+Kurse gibt es in zwei Modi: **offene wöchentliche Stunden** (Drop-in) und
+**geschlossene Kursreihen** (z. B. Anfängerkurs, 1× oder 2× wöchentlich über
+5+ Wochen, als Ganzes gebucht — auch das Format von
+Krankenkassen-Präventionskursen).
+
+```json
+// Offene wöchentliche Stunde (Drop-in)
+{ "_id": "course:vinyasa-mi-18", "type": "course",
+  "mode": "recurring",
+  "locationId": "location:altstadt",
+  "title": { "de": "Vinyasa Flow", "en": "Vinyasa Flow" },
+  "weekday": 3, "time": "18:00", "durationMin": 75,
+  "capacity": 12,
+  "validFrom": "2026-09-01",     // optional: Angebot gilt ab …
+  "validUntil": null,            // optional: … bis (z. B. Sommerpause)
+  "active": true }
+
+// Geschlossene Kursreihe (z. B. 2× wöchentlich, 5 Wochen)
+{ "_id": "course:anfaenger-h26", "type": "course",
+  "mode": "series",
+  "locationId": "location:altstadt",
+  "title": { "de": "Anfängerkurs Herbst", "en": "Beginners course, autumn" },
+  "time": "18:00", "durationMin": 90, "capacity": 10,
+  "sessions": [ { "date": "2026-09-08" }, { "date": "2026-09-10" },
+                { "date": "2026-09-15" }, { "date": "2026-09-17" },
+                { "date": "2026-09-22" } /* … */ ],
+  "priceEUR": 95.00,             // Preis der Reihe als Ganzes
+  "allowDropIn": true,           // einzelne Termine auch per Karte besuchbar
+  "active": true }
+
+// Paket / Preisstufe
+{ "_id": "package:10er", "type": "package",
+  "name": { "de": "10er-Karte", "en": "10-class pass" },
+  "kind": "single | week | ten | month | year",
+  "priceEUR": 120.00,
+  "units": 10,                   // null bei Zeitkarten (week/month/year)
+  "validityDays": 180,
+  "validityStart": "issue | firstRedeem",  // ab Kauf oder ab erster Nutzung
+  "saleFrom": null, "saleUntil": null }    // optionales Verkaufsfenster (Aktionen)
+```
+
+Bei Kursreihen speichert der Editor die **konkreten Termine** (`sessions`),
+nicht nur das Muster: Er generiert sie als Vorschlag aus Startdatum,
+Wochentagen und Wochenzahl, die Inhaberin kann einzelne Termine streichen
+oder verschieben (Ferien, Feiertage). Die Gültigkeit einer Reihe ergibt sich
+implizit aus erster und letzter Session.
+
+Gültigkeits-Regeln zusammengefasst: Kurse haben optionale absolute
+Ab-bis-Fenster (`validFrom`/`validUntil` bzw. Session-Liste); Pakete haben
+relative Gültigkeit (`validityDays`, wahlweise ab Kauf oder ab erster
+Entwertung) plus optionales Verkaufsfenster; das konkrete Ticket bekommt beim
+Kauf sein absolutes Fenster in den `issue`-Event geschrieben (siehe 3.4) —
+der Ledger prüft immer nur gegen das Ticket-Fenster, nie gegen das Paket.
+
+Einzelkarte, Wochenkarte, 10er, Monats- und Jahreskarte sind damit
+Parametrisierungen desselben Paket-Dokuments; die Kursreihe ist ein Kurs mit
+eigenem Preis, dessen Kauf ein **kursgebundenes Ticket** erzeugt: ein
+`issue`-Event mit `courseId`, `unitsTotal: null` (kein Abzug pro Besuch,
+Anwesenheit wird trotzdem als `redeem` protokolliert) und dem Fenster von
+erster bis letzter Session. Der Ledger lehnt Entwertungen kursgebundener
+Tickets für fremde Kurse ab.
+
+### 3.3 `bookings-<locationId>-<jahr>` — Buchungen (Multi-Writer via acl01, **jährlich rotiert**)
+
+Pro Location und Jahr eine Buchungs-DB (Rotationsentscheidung aus der
+Skalierungsanalyse in 6.4: OrbitDB-Logs wachsen append-only unbegrenzt, und
+Schüler brauchen nur die laufende Periode — Kapazitätszählung ebenso).
+Schüler-DIDs erhalten beim Pairing Write-Grants auf die aktuelle Periode;
+beim Jahreswechsel legt die Inhaberin die neue DB an, Grants werden
+übernommen, Vorjahre bleiben auf Studio-Geräten archiviert (Export/Archiv
+via `orbitdb-storacha-bridge` als Option, siehe 6.4).
+
+Statusregel wie v1: Geräte des Studios setzen `confirmed | declined`,
+Schüler nur `requested | cancelled` (App-Logik über der DB-ACL, da OrbitDB
+keine Feld-Level-Rechte kennt — in `docs/LIMITS.md` dokumentieren).
+
+### 3.4 `tickets-<studentDid>` — Ticket-Ledger **pro Schüler** (Multi-Writer: Studio-Geräte)
+
+Der zentrale Umbau gegenüber v1. Statt eines Studio-Ledgers eine kleine DB pro
+Schüler, Schreibrecht für alle registrierten (nicht widerrufenen) Studio-Geräte,
+repliziert auf dem Schülergerät. Append-only: `issue` und `redeem` sind Events,
+nie In-Place-Updates.
+
+```json
+{ "_id": "ticket:<uuid>", "type": "issue",
+  "studentDid": "did:key:…", "packageId": "package:10er",
+  "courseId": null,          // gesetzt bei kursgebundenen Reihen-Tickets
+  "unitsTotal": 10,          // null bei Zeitkarten und Reihen-Tickets
+  "payment": { "method": "cash", "amountEUR": 120.00, "receivedAt": "…" },
+  "issuedBy": { "deviceDid": "did:key:…", "locationId": "location:altstadt" },
+  "validFrom": "2026-08-01", "validUntil": "2027-01-28",
+  "validityStart": "issue | firstRedeem",
+  "sig": "<Signatur des ausstellenden Geräts>" }
+
+{ "_id": "redeem:<uuid>", "type": "redeem",
+  "ticketId": "ticket:<uuid>",
+  "seq": 3,
+  "prevRedeemHash": "<Hash von redeem seq=2>",
+  "courseId": "course:vinyasa-mi-18", "date": "2026-08-05",
+  "redeemedBy": { "deviceDid": "did:key:…", "locationId": "location:west" },
+  "redeemedAt": "…",
+  "sig": "<Signatur des entwertenden Geräts>" }
+
+// Entwertung des Tickets selbst: Erstattung oder Übertrag auf neue DID
+{ "_id": "void:<uuid>", "type": "void",
+  "ticketId": "ticket:<uuid>",
+  "reason": "refund | transfer | lost-device",
+  "transferTicketId": "ticket:<uuid-neu>",   // bei Übertrag: das Nachfolge-Ticket
+  "voidedBy": { "deviceDid": "did:key:…", "locationId": "…" },
+  "voidedAt": "…",
+  "sig": "<Signatur>" }
+```
+
+Restguthaben = `unitsTotal` − Anzahl gültiger `redeem`-Events; deterministisch
+aus dem Log, auf allen Geräten identisch. Multi-Writer ist CRDT-technisch
+konfliktfrei (eindeutige IDs, append-only) — das einzige Risiko ist
+**Staleness**, und die adressiert Abschnitt 5. `payment.method` bleibt Enum
+(PayPal/Bitcoin/Lastschrift später ohne Schema-Bruch).
+
+## 4. Verbindungs- und Ticket-Flows
+
+### 4.1 Geräte-Onboarding (Inhaberin ↔ neues Studio-Gerät)
+
+QR-Handshake wie beim Schüler-Pairing; Inhaberin schreibt den `device`-Eintrag
+in die Registry und erteilt die nötigen DB-Grants. Widerruf ebenso per
+Registry-Update; alle Geräte lernen ihn bei ihrer nächsten Verbindung.
+
+### 4.2 Schüler-Pairing, Kauf, Buchung
+
+Wie v1: PWA-Installation per Plakat-QR (statisches Hosting/IPFS-Gateway — kein
+Relay), QR-Handshake, DID-Austausch, Grants, Initial-Replikation. Barkauf:
+„Bar erhalten" → `issue`-Event → repliziert sofort über die stehende Verbindung.
+
+### 4.3 Check-in / Entwerten — **immer per P2P-Session**
+
+Änderung gegenüber v1 (dort reichte der statische Ticket-QR): Bei
+Multi-Location läuft der Check-in grundsätzlich über den kurzen QR-Handshake,
+denn der Sync selbst ist der Double-Spend-Schutz:
+
+1. Schüler zeigt Offer-QR → Front-Desk scannt → Verbindung steht (Sekunden).
+2. Front-Desk-Gerät zieht die neuesten Heads von `tickets-<studentDid>` —
+   inklusive aller Redeems, die andere Locations geschrieben haben und die der
+   Schüler als Kurier mitbringt.
+3. Verifikation offline: Registry-Signaturprüfung aller Events, Kettenprüfung
+   (`seq`/`prevRedeemHash`), Guthaben-Berechnung.
+4. „Entwerten" → neues `redeem`-Event mit nächster `seq` → repliziert sofort
+   zurück auf das Schülergerät.
+
+Copy-&-Paste-Fallback, falls die Kamera streikt oder der Payload das
+QR-Budget (~2200 Zeichen) sprengt.
+
+## 5. Double-Spend: drei Schichten
+
+**Schicht 1 — Schüler als Sync-Kurier (Prävention bei ehrlichen Geräten).**
+Das Schülergerät repliziert seinen eigenen Ledger und trägt Redeems physisch
+von Location zu Location. Da der Check-in die Heads _vor_ der Entwertung zieht,
+sieht Location B die Entwertung von Location A, sobald derselbe Schüler
+auftaucht — strukturell, ohne Relay.
+
+**Schicht 2 — Fork-Erkennung (Manipulation nachweisbar).** Monotone `seq` +
+`prevRedeemHash` + Gerätesignatur bilden pro Ticket eine Hash-Kette. Wer alte
+Stände vorzeigt (lokale DB zurückgesetzt), erzeugt zwangsläufig zwei signierte
+Events mit gleicher `seq` — eine Fork, die beim nächsten Sync auffliegt, mit
+Signaturen beider Seiten als Beweis. Die App zeigt Forks als roten Alarm mit
+Event-Details.
+
+**Schicht 3 — Reconciliation zwischen Locations.** Periodischer Abgleich der
+Front-Desk-Geräte per Copy-&-Paste-SDP oder QR (wenn die Inhaberin rotiert):
+Austausch der Ledger-Heads aller bekannten Schüler + Registry-Stand
+(Geräte-Widerrufe!). Negative Salden werden erkannt und beim nächsten Besuch
+nachbelastet. `issuedBy`/`redeemedBy` liefern nebenbei den
+**Bar-Kassenabgleich pro Location und Gerät**.
+
+**Ehrliche Grenze (im README dokumentieren):** Prävention gegen einen aktiv
+manipulierten Client bei dauerhaft getrennten Locations ist ohne Server oder
+Trusted Hardware unlösbar (klassisches Offline-E-Cash-Problem). Für Yogastunden
+ist Erkennung + kryptografische Nachweisbarkeit der richtige Trade-off: Schaden
+pro Vorfall = eine Stunde.
+
+## 6. Replikation, Sicherheit & Geräteverlust
+
+### 6.1 Replikationsmatrix — wer hält was?
+
+OrbitDB repliziert immer **ganze Datenbanken** (vollständige Logs), keine
+Ausschnitte. Die Matrix ist deshalb pro DB entschieden:
+
+| DB                     | Inhaberin                    | Studio-Gerät (Location X)             | Schüler:in                 |
+| ---------------------- | ---------------------------- | ------------------------------------- | -------------------------- |
+| `registry`             | ✅ Writer                    | ✅ read (voll)                        | ✅ read (voll)             |
+| `program`              | ✅ Writer                    | ✅ Writer/read (voll)                 | ✅ read (voll)             |
+| `bookings-<loc>`       | ✅ alle Locations            | ✅ eigene Location (weitere optional) | ✅ nur Locations mit Grant |
+| `tickets-<studentDid>` | ✅ alle (via Reconciliation) | ✅ alle bisher gesehenen Schüler      | ✅ **nur den eigenen**     |
+
+Begründungen: Die `registry` brauchen **alle** vollständig, denn sie ist die
+Offline-Verifikationsbasis für Gerätesignaturen und Widerrufe. Studio-Geräte
+akkumulieren die Ticket-Ledger aller Schüler, die sie je gesehen haben (plus
+Reconciliation) — nur so ist Check-in an jeder Location möglich. Schüler
+halten ausschließlich ihren eigenen Ledger; fremde Ledger erreichen sie nie.
+
+**Ehrlicher Privacy-Trade-off (in `LIMITS.md` und Consent-Text):** Wer als
+Schüler eine `bookings-<loc>`-DB repliziert, sieht darin auch die Buchungen
+anderer (DID, Anzeigename, Kurs, Termin, Status) — Vollreplikation ist
+OrbitDB-inhärent. Mitigation v1: Datensparsamkeit (nur DID + frei gewählter
+Alias, Pseudonym möglich) und Aufklärung im Consent. v2-Optionen: Buchungs-DB
+pro Schüler oder Feldverschlüsselung — als Upstream-/Designfrage in
+`LIMITS.md` festhalten, nicht ad hoc lösen.
+
+### 6.2 Geräteverlust — drei Fälle
+
+**Schülergerät verloren.** Kein Ticket-Verlust: Die autoritative Kopie jedes
+Schüler-Ledgers liegt ohnehin verteilt auf den Studio-Geräten. Zwei Wege
+zurück: (a) Passkey wiederherstellbar (Plattform-Sync oder Recovery-Flow aus
+`passkey01`) → gleiche DID, neues Gerät paart sich im Studio, Ledger und
+Buchungen replizieren zurück — vollständige Wiederherstellung. (b) DID
+unwiederbringlich verloren → neue DID; die Inhaberin prüft die Person
+(sie kennt ihre Schüler), schreibt ein `void`-Event auf die alten Tickets und
+stellt neue `issue`-Events mit dem Restguthaben auf die neue DID aus
+(`payment.method: "transfer"`, Referenz aufs alte Ticket). Ein Dieb kann mit
+dem alten Gerät nichts anfangen: Der Schlüssel liegt im
+Plattform-Authenticator und ist biometrisch gebunden — genau der Zweck des
+WebAuthn-Providers.
+
+**Studio-Gerät verloren.** Sofortmaßnahme: Inhaberin widerruft die
+Geräte-DID in der `registry`; ab Kenntnis lehnen alle Geräte dessen Events
+ab (Widerrufs-Latenz siehe 6.3). Datenverlust beschränkt sich auf Events
+seit dem letzten Sync dieses Geräts — das sind Bareinnahmen-Belege! Deshalb:
+Tages-Reconciliation als betriebliche Routine (M5-Screen erinnert daran),
+sodass das Verlustfenster maximal ein Tag ist.
+
+**Inhaberinnen-Gerät verloren.** Daten gehen nicht verloren — `registry`,
+`program`, Buchungen und Ledger existieren verteilt weiter, der laufende
+Betrieb (Verkauf, Entwertung, Buchung) funktioniert ungestört. Verloren ginge
+die **Schreibhoheit über die Registry**: Ohne sie kann niemand mehr Geräte
+registrieren oder widerrufen. Dreifache Vorsorge, von Tag eins: (1)
+Passkey-Recovery-Flow aus `passkey01`, (2) verschlüsselter Registry-Export
+(T5.2), (3) **Zweitgerät mit `owner`-Rolle beim Setup registrieren** — der
+Onboarding-Wizard fordert dazu aktiv auf. Ohne Vorsorge bliebe nur die
+Neugründung der Registry mit Neu-Onboarding aller Geräte (Tickets bleiben
+auch dann lesbar und über `void`/Transfer überführbar).
+
+### 6.3 Weitere Sicherheits- und Datenschutzpunkte
+
+- **Replay-Window** fehlt in webrtc-qr (laut README) → upstream eskalieren,
+  nicht lokal patchen. Für Tickets irrelevant: Entwertung ist nie token-basiert,
+  sondern immer ein verifizierter Ledger-Write.
+- **Geräte-Widerruf-Latenz:** Ein widerrufenes Gerät kann bis zum nächsten Sync
+  weiter signieren. Redeems widerrufener Geräte werden ab Kenntnis des
+  Widerrufs als ungültig markiert; Zeitfenster im README dokumentieren.
+- **DSGVO/Datensparsamkeit:** nur DID + selbstgewählter Anzeigename; Beträge/
+  Zeitpunkte, keine Adressen. Daten liegen ausschließlich auf beteiligten Geräten.
+- **Backup/Recovery:** Passkey-Recovery (`passkey01`); verschlüsselter
+  Registry-/Ledger-Export für die Inhaberin. Geräteverlust darf keine Tickets
+  vernichten — per-Schüler-Ledger + Replikation auf Studio-Geräten ist hier
+  bereits ein natürliches, verteiltes Backup.
+
+### 6.4 Skalierungsgrenzen — Rechnung & Gegenmaßnahmen
+
+Annahmen: ~1–2 KB pro OrbitDB-Entry, aktiver Schüler ~60 Besuche/Jahr,
+Buchung = 2 Entries, Replikation remote eher Entry-Rate-begrenzt
+(~200–500 Entries/s) als Bandbreiten-begrenzt.
+
+**Unkritisch:** `registry`, `program` und die per-Schüler-Ledger
+(~70 Events ≈ 100–140 KB pro Schüler und Jahr — nach 4 Jahren < 0,5 MB).
+
+**Kritisch:** unrotierte Buchungs-DBs und die _Anzahl_ der Ledger-DBs:
+
+| Szenario              | Bookings-Entries | Größe      | Erst-Sync remote | Cold Start     |
+| --------------------- | ---------------- | ---------- | ---------------- | -------------- |
+| 100 Schüler, 1 Jahr   | ~12k             | 12–24 MB   | 25–60 s ⚠️       | ok             |
+| 100 Schüler, 3 Jahre  | ~36k             | 36–72 MB   | 1–3 min ❌       | 10–30 s ⚠️     |
+| 500 Schüler, 2 Jahre  | ~120k            | 120–240 MB | 4–10 min ❌      | Minuten ❌     |
+| 1000 Schüler, 4 Jahre | ~480k            | 0,5–1 GB   | Stunden ❌       | ❌, Mobile-RAM |
+
+Vierter Engpass: Reconciliation öffnet N Ledger-DBs (~50–200 ms + Speicher je
+Instanz) — 100 Schüler: 5–20 s; 1000: Minuten, ohne Gegenmaßnahmen.
+
+**Gegenmaßnahmen (im Design verankert):**
+
+1. **Jahres-Rotation** der Buchungs-DBs (3.3) — Schüler replizieren nur die
+   laufende Periode; bei ~1000 Schülern ggf. Quartals-Rotation.
+2. **Lazy-Open + LRU** für Schüler-Ledger auf Studio-Geräten; Guthaben-Cache
+   pro Ticket mit Head-Hash-Invalidierung, damit Check-in nie vom
+   Öffnen aller DBs abhängt.
+3. **Archivierung** abgeschlossener Perioden von Studio-Geräten via
+   `orbitdb-storacha-bridge` (Export als CAR/Storacha), lokal nur Verweis.
+4. Alle Zahlen oben sind Schätzungen — die **Benchmarks in Abschnitt 11
+   verifizieren sie** gegen Budgets; Budget-Verletzung = Design-Aktion,
+   nicht Achselzucken.
+
+## 7. i18n (DE/EN)
+
+Paraglide-Message-Kataloge, Sprachumschalter + Browser-Detection. Inhaltsdaten
+als `{ de, en }`-Objekte mit Fallback. Preise/Daten über `Intl`. Jede neue
+UI-Zeichenkette landet ausnahmslos im Katalog (Lint-Regel/CI-Check gegen
+hartkodierte Strings).
+
+## 8. Design: Le-Space-Stil, Dark & Bright Mode
+
+### 8.1 Token-Architektur
+
+Ein einziges Set semantischer CSS Custom Properties, Tailwind konsumiert nur
+diese Variablen — nie rohe Hex-Werte in Komponenten:
+
+```css
+/* src/lib/styles/tokens.css */
+:root,
+[data-theme='light'] {
+	--color-bg: /* aus Le-Space-Referenz */;
+	--color-surface: …;
+	--color-surface-raised: …;
+	--color-text: …;
+	--color-text-muted: …;
+	--color-accent: …; /* Le-Space-Markenfarbe */
+	--color-accent-contrast: …;
+	--color-success: …;
+	--color-warning: …;
+	--color-danger: …;
+	--color-border: …;
+	--radius-card: …;
+	--radius-control: …;
+	--shadow-card: …;
+	--font-display: …;
+	--font-body: …;
+	--font-mono: …;
+}
+[data-theme='dark'] {
+	/* dieselben Slots, dunkle Werte */
+}
+```
+
+```js
+// tailwind.config.js (Ausschnitt)
+darkMode: ['selector', '[data-theme="dark"]'],
+theme: { extend: { colors: {
+  bg: 'var(--color-bg)', surface: 'var(--color-surface)',
+  accent: 'var(--color-accent)', /* … */ } } }
+```
+
+### 8.2 Mode-Umschaltung
+
+Initial `prefers-color-scheme`, manueller Toggle (im Header, neben dem
+Sprachumschalter), Wahl persistiert in `localStorage`, gesetzt als
+`data-theme` auf `<html>` **vor** dem ersten Paint (Inline-Snippet in
+`app.html` gegen Flash-of-wrong-theme). `theme-color`-Meta pro Modus für die
+PWA-Statusleiste. `prefers-reduced-motion` respektieren; Fokus-Ringe sichtbar;
+Kontrast beider Modi gegen WCAG AA prüfen (axe im E2E-Lauf).
+
+### 8.3 Le-Space-Tokens übernehmen (erste Claude-Code-Aufgabe)
+
+**Kanonische Quelle:** `Le-Space/landing` → `docs/le-space-brand`.
+
+Oben stehen bewusst Slots statt Werte — **Task T0.2** weist Claude Code an,
+das Brand-Verzeichnis zu klonen bzw. zu lesen und daraus zu übernehmen:
+Farbpalette (hell und dunkel), Typografie (Display/Body/Mono inkl.
+Font-Dateien oder Bezugsquelle), Radii, Schatten, Abstände, Logo-/Icon-Assets
+und ggf. dort dokumentierte Do's/Don'ts. Alles in `tokens.css` übertragen und
+in `docs/DESIGN.md` mit Quellpfad je Wert dokumentieren. Fehlt im
+Brand-Verzeichnis eine Dark-Mode-Definition, werden die Dunkel-Werte aus der
+hellen Palette abgeleitet (gleiche Hues, angepasste Lightness, AA-Kontrast)
+und in `DESIGN.md` explizit als _abgeleitet, nicht Brand-definiert_ markiert
+— als Vorschlag zur Rückführung ins Brand-Repo, nicht als lokale Wahrheit.
+
+### 8.4 Gestaltungsrichtung
+
+Ruhig und präzise, passend zu Yoga und zum Le-Space-Purismus: viel Fläche,
+klare Typo-Hierarchie, die Akzentfarbe ausschließlich für Aktionen und
+Statuswechsel (Buchung bestätigt, Ticket entwertet). Signatur-Element der App:
+die **Guthaben-Anzeige des Tickets** — groß, ehrlich, mit „Stand vom …" und
+Sync-Indikator; sie ist das Vertrauens-Interface der ganzen Idee. QR-Screens
+in beiden Modi mit hellem QR-Feld (Scanbarkeit im Dark Mode!).
+
+## 9. UI-Seiten
+
+**Inhaberin:** Registry (Locations, Geräte, Widerruf) · Programm-Editor ·
+Reconciliation-Screen (Abgleich, Kassenbericht pro Location, Fork-Alarme).
+
+**Front-Desk/Lehrer:in:** Buchungsübersicht pro Termin · Kasse („Bar
+erhalten") · Check-in-Scanner · Verbindungs-Screen.
+
+**Schüler:in:** Programm/Stundenplan (Filter nach Location) · Buchen/Stornieren ·
+Meine Tickets (Guthaben, Gültigkeit, Sync-Status) · Verbindungs-Assistent.
+
+## 10. Repo-Struktur
+
+```
+yoga-p2p/
+├── CLAUDE.md                  # Konventionen für Claude Code (s. Abschnitt 12)
+├── docs/
+│   ├── PLAN.md                # dieses Dokument
+│   ├── DESIGN.md              # extrahierte Le-Space-Tokens + Quellen
+│   └── LIMITS.md              # Known Limits & Upstream-Eskalationen
+├── src/
+│   ├── lib/
+│   │   ├── p2p/               # libp2p-Setup, webrtc-qr, Paste-Fallback
+│   │   ├── db/                # OrbitDB: registry, program, bookings, tickets
+│   │   ├── ledger/            # Guthaben-Reducer, Ketten-/Fork-Verifikation
+│   │   ├── identity/          # Passkey-DID, Recovery
+│   │   ├── styles/tokens.css
+│   │   └── components/
+│   ├── messages/{de,en}.json  # Paraglide
+│   └── routes/
+├── e2e/                       # Playwright: alice/, bob/, carol/ Fixtures
+├── static/
+└── vite.config.js, playwright.config.js, tailwind.config.js, …
+```
+
+`ledger/` ist bewusst reines, UI-freies TypeScript mit Unit-Tests: der
+Guthaben-Reducer und die Fork-Erkennung sind die kritischste Logik und müssen
+ohne Browser testbar sein.
+
+## 11. Meilensteine & Claude-Code-Arbeitspakete
+
+Normales Projekt, normaler Git-Workflow: Feature-Branches pro Task, PR mit
+grünen Tests (Unit + E2E) in `main`, `main` ist immer lauffähig. Die
+Meilensteine M1–M5 sind reine Planungsstruktur, keine Branches. Statt
+Single-Location zuerst und Multi-Location als Umbau danach wird der Ledger
+**von Anfang an multi-location-fähig** gebaut — das spart den kompletten
+Umbau-Meilenstein. Jede Task ist
+so geschnitten, dass sie als einzelner Claude-Code-Auftrag mit prüfbaren
+Akzeptanzkriterien funktioniert.
+
+### M1 — Fundament
+
+- **T0.1** Scaffold: SvelteKit static, pnpm, Tailwind, Paraglide, PWA-Shell,
+  Playwright-Setup. ✓ `pnpm dev`, `pnpm test` grün, Lighthouse-PWA installierbar.
+- **T0.2** Le-Space-Tokens aus `Le-Space/landing:docs/le-space-brand`
+  übernehmen → `tokens.css`, `DESIGN.md` (Quellpfad je Wert; abgeleitete
+  Dark-Werte markiert), Dark/Light-Toggle ohne Theme-Flash.
+  ✓ axe-Kontrastcheck beide Modi; kein Token ohne dokumentierte Quelle.
+- **T1.1** Helia + OrbitDB mit LevelBlockstore-Persistenz. ✓ E2E: Reload,
+  Daten da.
+- **T1.2** Registry- + Programm-DB (Single Writer), Editor-UI für Locations,
+  Kurse (offen **und** Kursreihe mit Termin-Generator: Startdatum +
+  Wochentage + Wochenzahl → editierbare Session-Liste, Ferien streichbar),
+  Pakete (Einzel/Woche/10er/Monat/Jahr, `validityStart`, Verkaufsfenster).
+  ✓ E2E: Alice legt 2 Locations, 3 offene Kurse, 1 Reihe (2×/Woche,
+  5 Wochen, ein Termin gestrichen), 5 Pakete an; zweisprachig; persistent.
+
+### M2 — Verbindung & Rollen
+
+- **T2.1** libp2p-Node mit `@le-space/libp2p-webrtc-qr` als einzigem Transport;
+  Verbindungs-Assistent mit drei Wegen: QR-Kamera, Copy-&-Paste, Teilen per
+  Web Share API (Messenger/Social Media). ✓ E2E: Paste-Pfad **und**
+  Kamera-Pfad (Fake-Video-Capture, s. E2E-Strategie) verbinden Alice↔Bob.
+- **T2.2** Replikation `registry` + `program` → Bob, read-only-Ansicht mit
+  Location-Filter. ✓ E2E: Bob sieht Alices Programm; Änderung bei Alice
+  erscheint bei bestehender Verbindung live bei Bob.
+- **T2.3** Geräte-Onboarding Inhaberin↔Studio-Gerät (Rollen, Widerruf) —
+  gleiche QR-Mechanik wie das Schüler-Pairing, deshalb hier statt in einem
+  eigenen Meilenstein. ✓ E2E: widerrufenes Gerät wird ab Kenntnis des
+  Widerrufs nicht mehr akzeptiert.
+
+### M3 — Buchungen (acl01-Grants)
+
+- **T3.1** acl01-Access-Controller einbinden; Grant-Erteilung beim Pairing,
+  Widerruf in der UI. ✓ E2E: Write vor Grant scheitert, nach Grant gelingt,
+  nach Widerruf scheitert wieder.
+- **T3.2** Buchungs-Flow inkl. Statusregeln und „lokal erfasst / bestätigt"-UI.
+  Kursreihen werden **als Ganzes** gebucht (eine Buchung = alle Sessions,
+  Kapazität zählt pro Reihe); offene Stunden pro Termin, bei Reihen mit
+  `allowDropIn` auch einzelne Sessions.
+  ✓ E2E bidirektional: Bob bucht, Alice bestätigt, Bob storniert; Bob bucht
+  eine Reihe komplett und eine fremde Reihen-Session als Drop-in.
+
+### M4 — Ticket-Ledger (von Anfang an multi-location-fähig)
+
+Zusammengelegt aus alt-M4 und dem Kern von alt-M6: Der Ledger wird gleich
+richtig gebaut — pro Schüler, Multi-Writer für registrierte Studio-Geräte,
+Hash-Kette und Fork-Erkennung von Tag eins. Kein Umbau-Meilenstein mehr.
+
+- **T4.1** `ledger/`-Modul: Event-Typen (`issue`/`redeem`/`void`),
+  Guthaben-Reducer, Signatur- und
+  Kettenprüfung (`seq`/`prevRedeemHash`), Fork-Erkennung, Gültigkeits-
+  Validierung (Ticket-Fenster, `validityStart: firstRedeem` — Fenster startet
+  mit der ersten Entwertung —, Kursbindung via `courseId`). ✓ Unit inkl.
+  Property-Tests: Reihenfolge-Invarianz, identisches Ergebnis bei mehreren
+  Writern, Fork-Fälle deterministisch erkannt; Tabellen-Tests für alle
+  Gültigkeits-Kombinationen (vor Fenster, im Fenster, danach, falscher Kurs).
+- **T4.2** Barkauf-Flow („Bar erhalten") + Ticket-UI mit Guthaben-Signatur-
+  Element. ✓ E2E: Kauf → Guthaben auf beiden Geräten korrekt.
+- **T4.3** Check-in per P2P-Session mit Kurier-Sync (Heads vor Entwertung
+  ziehen → verifizieren → redeem → zurückreplizieren). ✓ E2E-Roundtrip mit
+  drei Kontexten: Kauf bei A → Entwertung bei A → Bob zu B → B sieht
+  korrektes Guthaben → Entwertung bei B → zurück zu A → beide Redeems
+  sichtbar. Abgelaufen/fremd abgelehnt; Zeitkarten (units:null) ohne Abzug;
+  Reihen-Ticket: Anwesenheit protokolliert ohne Abzug, Entwertung für
+  fremden Kurs abgelehnt; `firstRedeem`-Karte startet ihr Fenster mit der
+  ersten Entwertung (page.clock).
+- **T4.4** Fork-Alarm-UI. ✓ E2E: zurückgesetzter Bob-Ledger ⇒ Alarm mit
+  beiden signierten Events als Beweis.
+
+### M5 — Hardening & Reconciliation
+
+- **T5.1** Sync-Status-UI überall („Stand vom …"), Konfliktfälle
+  (Storno nach Entwertung u. ä.).
+- **T5.2** Ledger-/Registry-Export, Passkey-Recovery-E2E,
+  Geräteverlust-Flows: Schüler-Restore auf neues Gerät (gleiche DID),
+  DID-Verlust mit `void`+Transfer auf neue DID, Studio-Gerät-Widerruf;
+  Setup-Wizard fordert Owner-Zweitgerät aktiv ein.
+- **T5.3** Reconciliation-Screen + Kassenbericht pro Location/Gerät.
+  ✓ E2E: A↔B-Abgleich per Paste-Pfad; negativer Saldo wird erkannt und als
+  Nachbelastung vorgemerkt.
+- **T5.4** `LIMITS.md` + Upstream-Issues formulieren.
+- **T5.5** Benchmark-Suite `bench/`: Seed-Generator, Szenarien S1–S6
+  (S7 Stretch), Metriken + Budgets, Lazy-Open/LRU + Guthaben-Cache
+  implementieren und je Szenario mit/ohne Gegenmaßnahmen messen; Remote-Lauf
+  über den Harness aus relay-button bzw. simple-todos
+  `remote-replication.yml`. ✓ Budgets für S1–S5 grün; Report generiert.
+
+### E2E-Teststrategie (Playwright)
+
+**Infrastruktur (Teil von T0.1, wächst mit jedem Meilenstein):**
+
+- **Fixtures:** `e2e/fixtures.ts` stellt benannte Browser-Kontexte bereit —
+  `alice` (Inhaberin/Location A), `carol` (Front-Desk Location B), `bob`
+  (Schüler/Kurier). Jeder Kontext bekommt isolierte IndexedDB/Storage-Partition
+  und eine eigene Passkey-Identität über den WebAuthn-Emulator (s. u.) —
+  echte Passkey-Flows, keine Test-Modus-Abkürzung im Identity-Provider.
+- **WebAuthn-Emulator:** Wiederverwendung des Emulators aus den E2E-Tests von
+  `Le-Space/orbitdb-identity-provider-webauthn-did` (CDP Virtual
+  Authenticator). Erste Aufgabe in T0.1: den Helper dort lokalisieren und als
+  `e2e/webauthn.ts` übernehmen bzw. direkt importieren, falls das Repo ihn
+  exportiert — exportiert es ihn nicht, Export upstream vorschlagen statt
+  Code zu duplizieren.
+- **Kamera-Emulation:** Chromium-Flags `--use-fake-ui-for-media-stream`,
+  `--use-fake-device-for-media-stream`,
+  `--use-file-for-fake-video-capture=<datei>.y4m|.mjpeg`. Der Test rendert
+  den Offer-QR in Kontext A, schreibt den Frame als Fake-Kamera-Datei und
+  startet Kontext B mit dieser „Kamera" → der **echte Scan-Pfad** (Decoder
+  inklusive) läuft in CI. `docs/TESTING.md` behält nur noch eine kurze
+  Checkliste für echte Geräte (Fokus, Abstand, Display-Helligkeit).
+- **Handshake-Helper:** `connectViaPaste(a, b)` (Copy-&-Paste-Automation,
+  schneller Default für die Masse der Tests) und `connectViaCamera(a, b)`
+  (Fake-Video-Pfad, mindestens je ein Szenario pro Meilenstein). Beide mit
+  `?ice=host` wie in der webrtc-qr-Suite. Der Share-Flow (Web Share API) wird
+  mit gestubbtem `navigator.share` getestet: Payload-Inhalt und Fallback auf
+  Copy-&-Paste, wenn `share` nicht verfügbar ist.
+- **Zeit:** `page.clock` für Gültigkeits-Szenarien (abgelaufene Karten,
+  Zeitkarten-Fenster) — keine echten Wartezeiten, keine flaky Datumslogik.
+- **Selektoren:** ausschließlich `data-testid`; i18n-Texte sind nie
+  Selektoren (beide Sprachen müssen denselben Test bestehen).
+- **Projekt-Matrix:** Chromium als Pflicht-Gate; Firefox/WebKit als
+  `continue-on-error`-Jobs, bis der Transport upstream dort getestet ist.
+- **a11y:** axe-Check (beide Themes) als eigener Spec, Teil des Gates.
+
+**Szenario-Katalog (Spec-Dateien, kumulativ pro Meilenstein):**
+
+| Spec                     | Kontexte          | Kernszenarien                                                                                                                                                           |
+| ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `m1-program.spec`        | alice             | Locations/Kurse/Pakete CRUD, Reihen-Editor (Termin-Generator, Termin streichen), DE↔EN, Reload-Persistenz, Theme-Toggle ohne Flash                                      |
+| `m2-connect.spec`        | alice, carol, bob | Paste- **und** Kamera-Handshake, Share-Flow (gestubbt) inkl. Fallback, Programm-Replikation, Live-Update, Geräte-Onboarding + Widerruf, Abbruch/Retry                   |
+| `m3-booking.spec`        | alice, bob        | Write vor/nach Grant/Widerruf, Buchen→Bestätigen→Stornieren, Reihe als Ganzes + Drop-in-Session, „lokal erfasst"-Status offline                                         |
+| `m4-tickets.spec`        | alice, carol, bob | Barkauf, Kurier-Roundtrip A→B→A, abgelaufen/fremd/falscher-Kurs abgelehnt, Zeitkarte & Reihen-Ticket ohne Abzug, firstRedeem-Fensterstart, Fork-Alarm mit Beweis-Events |
+| `m5-recovery.spec`       | alice, bob        | Export/Import, Passkey-Recovery (WebAuthn-Emulator), Schüler-Restore gleiche DID, `void`+Transfer auf neue DID, Storno-nach-Entwertung-Konflikt                         |
+| `m5-reconciliation.spec` | alice, carol      | A↔B-Abgleich, Nachbelastung, Kassenbericht pro Location/Gerät                                                                                                           |
+| `a11y.spec`              | alice             | axe in Light + Dark auf allen Hauptscreens                                                                                                                              |
+
+**CI (GitHub Actions):** PR-Gate = Lint + vitest (Ledger-Property-Tests) +
+Chromium-E2E + axe; Playwright-Traces/Screenshots als Artefakte bei Failure.
+Nightly zusätzlich Firefox/WebKit (non-blocking) als Frühwarnung.
+
+### Benchmarks & Skalierungs-Verifikation
+
+Die Schätzungen aus 6.4 werden gemessen, nicht geglaubt. Eigene Suite in
+`bench/`, getrennt vom PR-Gate (langlaufend → nightly/weekly).
+
+**Seed-Generator (`bench/seed.ts`, Node):** erzeugt deterministisch (Seed-RNG)
+komplette OrbitDB-Datenbestände für ein Szenario — N Schüler, Y Jahre,
+Besuchsverteilung, L Locations, inkl. Ledger-Ketten und Buchungs-DBs — und
+exportiert sie als ladbare Fixtures. Kein Klick-Seeding durch die UI.
+
+**Szenarien:**
+
+| #            | Schüler | Jahre         | prüft primär                         |
+| ------------ | ------- | ------------- | ------------------------------------ |
+| S1–S4        | 100     | 1 / 2 / 3 / 4 | Wachstum über Zeit, Rotations-Effekt |
+| S5           | 500     | 2             | Erst-Pairing, Cold Start             |
+| S6           | 1000    | 2             | Reconciliation-DB-Anzahl, RAM        |
+| S7 (Stretch) | 1000    | 4             | Archivierungspfad, Rotation Pflicht  |
+
+Jedes Szenario läuft einmal **mit** und einmal **ohne** Rotation/Lazy-Open,
+damit der Effekt der Gegenmaßnahmen belegt ist.
+
+**Metriken:** Cold Start (DB-Load bis interaktiv) + Peak-RAM · Erst-Pairing
+eines neuen Schülers (Entries/s, Gesamtzeit) · inkrementeller Check-in-Sync ·
+Reconciliation-Dauer für N Ledger · Storage-Footprint pro Rolle.
+
+**Budgets (Fail = Design-Aktion, in `LIMITS.md` protokolliert):**
+Check-in-Sync < 3 s · Cold Start < 5 s · Erst-Pairing < 15 s ·
+Reconciliation (100 Schüler) < 60 s.
+
+**Lokal vs. Remote:** Baseline lokal (Playwright, `connectViaPaste`,
+`?ice=host`). Zusätzlich **Remote-Replikation über echte Netze/NATs**: dafür
+den bestehenden Remote-Harness wiederverwenden — Claude Code prüft zuerst das
+**relay-button-Repo** (deckt Remote-Replikation ab, Aussage Nico; von hier
+nicht einsehbar) und als bekannte Referenz die
+`remote-replication.yml`/TestingBot-Suite aus `simple-todo`. Wichtig für die
+Einordnung: Der Harness orchestriert entfernte Browser; der SDP-Austausch der
+App bleibt Paste/QR (Testrunner überträgt den SDP-Text) — die App bleibt
+relay-frei. Läuft ein Szenario zusätzlich über Relay-Infrastruktur aus
+relay-button, wird es explizit als „mit Relay" gelabelt und getrennt
+berichtet, damit die relay-freien Zahlen sauber bleiben.
+
+**Reporting:** JSON-Resultate als CI-Artefakte + einfacher Trend über
+Commits (`bench/report.md` generiert), damit Regressionen auffallen, bevor
+ein Studio sie spürt.
+
+## 12. CLAUDE.md (Entwurf — ins Repo-Root)
+
+Umgesetzt in [`../CLAUDE.md`](../CLAUDE.md). Abweichungen gegenüber dem
+Entwurf sind dort begründet und in [`LIMITS.md`](./LIMITS.md) belegt.
+
+## 13. Upstream-Lücken (dokumentieren & eskalieren)
+
+Replay-Window + kleinerer Payload (QWBP-Richtung) in `libp2p-webrtc-qr` ·
+vendored `@libp2p/webrtc`-Internals · Firefox/WebKit · TURN-lose NAT-Fälle ·
+Feld-Level-Rechte in OrbitDB-ACLs.
+
+## 14. Bewusst verschoben (v2+)
+
+PayPal/Bitcoin/Lastschrift (`payment.method`-Enum vorbereitet) · Wartelisten ·
+mehrere Studios pro Schüler-App · Push-Erinnerungen · Multi-Frame-QR (BC-UR)
+als Fallback für große Payloads.
+
+---
+
+_Hinweis Förderung: Falls Teile hiervon ein Arbeitspaket für NLnet/BayTP+
+werden sollen, das Work Package vor Entwicklungsbeginn abgrenzen
+(Vorhabensbeginn)._

@@ -1,0 +1,220 @@
+/* Le-Space design tokens.
+ *
+ * Source of every value: Le-Space/landing → docs/le-space-brand
+ * (build/build_styleguide.py and build/build_brand.py, the scripts that
+ * generate the PDF style guide). Provenance per token is recorded in
+ * docs/DESIGN.md — do not add a value here that is not documented there, and
+ * never write a raw hex value in a component (CLAUDE.md).
+ *
+ * Naming: raw tokens carry an `--ls-` prefix and are the single source of
+ * truth. They are mapped into Tailwind's theme namespaces at the bottom of
+ * this file. The prefix is not decoration — Tailwind 4 owns `--color-*`,
+ * `--radius-*` and `--font-*`, so an unprefixed raw token would refer to
+ * itself.
+ *
+ * Values marked "derived" are not brand-defined: they fill slots the guide
+ * does not cover (a light-mode UI surface set, light-mode semantic colours)
+ * and are candidates to push back upstream into the brand repo.
+ */
+
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+
+/* The theme is a data attribute on <html>, set before first paint in app.html. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ── Dark theme — the brand's native mode ──────────────────────────────────
+ * Every colour here is verbatim from build_styleguide.py.
+ */
+:root,
+[data-theme='dark'] {
+	--ls-bg: #0b0e15; /* Deep Space */
+	--ls-surface: #141926; /* Nebula */
+	--ls-surface-raised: #1b2233; /* derived: Nebula lifted for stacked panels */
+	--ls-border: #232b3d; /* Horizon */
+	--ls-text: #edf1f8; /* Starlight */
+	--ls-text-muted: #a8b3c7; /* Stardust */
+	/* Comet Grey #6B7690 reaches only 3.85:1 on Nebula, so it fails AA for the
+	   metadata it is meant for. Lightened along its own hue until it clears
+	   4.5:1 on all three dark grounds. Upstream candidate — see docs/LIMITS.md. */
+	--ls-text-faint: #7f89a0;
+
+	--ls-accent: #ff6b5b; /* Signal Coral */
+	--ls-accent-contrast: #0b0e15; /* Deep Space, for text on Coral */
+	--ls-link: #58c7f3; /* Sync Cyan */
+
+	--ls-success: #3edc97; /* Mint */
+	--ls-warning: #ffc24b; /* Amber */
+	--ls-danger: #ff4d6a; /* Error — deliberately cooler than Signal Coral */
+	--ls-info: #58c7f3; /* Sync Cyan */
+
+	/* Stack layer colours, identical across diagrams, docs and website. */
+	--ls-layer-identity: #3edc97;
+	--ls-layer-data: #ffc24b;
+	--ls-layer-sync: #58c7f3;
+	--ls-layer-infra: #a78bfa;
+	--ls-layer-archive: #ff6b5b;
+
+	color-scheme: dark;
+}
+
+/* ── Light theme ───────────────────────────────────────────────────────────
+ * The guide defines light mode for print only: background #FFFFFF, text Ink
+ * #141B2E, Coral → #E8503F, Cyan → #0E86C4. A screen UI needs a page/surface
+ * distinction print does not, so the remaining slots are derived from brand
+ * hues at AA contrast. See docs/DESIGN.md.
+ */
+[data-theme='light'] {
+	--ls-bg: #edf1f8; /* Starlight as the page ground — derived */
+	--ls-surface: #ffffff; /* brand-defined light background */
+	--ls-surface-raised: #f2f5fb; /* derived */
+	--ls-border: #d4dcea; /* derived from the Horizon hue */
+	--ls-text: #141b2e; /* Ink */
+	--ls-text-muted: #41506b; /* derived — 7.2:1, passes as is */
+	--ls-text-faint: #626e85; /* derived — #6B7891 was 4.44:1, just short of AA */
+
+	/* The brand's light-mode values are defined for print. On screen, against
+	   the same white, Coral #E8503F reaches 3.7:1 and Cyan #0E86C4 4.0:1 — both
+	   below AA for body text. Darkened along their own hue to the first value
+	   that clears 4.5:1 on white, Starlight and the raised surface. The
+	   originals stay correct for print and for large display type; the delta is
+	   an upstream question, recorded in docs/DESIGN.md and docs/LIMITS.md. */
+	--ls-accent: #d22c19; /* from Coral #E8503F */
+	--ls-accent-contrast: #ffffff;
+	--ls-link: #0c74aa; /* from Cyan #0E86C4 */
+
+	--ls-success: #177d54; /* from Mint */
+	--ls-warning: #936513; /* from Amber */
+	--ls-danger: #d32444; /* from Error */
+	--ls-info: #0c74aa;
+
+	/* Layer colours label diagrams and chips, not body text; they keep the
+	   brand hue at its light-mode value. */
+	--ls-layer-identity: #1fa971;
+	--ls-layer-data: #c7891a;
+	--ls-layer-sync: #0e86c4;
+	--ls-layer-infra: #7c5cff;
+	--ls-layer-archive: #e8503f;
+
+	color-scheme: light;
+}
+
+/* ── Shape and type ───────────────────────────────────────────────────────
+ * Radii and border: guide section 05 ("Radius 10 px für Karten, 8 px für
+ * Buttons, Border 1 px Horizon").
+ * Fonts and scale: guide section 04 ("JetBrains Mono ist die Markenstimme,
+ * Inter die Arbeitsschrift").
+ */
+:root {
+	--ls-radius-card: 10px;
+	--ls-radius-control: 8px;
+
+	--ls-font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--ls-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--ls-font-mono: 'JetBrains Mono', ui-monospace, 'Noto Sans Mono', monospace;
+
+	--ls-text-display: clamp(2.5rem, 6vw, 4rem); /* 40–64 px / 1.05 */
+	--ls-text-h1: 2.5rem; /* 40 px / 1.1 */
+	--ls-text-h2: 1.75rem; /* 28 px / 1.2 */
+	--ls-text-h3: 1.25rem; /* 20 px / 1.3 */
+	--ls-text-meta: 0.875rem; /* 14 px / 1.5 */
+
+	/* Not brand-defined: the guide builds with borders, not elevation. Kept
+	   minimal and derived so panels read as panels, not as floating cards. */
+	--ls-shadow-card: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+
+/* Expose the semantic slots to Tailwind, so components use utilities
+   (bg-surface, text-muted, border-border) and never a raw value. */
+@theme inline {
+	--color-bg: var(--ls-bg);
+	--color-surface: var(--ls-surface);
+	--color-surface-raised: var(--ls-surface-raised);
+	--color-border: var(--ls-border);
+	--color-text: var(--ls-text);
+	--color-muted: var(--ls-text-muted);
+	--color-faint: var(--ls-text-faint);
+	--color-accent: var(--ls-accent);
+	--color-accent-contrast: var(--ls-accent-contrast);
+	--color-link: var(--ls-link);
+	--color-success: var(--ls-success);
+	--color-warning: var(--ls-warning);
+	--color-danger: var(--ls-danger);
+	--color-info: var(--ls-info);
+	--color-identity: var(--ls-layer-identity);
+	--color-data: var(--ls-layer-data);
+	--color-sync: var(--ls-layer-sync);
+	--color-infra: var(--ls-layer-infra);
+	--color-archive: var(--ls-layer-archive);
+
+	--radius-card: var(--ls-radius-card);
+	--radius-control: var(--ls-radius-control);
+
+	--font-sans: var(--ls-font-body);
+	--font-mono: var(--ls-font-mono);
+}
+
+body {
+	background: var(--ls-bg);
+	color: var(--ls-text);
+	font-family: var(--ls-font-body);
+	-webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+	color: var(--ls-text);
+	font-family: var(--ls-font-display);
+}
+
+a {
+	color: var(--ls-link);
+}
+
+/* The brand rule "one Coral action per view" only holds if focus is visible
+   without borrowing the accent. Cyan is the interaction colour. */
+:focus-visible {
+	outline: 2px solid var(--ls-link);
+	outline-offset: 2px;
+}
+
+/* Eyebrow labels: JetBrains Mono Bold, caps, +8 % tracking (guide, section 04). */
+.eyebrow {
+	font-family: var(--ls-font-mono);
+	font-weight: 700;
+	font-size: 0.8125rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--ls-accent);
+}
+
+input:not([type='checkbox']):not([type='radio']),
+textarea,
+select {
+	background-color: var(--ls-surface-raised);
+	border-color: var(--ls-border);
+	color: var(--ls-text);
+}
+
+input::placeholder,
+textarea::placeholder {
+	color: var(--ls-text-faint);
+}
+
+/* A QR code must stay scannable in dark mode, so the code field keeps a light
+   ground in both themes (docs/PLAN.md §8.4). */
+.qr-field {
+	background: #ffffff;
+	padding: 1rem;
+	border-radius: var(--ls-radius-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

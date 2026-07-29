@@ -1,0 +1,292 @@
+// The QR handshake: build a WebRTC session out of band, then hand it to
+// libp2p as a finished connection.
+//
+// Shape of the exchange — the same three steps whether the payload travels as
+// a scanned QR code, a pasted string or a shared message:
+//
+//   A: createOffer()      → offer payload   ──(QR / paste / share)──▶ B
+//   B: acceptOffer(text)  → answer payload  ◀──(QR / paste / share)── A
+//   A: acceptAnswer(text) → connection open
+//
+// Adapted from the helia-file-transfer example in NiKrause/libp2p-webrtc-qr.
+// Kept free of Svelte and OrbitDB so the flow can be unit tested and so the
+// stores in ./node.js stay a thin layer on top.
+
+import { peerIdFromString } from '@libp2p/peer-id';
+import { multiaddr } from '@multiformats/multiaddr';
+import {
+	createWebRTCUpgradeContext,
+	decodeSignedPayload,
+	encodeSignedPayload,
+	parsePayload,
+	PAYLOAD_VERSION,
+	QR_TYPE_ANSWER,
+	QR_TYPE_OFFER
+} from '@le-space/libp2p-webrtc-qr';
+
+import { rtcConfiguration } from './libp2p-config.js';
+
+const ICE_GATHERING_TIMEOUT_MS = 15_000;
+const CONNECTION_TIMEOUT_MS = 30_000;
+/** How long the answering side keeps retrying while the offerer attaches its muxer. */
+const DIAL_ATTEMPTS = 15;
+const DIAL_RETRY_MS = 300;
+
+/**
+ * @typedef {object} OfferSession
+ * @property {string} sessionId
+ * @property {RTCPeerConnection} peerConnection
+ * @property {RTCDataChannel} initDataChannel
+ * @property {string | null} remotePeerId
+ * @property {unknown} upgradeContext
+ */
+
+/**
+ * Everything one device needs to run handshakes. One per libp2p node.
+ *
+ * @param {any} node a started libp2p node
+ */
+export function createSignalling(node) {
+	/** @type {OfferSession | null} */
+	let offerSession = null;
+	/** @type {Set<RTCPeerConnection>} */
+	const inboundConnections = new Set();
+
+	/** The transport asks this for a verified session when a dial comes in. */
+	function getOutboundSession(/** @type {string} */ remotePeerId) {
+		return offerSession?.remotePeerId === remotePeerId ? offerSession.upgradeContext : null;
+	}
+
+	/**
+	 * Step 1 (offering device): produce a signed offer to be carried to the
+	 * other device. Replaces any offer still waiting for an answer.
+	 *
+	 * @returns {Promise<string>} the payload to render as QR, copy or share
+	 */
+	async function createOffer() {
+		offerSession?.peerConnection.close();
+
+		const peerConnection = new RTCPeerConnection(rtcConfiguration());
+		const sessionId = crypto.randomUUID();
+		// Negotiated, so the remote muxer never mistakes this channel for a stream.
+		const initDataChannel = peerConnection.createDataChannel('init', {
+			negotiated: true,
+			id: 1023
+		});
+
+		await peerConnection.setLocalDescription(await peerConnection.createOffer());
+		await waitForIceGathering(peerConnection);
+
+		offerSession = {
+			sessionId,
+			peerConnection,
+			initDataChannel,
+			remotePeerId: null,
+			upgradeContext: null
+		};
+
+		return encodeSignedPayload(node.components.privateKey, {
+			version: PAYLOAD_VERSION,
+			type: QR_TYPE_OFFER,
+			sessionId,
+			peerId: node.peerId.toString(),
+			sdp: peerConnection.localDescription?.sdp
+		});
+	}
+
+	/**
+	 * Step 2 (answering device): verify a scanned or pasted offer and answer it.
+	 * The signature check happens inside decodeSignedPayload — an offer whose
+	 * signature does not match the peer id it claims never gets this far.
+	 *
+	 * @param {string} text
+	 * @returns {Promise<{ answer: string, remotePeerId: string, connected: Promise<any> }>}
+	 *   the payload to carry back, plus a promise that settles when the inbound
+	 *   upgrade finishes — the answer is ready long before the link is up.
+	 */
+	async function acceptOffer(text) {
+		const offer = await decodeSignedPayload(text, QR_TYPE_OFFER);
+
+		if (offer.peerId === node.peerId.toString()) {
+			throw new Error('This code was created by this device. Scan the other device.');
+		}
+
+		const peerConnection = new RTCPeerConnection(rtcConfiguration());
+		const addr = multiaddr(`/webrtc/p2p/${offer.peerId}`);
+		const upgradeContext = createWebRTCUpgradeContext(node.components, peerConnection, addr, {
+			direction: 'inbound'
+		});
+
+		inboundConnections.add(peerConnection);
+
+		await peerConnection.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
+		await peerConnection.setLocalDescription(await peerConnection.createAnswer());
+		await waitForIceGathering(peerConnection);
+
+		// The offering peer only attaches its muxer once it has read this answer,
+		// so the upgrade has to wait for the connection to actually come up.
+		const upgraded = waitForConnected(peerConnection)
+			.then(() =>
+				node.components.upgrader.upgradeInbound(upgradeContext.connection, {
+					skipEncryption: true,
+					skipProtection: true,
+					remotePeer: peerIdFromString(offer.peerId),
+					muxerFactory: upgradeContext.muxerFactory,
+					signal: AbortSignal.timeout(CONNECTION_TIMEOUT_MS)
+				})
+			)
+			.catch((/** @type {Error} */ error) => {
+				inboundConnections.delete(peerConnection);
+				peerConnection.close();
+				throw error;
+			});
+
+		const answer = await encodeSignedPayload(node.components.privateKey, {
+			version: PAYLOAD_VERSION,
+			type: QR_TYPE_ANSWER,
+			sessionId: offer.sessionId,
+			peerId: node.peerId.toString(),
+			offerPeerId: offer.peerId,
+			sdp: peerConnection.localDescription?.sdp
+		});
+
+		return { answer, remotePeerId: offer.peerId, connected: upgraded };
+	}
+
+	/**
+	 * Step 3 (offering device): verify the answer and open the connection.
+	 *
+	 * @param {string} text
+	 * @returns {Promise<string>} the remote peer id
+	 */
+	async function acceptAnswer(text) {
+		if (!offerSession) throw new Error('Create an offer first.');
+
+		const answer = await decodeSignedPayload(text, QR_TYPE_ANSWER);
+
+		// Both checks matter: the first stops a stale code from a previous
+		// handshake, the second stops a code that was meant for a different device.
+		if (answer.sessionId !== offerSession.sessionId) {
+			throw new Error('This reply belongs to a different connection attempt.');
+		}
+		if (answer.offerPeerId !== node.peerId.toString()) {
+			throw new Error('This reply was created for another device.');
+		}
+
+		await offerSession.peerConnection.setRemoteDescription({ type: 'answer', sdp: answer.sdp });
+		await waitForConnected(offerSession.peerConnection);
+		offerSession.initDataChannel.close();
+
+		const addr = multiaddr(`/webrtc/p2p/${answer.peerId}`);
+		offerSession.remotePeerId = answer.peerId;
+		offerSession.upgradeContext = createWebRTCUpgradeContext(
+			node.components,
+			offerSession.peerConnection,
+			addr,
+			{ direction: 'outbound' }
+		);
+
+		// Dialing is what triggers the transport's upgrade. The answering side may
+		// still be attaching its muxer, so retry rather than fail on the first try.
+		let lastError = new Error('The other device never accepted the connection.');
+
+		for (let attempt = 0; attempt < DIAL_ATTEMPTS; attempt++) {
+			try {
+				const connection = await node.dial(addr, {
+					signal: AbortSignal.timeout(CONNECTION_TIMEOUT_MS)
+				});
+				await delay(200);
+				if (connection.status === 'open') return answer.peerId;
+				lastError = new Error(`The connection closed again right after opening.`);
+			} catch (/** @type {any} */ error) {
+				lastError = error;
+			}
+			await delay(DIAL_RETRY_MS);
+		}
+
+		throw lastError;
+	}
+
+	/**
+	 * Route a payload without trusting it: parsePayload only reads the envelope,
+	 * the signature is verified by the accept* function that handles it.
+	 *
+	 * @param {string} text
+	 * @returns {Promise<'offer' | 'answer'>}
+	 */
+	async function classify(text) {
+		const parsed = await parsePayload(text);
+		return parsed.type === QR_TYPE_OFFER ? 'offer' : 'answer';
+	}
+
+	function close() {
+		offerSession?.peerConnection.close();
+		offerSession = null;
+		for (const connection of inboundConnections) connection.close();
+		inboundConnections.clear();
+	}
+
+	return { createOffer, acceptOffer, acceptAnswer, classify, close, getOutboundSession };
+}
+
+/** @param {number} ms */
+function delay(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Wait until ICE has gathered everything it is going to gather.
+ *
+ * The timeout resolves rather than rejects on purpose: a partially gathered
+ * candidate set still connects on a LAN, which is the main path at a studio.
+ *
+ * @param {RTCPeerConnection} peerConnection
+ */
+function waitForIceGathering(peerConnection) {
+	if (peerConnection.iceGatheringState === 'complete') return Promise.resolve();
+
+	return new Promise((resolve) => {
+		const timeout = setTimeout(done, ICE_GATHERING_TIMEOUT_MS);
+
+		function done() {
+			clearTimeout(timeout);
+			peerConnection.removeEventListener('icegatheringstatechange', onChange);
+			resolve(undefined);
+		}
+
+		function onChange() {
+			if (peerConnection.iceGatheringState === 'complete') done();
+		}
+
+		peerConnection.addEventListener('icegatheringstatechange', onChange);
+	});
+}
+
+/** @param {RTCPeerConnection} peerConnection */
+function waitForConnected(peerConnection) {
+	if (peerConnection.connectionState === 'connected') return Promise.resolve();
+
+	return new Promise((resolve, reject) => {
+		const timeout = setTimeout(() => {
+			cleanup();
+			reject(new Error('The connection timed out.'));
+		}, CONNECTION_TIMEOUT_MS);
+
+		function cleanup() {
+			clearTimeout(timeout);
+			peerConnection.removeEventListener('connectionstatechange', onChange);
+		}
+
+		function onChange() {
+			if (peerConnection.connectionState === 'connected') {
+				cleanup();
+				resolve(undefined);
+			} else if (['failed', 'closed'].includes(peerConnection.connectionState)) {
+				cleanup();
+				reject(new Error(`The connection is ${peerConnection.connectionState}.`));
+			}
+		}
+
+		peerConnection.addEventListener('connectionstatechange', onChange);
+	});
+}

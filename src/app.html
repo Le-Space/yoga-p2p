@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		<!--
+			Theme before first paint. Running this inline, ahead of any stylesheet,
+			is what keeps a dark-mode user from seeing a white flash on every load.
+			Both the attribute and the background are set: the attribute drives the
+			tokens, the background covers the moment before CSS arrives.
+		-->
+		<script>
+			(function () {
+				try {
+					var stored = localStorage.getItem('theme');
+					var theme =
+						stored === 'light' || stored === 'dark'
+							? stored
+							: matchMedia('(prefers-color-scheme: dark)').matches
+								? 'dark'
+								: 'light';
+					document.documentElement.dataset.theme = theme;
+					document.documentElement.style.background = theme === 'dark' ? '#0B0E15' : '#EDF1F8';
+				} catch (e) {
+					document.documentElement.dataset.theme = 'dark';
+				}
+			})();
+		</script>
+
+		<!--
+			%sveltekit.assets%, not "./": with trailingSlash 'always' a relative href
+			resolves against /connect/ and 404s. The placeholder stays correct both
+			at a domain root and under an IPFS gateway path.
+		-->
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
+		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+		<meta name="theme-color" content="#0B0E15" />
+
+		<title>Yoga-Buchung</title>
+		<meta
+			name="description"
+			content="Local-first Kursbuchung für Yogastudios: Programm, Karten und Check-in laufen direkt zwischen den Geräten — ohne Server, ohne Konto."
+		/>
+
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="format-detection" content="telephone=no" />
+
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
