@@ -167,12 +167,16 @@ stabile Public Key belegt. Abgesichert durch `e2e/m2-identity.spec.js`.
 ableiten und deterministisch signieren), oder in `createIdentity` vor dem
 Signieren nach einer vorhandenen Identität für die id suchen.
 
-**Stand T2.2:** Beitritt und Registry-Replikation funktionieren. Ob die
-Identitätskorrektur auch die Programm-Replikation repariert, ist **noch nicht
-belegt** — die beiden E2E-Szenarien laufen ins Zeitlimit, bevor sie dort
-ankommen (jeder Seitenaufruf startet einen kompletten libp2p-, Helia- und
-OrbitDB-Stack). Sie stehen als `test.fixme` im Spec; sie grün zu bekommen ist
-eine Testperformance-Aufgabe, kein Protokollproblem.
+**Stand T2.2: erledigt.** Mit stabilem Identitätsdokument repliziert die
+Programm-DB wie die Registry — Bob sieht einen Kurs, den Alice während der
+bestehenden Verbindung anlegt (`e2e/m2-studio-join.spec.js`, grün). Damit ist
+belegt, dass die Instabilität die einzige Ursache war: Mesh, Subscriptions,
+Sync-Peers und ACL waren die ganze Zeit korrekt.
+
+Upstream gemeldet als
+[orbitdb-identity-provider-webauthn-did#18](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did/issues/18).
+Sobald der Provider stabile Dokumente liefert, kann `stableIdentity()` ersatzlos
+entfallen.
 
 #### Weitere Punkte
 

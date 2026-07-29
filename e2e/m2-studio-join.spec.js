@@ -22,7 +22,7 @@ test.describe('joining a studio', () => {
 	// Left as an explicit gap rather than deleted or padded with a longer
 	// timeout: it is the acceptance criterion for T2.2 and should be the thing
 	// that turns green when the provider is fixed.
-	test.fixme('Bob joins Alice’s studio and replicates her registry', async ({ alice, bob }) => {
+	test('Bob joins Alice’s studio and replicates her registry', async ({ alice, bob }) => {
 		// Each page load boots a fresh libp2p + Helia + OrbitDB stack, and those
 		// dominate the runtime — hence the generous budget and the deliberately
 		// short setup.
@@ -73,7 +73,7 @@ test.describe('joining a studio', () => {
 	// Making these green is a test-performance problem: reuse one node across
 	// navigations instead of reloading. Kept explicit because they are the
 	// acceptance criteria for T2.2.
-	test.fixme('Bob sees a course Alice adds while they are connected', async ({ alice, bob }) => {
+	test('Bob sees a course Alice adds while they are connected', async ({ alice, bob }) => {
 		test.setTimeout(300_000);
 
 		await onboard(alice, 'alice');
@@ -112,7 +112,7 @@ test.describe('joining a studio', () => {
  * @param {string} who
  */
 async function onboard(page, who) {
-	await page.goto('/studio/');
+	await page.goto('/studio/?ice=host');
 	await expect(page.getByTestId('onboarding')).toBeVisible(READY);
 	await onboardVia(page, who);
 }

@@ -25,10 +25,7 @@ import { webRTCQR } from '@le-space/libp2p-webrtc-qr';
  * @returns {RTCConfiguration}
  */
 export function rtcConfiguration() {
-	const search = typeof location === 'undefined' ? '' : location.search;
-	const mode = new URLSearchParams(search).get('ice');
-
-	if (mode === 'host') return { iceServers: [] };
+	if (iceMode() === 'host') return { iceServers: [] };
 
 	const configured = import.meta.env?.VITE_STUN_SERVERS;
 	const urls = (configured || 'stun:stun.l.google.com:19302,stun:stun.cloudflare.com:3478')
@@ -37,6 +34,35 @@ export function rtcConfiguration() {
 		.filter(Boolean);
 
 	return { iceServers: [{ urls }] };
+}
+
+const ICE_MODE_KEY = 'yoga-p2p.iceMode';
+
+/**
+ * The ICE mode, remembered for the session.
+ *
+ * `?ice=host` is a property of *this session*, not of the page it was typed on:
+ * the app routes client-side, so requiring the parameter on every URL would
+ * mean a single in-app navigation silently switches STUN back on. Reading it
+ * once and remembering it keeps the choice where the user made it.
+ *
+ * @returns {string | null}
+ */
+function iceMode() {
+	if (typeof location === 'undefined') return null;
+
+	const fromUrl = new URLSearchParams(location.search).get('ice');
+
+	try {
+		if (fromUrl) {
+			sessionStorage.setItem(ICE_MODE_KEY, fromUrl);
+			return fromUrl;
+		}
+		return sessionStorage.getItem(ICE_MODE_KEY);
+	} catch {
+		// Storage blocked — fall back to whatever this URL says.
+		return fromUrl;
+	}
 }
 
 /**
