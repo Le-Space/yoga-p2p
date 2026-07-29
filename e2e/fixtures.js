@@ -5,8 +5,13 @@
 // own ledger between the two. Each gets its own storage partition, so their
 // OrbitDB state and passkey identity never bleed into one another.
 
-import { test as base, expect } from '@playwright/test';
+import { chromium, test as base, expect } from '@playwright/test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { addVirtualAuthenticator } from './webauthn.js';
+import { writeQrVideo } from './qr-video.js';
 
 /**
  * `?ice=host` restricts ICE to host candidates: no STUN lookup, no dependency
@@ -147,3 +152,73 @@ export async function readPayload(page) {
 }
 
 export { expect };
+
+/**
+ * Run the handshake through the camera, not the clipboard.
+ *
+ * The offer is rendered as a QR video file and fed to a second browser as its
+ * webcam, so the app's own decoder runs against a real MediaStream. That is the
+ * difference between testing the scan path and testing a mock of it — and the
+ * scan path is the one used at the front desk.
+ *
+ * The fake-camera file has to exist before the browser starts (it is a launch
+ * flag, not a context option), which is why the answering side gets a browser
+ * of its own rather than another context.
+ *
+ * @param {Page} offerer already onboarded and on the connect screen
+ * @param {string} who a name for the answering device's passkey
+ * @returns {Promise<{ answerer: Page, close: () => Promise<void> }>}
+ */
+export async function connectViaCamera(offerer, who = 'scanner') {
+	await offerer.getByTestId('create-offer').click();
+	const offer = await readPayload(offerer);
+
+	// A payload too large for one code is a real limit, not a test problem
+	// (docs/LIMITS.md §1.6) — say so rather than fail somewhere in the decoder.
+	await expect(
+		offerer.getByTestId('qr-image'),
+		'the offer must fit in a scannable QR code for the camera path'
+	).toBeVisible();
+
+	const directory = mkdtempSync(join(tmpdir(), 'yoga-qr-'));
+	const video = join(directory, 'offer.y4m');
+	writeQrVideo({ text: offer, path: video });
+
+	const browser = await chromium.launch({
+		args: [
+			'--use-fake-ui-for-media-stream',
+			'--use-fake-device-for-media-stream',
+			`--use-file-for-fake-video-capture=${video}`
+		]
+	});
+
+	const context = await browser.newContext({
+		permissions: ['camera', 'clipboard-read', 'clipboard-write']
+	});
+	const answerer = await context.newPage();
+	await addVirtualAuthenticator(answerer);
+
+	await answerer.goto(CONNECT_URL);
+	await onboard(answerer, who);
+	await expect(answerer.getByTestId('scan-qr')).toBeEnabled({ timeout: 90_000 });
+
+	// Scanning replaces the paste step entirely: the decoded offer runs through
+	// the same handler a pasted one would.
+	await answerer.getByTestId('scan-qr').click();
+
+	const answer = await readPayload(answerer);
+	await offerer.getByTestId('inbound-payload').fill(answer);
+	await offerer.getByTestId('submit-inbound').click();
+
+	await expect(offerer.getByTestId('connection-status')).toHaveAttribute('data-step', 'connected', {
+		timeout: 90_000
+	});
+
+	return {
+		answerer,
+		close: async () => {
+			await context.close();
+			await browser.close();
+		}
+	};
+}

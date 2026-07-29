@@ -2,12 +2,39 @@
 // depends on this working, so it is the one scenario that must never be
 // skipped or made conditional.
 
-import { test, expect, connectViaPaste, openConnect, readPayload } from './fixtures.js';
+import {
+	test,
+	expect,
+	connectViaCamera,
+	connectViaPaste,
+	openConnect,
+	readPayload
+} from './fixtures.js';
 
 test.describe('QR handshake', () => {
 	test('connects two devices over copy & paste', async ({ alice, bob }) => {
 		test.setTimeout(180_000);
 		await connectViaPaste(alice, bob);
+	});
+
+	test('connects two devices through the camera', async ({ alice }) => {
+		// The real decoder against a real MediaStream: the offer is rendered as a
+		// QR video and handed to the answering browser as its webcam. This is the
+		// path used at the front desk, and the one the plan requires in CI.
+		test.setTimeout(240_000);
+
+		await openConnect(alice, 'alice');
+		const session = await connectViaCamera(alice, 'scanner');
+
+		try {
+			await expect(session.answerer.getByTestId('connection-status')).toHaveAttribute(
+				'data-step',
+				'connected',
+				{ timeout: 90_000 }
+			);
+		} finally {
+			await session.close();
+		}
 	});
 
 	test('renders the offer as a scannable QR code', async ({ alice }) => {
