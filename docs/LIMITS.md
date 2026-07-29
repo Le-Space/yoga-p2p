@@ -135,10 +135,44 @@ credential, using fallback: Error: Insufficient data`, die der Provider bei
 jedem Start ausgibt. Der Fallback erzeugt offenbar bei jedem Lauf ein anderes
 Schlüsselmaterial.
 
-Bis das behoben ist, ist T2.2 nur zur Hälfte erfüllt: Beitritt und
-Registry-Replikation funktionieren, laufende Programmänderungen nicht. Der
-zugehörige Test steht als `test.fixme` im Spec und wird grün, sobald der
-Provider stabile Dokumente liefert.
+**Isoliert reproduziert** in `repro/webauthn-identity-stability/` — ohne diese
+App, ohne libp2p, ohne Replikation. Der Repro zeigt auch das genaue Feld:
+
+| Feld                   | über 3 Reloads     |
+| ---------------------- | ------------------ |
+| `id` (DID)             | stabil             |
+| `publicKey`            | **stabil**         |
+| `signatures.id`        | stabil             |
+| `signatures.publicKey` | **3 verschiedene** |
+
+`signatures.publicKey` ist eine **live erzeugte WebAuthn-Assertion**. Die
+enthält per Konstruktion bei jedem Aufruf eine frische Challenge und einen
+inkrementierten Zähler, und ECDSA signiert randomisiert. Ein Dokument, das eine
+Assertion einbettet, kann niemals stabil content-adressiert sein — das ist ein
+Entwurfskonflikt, kein Flüchtigkeitsfehler: Content-Adressierung braucht
+Determinismus, WebAuthn-Assertions sind absichtlich nicht deterministisch.
+
+`createIdentity` in `@orbitdb/core` signiert zudem bei **jedem** Aufruf neu und
+kennt keinen Cache-Lookup — ein persistenter Storage-Parameter hilft deshalb
+nicht.
+
+**Lokale Abhilfe, umgesetzt:** `stableIdentity()` in `src/lib/p2p/node.js` merkt
+sich den Hash des zuerst erzeugten Dokuments und verwendet es danach wieder. Da
+nur die Signatur variiert, bleibt das erste Dokument dauerhaft gültig. Weil
+`getIdentity()` es ohne `sign`-Funktion zurückgibt, wird der Signierer der
+frisch erzeugten Identität geliehen — derselbe private Schlüssel, wie der
+stabile Public Key belegt. Abgesichert durch `e2e/m2-identity.spec.js`.
+
+**Vorschlag nach upstream:** die Assertion nicht einbetten (Schlüssel per PRF
+ableiten und deterministisch signieren), oder in `createIdentity` vor dem
+Signieren nach einer vorhandenen Identität für die id suchen.
+
+**Stand T2.2:** Beitritt und Registry-Replikation funktionieren. Ob die
+Identitätskorrektur auch die Programm-Replikation repariert, ist **noch nicht
+belegt** — die beiden E2E-Szenarien laufen ins Zeitlimit, bevor sie dort
+ankommen (jeder Seitenaufruf startet einen kompletten libp2p-, Helia- und
+OrbitDB-Stack). Sie stehen als `test.fixme` im Spec; sie grün zu bekommen ist
+eine Testperformance-Aufgabe, kein Protokollproblem.
 
 #### Weitere Punkte
 

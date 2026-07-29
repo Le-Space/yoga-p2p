@@ -63,15 +63,16 @@ test.describe('joining a studio', () => {
 		await expect(bob.getByTestId('course-add')).toHaveCount(0);
 	});
 
-	// Blocked by the identity instability in docs/LIMITS.md §2.2: every page
-	// load mints a new identity *document* for the same DID, and OrbitDB
-	// permanently drops entries whose signing document a peer cannot resolve.
-	// Alice's registry replicates, her programme does not — the difference is
-	// only which session happened to sign each entry.
+	// Still unproven, and for a different reason than before. The identity
+	// instability that was breaking this is fixed (see stableIdentity() and
+	// m2-identity.spec.js); what blocks the scenario now is its own cost —
+	// every page load boots a fresh libp2p + Helia + OrbitDB stack, and three
+	// of them do not fit in the budget. Raising the timeout would hide that
+	// rather than fix it.
 	//
-	// Kept as a failing expectation rather than deleted: this is the acceptance
-	// criterion for T2.2 and it should go green the moment the provider is
-	// fixed, not be quietly forgotten.
+	// Making these green is a test-performance problem: reuse one node across
+	// navigations instead of reloading. Kept explicit because they are the
+	// acceptance criteria for T2.2.
 	test.fixme('Bob sees a course Alice adds while they are connected', async ({ alice, bob }) => {
 		test.setTimeout(300_000);
 
