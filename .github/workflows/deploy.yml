@@ -1,0 +1,101 @@
+name: Build & Deploy to Aleph IPFS
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: >-
+          Aleph custom domain to link (e.g. yoga.le-space.de). Leave empty to
+          use the default: a push to main always links yoga.le-space.de, a run
+          on any other ref publishes to IPFS without touching the domain.
+        required: false
+        default: ''
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      ipfs_cid: ${{ steps.publish.outputs.ipfs_cid }}
+      ipfs_cid_v0: ${{ steps.publish.outputs.ipfs_cid_v0 }}
+      item_hash: ${{ steps.publish.outputs.item_hash }}
+      store_processed: ${{ steps.publish.outputs.store_processed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build
+
+      # Installed outside the project so the deploy tooling cannot pull its own
+      # libp2p/OrbitDB versions into the app's dependency tree.
+      - name: Install isolated Aleph deploy tooling
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.7.0
+
+      - name: Publish to Aleph IPFS
+        id: publish
+        env:
+          ALEPH_VM_MODE: site-publish
+          ALEPH_SITE_DIRECTORY: ${{ github.workspace }}/build
+          ALEPH_SITE_PIN: 'true'
+          ALEPH_SITE_NAME: yoga-p2p
+          ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
+          ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
+        run: |
+          for attempt in 1 2 3; do
+            if node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Aleph publish attempt $attempt failed; retrying..."
+            sleep $((attempt * 15))
+          done
+
+  link-domain:
+    needs: publish
+    # Only link once the store message is actually processed — linking a CID
+    # the network has not accepted yet leaves the domain pointing at nothing.
+    if: needs.publish.outputs.item_hash != '' && needs.publish.outputs.store_processed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # A push to main is a production deploy and must relink the domain, or the
+      # site would sit on the previous CID while the run still reports success.
+      DEFAULT_DOMAIN: ${{ github.ref == 'refs/heads/main' && 'yoga.le-space.de' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install isolated Aleph deploy tooling
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.7.0
+
+      - name: Link custom domain
+        if: inputs.domain != '' || env.DEFAULT_DOMAIN != ''
+        env:
+          ALEPH_VM_MODE: site-domain-link
+          ALEPH_SITE_ITEM_HASH: ${{ needs.publish.outputs.item_hash }}
+          ALEPH_SITE_IPFS_CID: ${{ needs.publish.outputs.ipfs_cid }}
+          ALEPH_SITE_IPFS_CID_V0: ${{ needs.publish.outputs.ipfs_cid_v0 }}
+          ALEPH_SITE_DOMAIN: ${{ inputs.domain || env.DEFAULT_DOMAIN }}
+          # The app is a single-page app on a static host: every unknown path
+          # has to reach index.html or a deep link 404s on the gateway.
+          ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
+          ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
+        run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
