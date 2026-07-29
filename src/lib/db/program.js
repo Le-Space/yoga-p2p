@@ -11,11 +11,21 @@
 import { get, writable } from 'svelte/store';
 
 import { openDocuments, readAll } from './open.js';
+import { nodeStatusStore } from '../p2p/node.js';
 import { seriesWindow } from '../program/sessions.js';
 
 export const programDbStore = writable(/** @type {any} */ (null));
 export const coursesStore = writable(/** @type {any[]} */ ([]));
 export const packagesStore = writable(/** @type {any[]} */ ([]));
+
+// See the note in registry.js: handles below a stopped node are dead, and
+// clearing them here means no screen can hold one by accident.
+nodeStatusStore.subscribe(({ state }) => {
+	if (state !== 'idle') return;
+	programDbStore.set(null);
+	coursesStore.set([]);
+	packagesStore.set([]);
+});
 
 /**
  * @param {object} [options]

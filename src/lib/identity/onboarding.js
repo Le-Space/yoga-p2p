@@ -5,11 +5,13 @@
 // is opened — otherwise the studio would be owned by a throwaway identity and
 // the real owner could never write to it.
 
-import { get, writable } from 'svelte/store';
+import { derived, get, writable } from 'svelte/store';
 
-import { startNode, ownDidStore } from '../p2p/node.js';
-import { openRegistry } from '../db/registry.js';
-import { openProgram } from '../db/program.js';
+import { startNode, ownDidStore, orbitdbStore, libp2pStore } from '../p2p/node.js';
+import { serveStudio } from '../p2p/studio-protocol.js';
+import { describeOwnStudio } from '../db/join.js';
+import { openRegistry, registryDbStore } from '../db/registry.js';
+import { openProgram, programDbStore } from '../db/program.js';
 import {
 	createPasskeyCredential,
 	hasStoredPasskeyCredential,
@@ -25,6 +27,20 @@ export const bootStore = writable(
 		state: 'idle',
 		error: null
 	})
+);
+
+/**
+ * Whether the app actually has what a studio screen needs.
+ *
+ * Derived from the live handles rather than tracked as a flag. A flag was the
+ * original bug: tearing the node down left `bootStore` reading `ready`, so the
+ * editor rendered over closed databases and every write failed with "the
+ * registry is not open". State that can go stale should not be the gate —
+ * whatever stops the node now flips this by construction.
+ */
+export const studioReady = derived(
+	[orbitdbStore, registryDbStore, programDbStore],
+	([orbitdb, registry, program]) => Boolean(orbitdb) && Boolean(registry) && Boolean(program)
 );
 
 /** True when this browser profile has a passkey it can come back to. */
@@ -62,7 +78,7 @@ export async function recoverIdentityAndBoot() {
  */
 export async function bootIfIdentityKnown() {
 	if (!hasStoredPasskeyCredential()) return false;
-	if (get(bootStore).state === 'ready') return true;
+	if (get(studioReady)) return true;
 
 	await recoverIdentityAndBoot();
 	return true;
@@ -84,6 +100,10 @@ async function boot(obtainCredential) {
 		// programme is meaningless without the locations it points at.
 		await openRegistry();
 		await openProgram();
+
+		// Answer peers that ask which studio this device belongs to. Registered
+		// after the databases exist, so the first answer is never an empty one.
+		await serveStudio(get(libp2pStore), describeOwnStudio);
 
 		bootStore.set({ state: 'ready', error: null });
 	} catch (/** @type {any} */ error) {

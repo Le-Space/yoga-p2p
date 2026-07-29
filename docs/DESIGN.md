@@ -120,9 +120,96 @@ für M1.
 - **QR-Felder bleiben in beiden Themes hell** (`.qr-field`), sonst scannt keine
   Kamera im Dark Mode.
 
+## Die Marke: ॐ als lokaler Knoten
+
+Die Le-Space-Bildsprache hat eine feste Grammatik (Styleguide, Abschnitt 06):
+Ein **gefüllter Coral-Kreis** ist der lokale Knoten — „dieser Knoten, hier,
+du". **Cyan umrandete Kreise** sind Peers, Linien sind Verbindungen (gestrichelt
+= sporadisch). Die App-Marke ersetzt genau ein Element: an der Stelle des
+lokalen Knotens steht das **ॐ**.
+
+Das ist keine Dekoration, sondern die Aussage der App: Die eigene Praxis ist
+der Knoten, Studio und weitere Standorte sind Peers. Die Grammatik bleibt
+unangetastet, damit die Marke neben anderen Le-Space-Marken lesbar bleibt.
+
+### Zwei Kompositionen, nicht eine
+
+Der Styleguide schreibt es vor: „Ab 48 px abwärts gilt die vereinfachte
+Favicon-Variante: lokaler Knoten + ein Peer + eine Verbindung."
+
+| Variante         | Aufbau                             | Verwendung                        |
+| ---------------- | ---------------------------------- | --------------------------------- |
+| **Vollmarke**    | ॐ + 2 Peers + 3 Verbindungen       | App-Icons, OG-Bild, große Flächen |
+| **Kleine Marke** | ॐ (größer) + 1 Peer + 1 Verbindung | Favicon, Header, alles ≤ 48 px    |
+
+Die Vollmarke ist bewusst ruhiger als das Le-Space-Original, das zusätzlich
+einen vierten, schwachen Punkt trägt: Ein Glyph liest sich unruhiger als eine
+gefüllte Scheibe, also muss die Komposition drumherum zurücktreten.
+
+### Der Glyph
+
+`src/lib/assets/om-glyph.js` enthält den Umriss von **U+0950 DEVANAGARI OM**,
+einmalig aus **Noto Sans Devanagari** (SIL Open Font License 1.1,
+`google/fonts → ofl/notosansdevanagari`) mit opentype.js extrahiert.
+
+Als Pfad und nicht als `<text>`, weil ein Textelement eine installierte
+Devanagari-Schrift voraussetzt — auf den meisten Windows- und Android-Geräten
+würde die Marke sonst stillschweigend als Kästchen erscheinen. Weder die
+Schriftdatei noch opentype.js sind dadurch Abhängigkeiten dieses Repositories;
+der eingebettete Pfad ist das gesamte Ergebnis.
+
+### Umgang mit dem Zeichen
+
+ॐ ist ein heiliges Symbol im Hinduismus, Buddhismus und Jainismus. Verbindlich
+für dieses Projekt:
+
+- Das Zeichen wird **ganz, aufrecht und unverändert** verwendet. Nie gespiegelt,
+  gedreht, beschnitten oder in dekorative Striche zerlegt.
+- Es steht nicht auf Flächen, die als „darauf tritt man" lesbar sind, und
+  nicht in Kontexten, in denen es abgeschnitten wird.
+- Eine Variante, die den Glyphen in Netzwerkstriche auflöst, wurde bewusst
+  **nicht** entworfen — sie wäre die naheliegende gestalterische Idee und
+  zugleich die respektloseste.
+
+### Erzeugung
+
+```bash
+node scripts/build-logo.mjs      # SVGs, PNGs, favicon.ico
+node scripts/build-og-image.mjs  # Social-Card
+```
+
+Beides leitet sich aus derselben Quelle ab wie die UI
+(`src/lib/assets/om-glyph.js`, Tokens oben), damit Icons und Oberfläche nicht
+auseinanderlaufen. `src/lib/components/OmMark.svelte` rendert dieselbe Marke
+inline für den Header — mit `var(--ls-accent)` und `var(--ls-link)` statt
+fester Hex-Werte.
+
+Farben: Coral und Cyan erreichen beide auf Deep Space **und** auf Starlight
+AA, deshalb genügt **eine** Datei für beide Themes. Die Icon-PNGs stehen wie
+das Le-Space-App-Icon auf Deep-Space-Grund; das Maskable-Icon hat 20 % Rand,
+damit Androids Kreisbeschnitt nichts abschneidet.
+
+**Bekannte Grenze:** Bei 16 px verliert das ॐ seine Binnenzeichnung — es bleibt
+als Silhouette erkennbar, aber nicht mehr als Schriftzeichen lesbar. Das ist
+bei dieser Glyphenkomplexität nicht zu vermeiden; moderne Browser nehmen
+ohnehin die 32-px- oder SVG-Variante.
+
 ## Assets
 
-`static/` enthält Favicon, App-Icon und Wortmarke aus
-`docs/le-space-brand/logo/svg` bzw. `favicon/`. Das sind **Le-Space**-Marken,
-kein eigenes Yoga-Studio-Branding — als Platzhalter dokumentiert, offen bis das
-Studio eine eigene Marke hat.
+Alles in `static/` wird aus den beiden Build-Skripten oben erzeugt und ist
+nicht von Hand zu bearbeiten:
+
+| Datei                                        | Inhalt                                           |
+| -------------------------------------------- | ------------------------------------------------ |
+| `logo-mark.svg`                              | Vollmarke, transparent                           |
+| `favicon.svg`                                | kleine Marke, transparent                        |
+| `favicon-32x32.png`, `favicon-16x16.png`     | kleine Marke, gerastert                          |
+| `favicon.ico`                                | beide Raster in einem Container                  |
+| `android-chrome-192x192.png`, `-512x512.png` | Vollmarke auf Deep Space                         |
+| `apple-touch-icon.png`                       | Vollmarke auf Deep Space, 180 px                 |
+| `maskable-512x512.png`                       | Vollmarke, 20 % Rand für Androids Kreisbeschnitt |
+| `og-image.png`                               | Social-Card, 1200 × 630                          |
+
+Die früheren Le-Space-Platzhalter (`app-icon.svg`, `logo-dark.svg`,
+`logo-light.svg`, das alte `favicon.ico`) sind entfernt — sie hätten sonst
+weiterhin die Le-Space-Marke unter dem Namen dieser App ausgeliefert.

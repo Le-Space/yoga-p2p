@@ -11,6 +11,8 @@
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
 
+import { OM_GLYPH, omTransform } from '../src/lib/assets/om-glyph.js';
+
 const OUTPUT = fileURLToPath(new URL('../static/og-image.png', import.meta.url));
 
 const TOKENS = {
@@ -62,10 +64,19 @@ const card = `
 				font-family: 'JetBrains Mono', ui-monospace, monospace;
 				font-size: 22px; color: ${TOKENS.link};
 			}
+			.mark { position: absolute; right: 88px; top: 76px; width: 150px; height: 150px; }
 		</style>
 	</head>
 	<body>
 		<div class="rule"></div>
+		<svg class="mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+			<path d="${OM_GLYPH.path}" fill="${TOKENS.accent}" transform="${omTransform(34, 58, 46)}"/>
+			<line x1="53" y1="44" x2="64" y2="32" stroke="${TOKENS.link}" stroke-width="4" stroke-linecap="round"/>
+			<line x1="56" y1="63" x2="69" y2="63" stroke="${TOKENS.link}" stroke-width="4" stroke-linecap="round" stroke-dasharray="0.1 8"/>
+			<line x1="74" y1="34" x2="77" y2="53" stroke="${TOKENS.link}" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="0.1 6" opacity="0.65"/>
+			<circle cx="71" cy="24" r="9" fill="none" stroke="${TOKENS.link}" stroke-width="5"/>
+			<circle cx="78" cy="62" r="7" fill="none" stroke="${TOKENS.link}" stroke-width="4.5"/>
+		</svg>
 		<div class="eyebrow">Local-first · Peer-to-Peer</div>
 		<h1>Yoga-Buchung</h1>
 		<p>Kurse, Karten und Check-in laufen direkt zwischen den Geräten — ohne Server, ohne Konto.</p>

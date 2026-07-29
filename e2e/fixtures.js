@@ -43,6 +43,47 @@ async function newActor(browser) {
 }
 
 /**
+ * Give a context an identity, if it does not have one yet.
+ *
+ * Every screen that touches data is gated on a passkey — including the
+ * connection assistant, because a connection is only worth anything once the
+ * device has an identity the other side can grant something to.
+ *
+ * @param {Page} page
+ * @param {string} who used for the passkey's user id and display name
+ */
+export async function onboard(page, who) {
+	const onboarding = page.getByTestId('onboarding');
+	const ready = page.getByTestId('studio-ready');
+
+	// Wait for the gate to decide before asking which side it landed on.
+	// `isVisible()` does not auto-wait, so checking it straight after a
+	// navigation reads "not visible" simply because nothing has rendered yet —
+	// the form then never gets filled and the wait below times out.
+	await expect(onboarding.or(ready)).toBeVisible({ timeout: 90_000 });
+
+	if (await onboarding.isVisible()) {
+		await page.getByTestId('onboarding-user-id').fill(`${who}@example.com`);
+		await page.getByTestId('onboarding-display-name').fill(who);
+		await page.getByTestId('onboarding-submit').click();
+	}
+
+	await expect(ready).toBeVisible({ timeout: 90_000 });
+}
+
+/**
+ * Open the connection assistant, onboarding on the way if needed.
+ *
+ * @param {Page} page
+ * @param {string} who
+ */
+export async function openConnect(page, who) {
+	await page.goto(CONNECT_URL);
+	await onboard(page, who);
+	await expect(page.getByTestId('create-offer')).toBeEnabled({ timeout: 60_000 });
+}
+
+/**
  * Run the full three-step handshake over copy & paste.
  *
  * This is the default for the bulk of the suite: it exercises the same
@@ -53,11 +94,10 @@ async function newActor(browser) {
  * @param {Page} answerer
  */
 export async function connectViaPaste(offerer, answerer) {
-	await offerer.goto(CONNECT_URL);
-	await answerer.goto(CONNECT_URL);
-
-	await expect(offerer.getByTestId('create-offer')).toBeEnabled({ timeout: 60_000 });
-	await expect(answerer.getByTestId('submit-inbound')).toBeEnabled({ timeout: 60_000 });
+	// Already-onboarded contexts pass straight through; a fresh one gets an
+	// identity here rather than failing at a form it did not expect.
+	await openConnect(offerer, 'offerer');
+	await openConnect(answerer, 'answerer');
 
 	await offerer.getByTestId('create-offer').click();
 	const offer = await readPayload(offerer);

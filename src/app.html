@@ -33,7 +33,16 @@
 			resolves against /connect/ and 404s. The placeholder stays correct both
 			at a domain root and under an IPFS gateway path.
 		-->
+		<!--
+			The SVG comes first so browsers that support it get the crisp mark; the
+			PNGs and the .ico are for those that do not. All of them are the
+			*simplified* mark — one peer, one connection — because the full one
+			turns to mud below 48 px (brand guide, section 06).
+		-->
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<link rel="icon" type="image/png" sizes="32x32" href="%sveltekit.assets%/favicon-32x32.png" />
+		<link rel="icon" type="image/png" sizes="16x16" href="%sveltekit.assets%/favicon-16x16.png" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.ico" sizes="any" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
 		<meta name="theme-color" content="#0B0E15" />
