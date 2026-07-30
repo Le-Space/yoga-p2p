@@ -189,59 +189,13 @@ async function createOrbitDBInstance(helia, passkeyCredential) {
 
 	ownDidStore.set(identity.id);
 
-	return createOrbitDB(
-		/** @type {any} */ ({
-			ipfs: helia,
-			identities,
-			identity: await stableIdentity(identities, identity)
-		})
-	);
-}
-
-const IDENTITY_HASH_KEY = 'yoga-p2p.identityHash';
-
-/**
- * Reuse the identity document this device created the first time.
- *
- * `createIdentity` re-signs on every call, and the signature it embeds is a
- * live WebAuthn assertion — fresh challenge, incremented counter — so the
- * document is content-addressed to a different hash on every page load. Every
- * entry points at the document that signed it; a peer must resolve that exact
- * document to validate the entry, and OrbitDB permanently drops what it cannot
- * validate. The result is a device whose older writes nobody else can accept.
- *
- * Only the signature varies: id, public key and `signatures.id` are stable
- * across loads (measured — see repro/webauthn-identity-stability). So the first
- * document stays valid forever and can simply be kept.
- *
- * `getIdentity` returns it without a `sign` function, because it is rebuilt
- * from bytes alone. The signer from the freshly created identity is borrowed
- * for that — it holds the same private key, which is what makes the public key
- * stable in the first place.
- *
- * @param {any} identities
- * @param {any} identity the identity just created
- */
-async function stableIdentity(identities, identity) {
-	let remembered = null;
-	try {
-		remembered = localStorage.getItem(IDENTITY_HASH_KEY);
-	} catch {
-		// Storage blocked — fall through and use the fresh identity.
-	}
-
-	if (remembered && remembered !== identity.hash) {
-		const cached = await identities.getIdentity(remembered).catch(() => null);
-		if (cached) return { ...cached, sign: identity.sign, verify: identity.verify };
-	}
-
-	try {
-		localStorage.setItem(IDENTITY_HASH_KEY, identity.hash);
-	} catch {
-		// Not fatal: without it the identity is simply new again next load.
-	}
-
-	return identity;
+	// The identity is handed over as created. Until 0.4.0 of the provider it could
+	// not be: `signIdentity()` ran a fresh WebAuthn assertion on every call, so
+	// `signatures.publicKey` and with it the document's content address changed on
+	// every page load, and a local cache of the first document was the only way to
+	// keep older writes acceptable to peers. Fixed upstream (issue #18), and
+	// `e2e/m2-identity.spec.js` guards the property rather than the workaround.
+	return createOrbitDB(/** @type {any} */ ({ ipfs: helia, identities, identity }));
 }
 
 /**

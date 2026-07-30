@@ -173,10 +173,36 @@ bestehenden Verbindung anlegt (`e2e/m2-studio-join.spec.js`, grün). Damit ist
 belegt, dass die Instabilität die einzige Ursache war: Mesh, Subscriptions,
 Sync-Peers und ACL waren die ganze Zeit korrekt.
 
-Upstream gemeldet als
-[orbitdb-identity-provider-webauthn-did#18](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did/issues/18).
-Sobald der Provider stabile Dokumente liefert, kann `stableIdentity()` ersatzlos
-entfallen.
+**Behoben upstream in 0.4.0** (gemeldet als
+[#18](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did/issues/18)).
+`signIdentity()` verwendet jetzt den bereits erzeugten Proof wieder, statt eine
+frische WebAuthn-Assertion zu laufen. Der dortige Changelog nennt zusätzlich die
+Ursache, die wir von außen nicht sehen konnten: `verifiedIdentitiesCache` in
+`@orbitdb/core` ist auf das **deterministische** `signatures.id` gekeyt, zwei
+Dokumente aus einem Keystore kollidieren also auf einem Cache-Eintrag, und
+`isEqual()` verwirft das später verifizierte. Genau daher das Bild „manche
+Einträge replizieren, der Rest lautlos nie".
+
+`stableIdentity()` ist **entfernt**. `e2e/m2-identity.spec.js` bleibt und prüft
+die Eigenschaft, nicht den Workaround; der isolierte Repro in
+`repro/webauthn-identity-stability/` läuft unter 0.4.0 mit einem Hash über drei
+Loads durch (vorher drei).
+
+**Zwei Dinge, die daran hängen:**
+
+- **Die DID ändert sich** gegenüber 0.3.x — `extractPublicKey()` hatte
+  `byteOffset` ignoriert und still einen synthetischen Schlüssel aus
+  `SHA-256(credentialId)` abgeleitet. Wer unter 0.3.x registriert war, bekommt
+  eine neue DID; Registry-Einträge, Grants und die daraus abgeleiteten
+  Ledger-Adressen (§1.7) gelten dann nicht mehr. Im aktuellen Stand ohne
+  Produktivdaten ist das folgenlos, vor einem echten Rollout braucht es einen
+  Migrationspfad.
+- **Bezogen per Git-Tag**, nicht über npm: 0.4.0 ist noch nicht veröffentlicht,
+  `package.json` zeigt auf
+  `github:Le-Space/orbitdb-identity-provider-webauthn-did#v0.4.0`. Das Paket
+  liefert reines ESM ohne Build-Schritt, funktioniert also direkt. Sobald es auf
+  npm liegt, wird daraus wieder eine Versionsangabe — kein Vendoring, keine
+  Kopie.
 
 #### Weitere Punkte
 
