@@ -35,6 +35,11 @@ test.describe('joining a studio', () => {
 		await alice.getByTestId('studio-save').click();
 		await addLocation(alice, 'altstadt', 'Studio Altstadt');
 
+		// One course, so there is something on the programme carrying that location.
+		await alice.getByTestId('nav-program').click();
+		await expect(alice.getByTestId('studio-ready')).toBeVisible(READY);
+		await addCourse(alice, 'vinyasa-mi-18', 'Vinyasa Flow');
+
 		// --- The handshake, then the join ------------------------------------
 		await connectViaPaste(alice, bob);
 
@@ -48,17 +53,25 @@ test.describe('joining a studio', () => {
 		// In-app navigation, not page.goto: a full load would rebuild the libp2p
 		// node and drop the connection this test is about. Clicking the nav link
 		// is also what a person actually does.
-		await bob.getByTestId('nav-studio').click();
+		//
+		// Checked on the programme rather than on /studio, and not only because the
+		// registry editor is no longer in a student's navigation: the name of a
+		// location lives in the registry while the course carries only its id, so a
+		// course row showing "Studio Altstadt" is proof the registry arrived — on a
+		// screen a student actually has.
+		await bob.getByTestId('nav-program').click();
 		await expect(bob.getByTestId('studio-ready')).toBeVisible(READY);
 
-		// Alice's registry reached Bob over the QR-negotiated connection. No
-		// relay, no server, and nothing beyond the pasted payload was exchanged
-		// by hand.
-		await expect(bob.locator('[data-location-id="location:altstadt"]')).toBeVisible(REPLICATED);
+		// One row, two databases. The course comes from the programme; the words
+		// "Studio Altstadt" come from the registry, because the course itself only
+		// carries `location:altstadt`. So the name appearing is the registry arriving.
+		const course = bob.locator('[data-course-id="course:vinyasa-mi-18"]');
+		await expect(course).toBeVisible(REPLICATED);
+		await expect(course).toHaveAttribute('data-location-id', 'location:altstadt');
+		await expect(course).toContainText('Studio Altstadt', REPLICATED);
 
 		// Bob is a guest: the editor is not his to use, and the app says so
 		// rather than letting him write into a database the ACL would refuse.
-		await bob.getByTestId('nav-program').click();
 		await expect(bob.getByTestId('guest-notice')).toBeVisible();
 		await expect(bob.getByTestId('course-add')).toHaveCount(0);
 	});

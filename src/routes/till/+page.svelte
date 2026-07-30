@@ -10,10 +10,10 @@
 	 * *is* the ticket — there is no second record to keep in step, and no balance
 	 * field that could ever disagree with the log.
 	 */
+	import CounterOnly from '$lib/components/CounterOnly.svelte';
 	import StudioGate from '$lib/components/StudioGate.svelte';
-	import { canEditProgram } from '$lib/db/join.js';
 	import { localized, packagesStore } from '$lib/db/program.js';
-	import { devicesStore, locationsStore, studioStore } from '$lib/db/registry.js';
+	import { devicesStore, locationsStore } from '$lib/db/registry.js';
 	import { issueTicket, studentTicketsStore, transferTickets } from '$lib/db/tickets.js';
 	import { foldStudentLedger } from '$lib/db/ledger-view.js';
 	import { ownDidStore } from '$lib/p2p/node.js';
@@ -62,10 +62,6 @@
 			});
 		});
 	}
-
-	let isStudioDevice = $derived(
-		Boolean($studioStore) && Boolean($devicesStore) && canEditProgram()
-	);
 
 	let students = $derived([...$studentTicketsStore.values()]);
 
@@ -122,17 +118,17 @@
 <h1 class="text-3xl font-bold">{m.till_title()}</h1>
 
 <StudioGate>
-	{#if error}
-		<p class="mt-4 text-danger" role="alert" data-testid="till-error">
-			{m.error_generic({ reason: error })}
-		</p>
-	{/if}
+	<CounterOnly>
+		{#if error}
+			<p class="mt-4 text-danger" role="alert" data-testid="till-error">
+				{m.error_generic({ reason: error })}
+			</p>
+		{/if}
 
-	{#if sold}
-		<p class="mt-4 text-success" data-testid="till-sold">{m.till_sold({ package: sold })}</p>
-	{/if}
+		{#if sold}
+			<p class="mt-4 text-success" data-testid="till-sold">{m.till_sold({ package: sold })}</p>
+		{/if}
 
-	{#if isStudioDevice}
 		<section class="mt-6 rounded-card border border-border bg-surface p-6">
 			{#if students.length === 0}
 				<p class="text-faint" data-testid="till-empty">{m.till_none()}</p>
@@ -241,5 +237,5 @@
 				{/if}
 			{/if}
 		</section>
-	{/if}
+	</CounterOnly>
 </StudioGate>

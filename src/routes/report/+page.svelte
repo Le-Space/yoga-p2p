@@ -12,11 +12,11 @@
 	 * this screen simply reports what is here afterwards. That is the whole point of
 	 * the courier design, and a "reconcile now" button would suggest otherwise.
 	 */
+	import CounterOnly from '$lib/components/CounterOnly.svelte';
 	import StudioGate from '$lib/components/StudioGate.svelte';
-	import { canEditProgram } from '$lib/db/join.js';
 	import { foldLedger } from '$lib/db/ledger-view.js';
 	import { cashReport, cashTotal, findOverdrafts } from '$lib/db/reconcile.js';
-	import { devicesStore, locationsStore, studioStore } from '$lib/db/registry.js';
+	import { devicesStore, locationsStore } from '$lib/db/registry.js';
 	import { localized } from '$lib/db/program.js';
 	import { studentTicketsStore } from '$lib/db/tickets.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -24,10 +24,6 @@
 
 	let rows = $state(/** @type {import('$lib/db/reconcile.js').CashRow[]} */ ([]));
 	let overdrafts = $state(/** @type {import('$lib/db/reconcile.js').Overdraft[]} */ ([]));
-
-	let isStudioDevice = $derived(
-		Boolean($studioStore) && Boolean($devicesStore) && canEditProgram()
-	);
 
 	$effect(() => {
 		const students = [...$studentTicketsStore.values()];
@@ -67,7 +63,7 @@
 <h1 class="text-3xl font-bold">{m.report_title()}</h1>
 
 <StudioGate>
-	{#if isStudioDevice}
+	<CounterOnly>
 		<section class="mt-6 rounded-card border border-border bg-surface p-6">
 			<h2 class="eyebrow">{m.report_cash()}</h2>
 			<p class="mt-1 text-sm text-muted">{m.report_cash_intro()}</p>
@@ -144,5 +140,5 @@
 				</ul>
 			</section>
 		{/if}
-	{/if}
+	</CounterOnly>
 </StudioGate>

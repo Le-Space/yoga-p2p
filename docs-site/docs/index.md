@@ -39,6 +39,17 @@ verhindert das nicht — sie **zeigt** es, sobald die Geräte sich wieder begegn
 mit beiden Belegen. Mehr dazu unter [Was die App nicht
 kann](/what-it-cannot-do).
 
+## Was ihr seht, hängt vom Gerät ab
+
+Es ist eine App, keine zwei. Ein Studio-Gerät zeigt zusätzlich **Kasse**,
+**Check-in**, **Studio** und **Abgleich** — ein Schülergerät nicht, weil diese
+Schirme dort nichts täten.
+
+Getrennt sind also die Schirme, nicht die Apps: Die Inhaberin bucht selbst
+Stunden, und ihre eigenen Buchungen stehen neben den eingehenden auf einem
+Schirm. Zwei getrennte Anwendungen würden sie zwingen, für zwei Dinge in
+derselben Minute zu wechseln.
+
 ## Wo anfangen
 
 | Ihr seid …                     | Fangt hier an                      |

@@ -221,5 +221,10 @@
 	"report_overdraft_intro": "Mehr Stunden besucht als bezahlt. Das passiert, wenn zwei Theken ohne Verbindung entwerten — erkannt statt verhindert. Der Betrag ist zum tatsächlich gezahlten Stundenpreis gerechnet.",
 	"report_overdraft_row": "…{student}: {units} Stunde(n) über dem Guthaben — {amount} EUR",
 	"nav_report": "Abgleich",
-	"report_disputed": "Strittig"
+	"report_disputed": "Strittig",
+	"counter_only_title": "Ein Schirm für die Theke",
+	"counter_only_joined": "Dieser Schirm gehört den Studio-Geräten. Dein Gerät gehört zu diesem Studio, ist aber nicht als Theken-Gerät freigegeben — das entscheidet die Inhaberin.",
+	"counter_only_unpaired": "Dieses Gerät gehört noch zu keinem Studio. Verbinde es zuerst an der Rezeption.",
+	"counter_only_to_program": "Zum Programm",
+	"counter_only_to_connect": "Verbinden"
 }

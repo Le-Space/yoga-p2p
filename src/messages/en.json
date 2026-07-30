@@ -221,5 +221,10 @@
 	"report_overdraft_intro": "More classes attended than paid for. That happens when two counters check in without a connection — detected, not prevented. Priced at the class rate actually paid.",
 	"report_overdraft_row": "…{student}: {units} class(es) beyond the balance — {amount} EUR",
 	"nav_report": "Reconcile",
-	"report_disputed": "Disputed"
+	"report_disputed": "Disputed",
+	"counter_only_title": "A screen for the desk",
+	"counter_only_joined": "This screen belongs to the studio’s devices. Yours belongs to this studio but is not approved as a counter — that is the owner’s decision.",
+	"counter_only_unpaired": "This device does not belong to a studio yet. Connect it at the front desk first.",
+	"counter_only_to_program": "Go to the programme",
+	"counter_only_to_connect": "Connect"
 }

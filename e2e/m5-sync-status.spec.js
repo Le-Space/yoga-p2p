@@ -47,6 +47,45 @@ test.describe('sync status', () => {
 	});
 });
 
+test.describe('who sees which screens', () => {
+	test('a student is not offered the counter, and is told so if they go there', async ({
+		alice,
+		bob
+	}) => {
+		test.setTimeout(600_000);
+
+		await setUpStudio(alice);
+		await connectViaPaste(alice, bob);
+		await expect(bob.getByTestId('join-status')).toHaveAttribute('data-state', 'joined', READY);
+
+		// What a student can actually use. The till, check-in, the registry and the
+		// cash report all render nothing without a studio role, so offering them was
+		// four dead ends out of eight entries.
+		await expect(bob.getByTestId('nav-program')).toBeVisible();
+		await expect(bob.getByTestId('nav-bookings')).toBeVisible();
+		await expect(bob.getByTestId('nav-tickets')).toBeVisible();
+		await expect(bob.getByTestId('nav-connect')).toBeVisible();
+
+		await expect(bob.getByTestId('nav-till')).toHaveCount(0);
+		await expect(bob.getByTestId('nav-checkin')).toHaveCount(0);
+		await expect(bob.getByTestId('nav-studio')).toHaveCount(0);
+		await expect(bob.getByTestId('nav-report')).toHaveCount(0);
+
+		// The owner keeps everything: a studio device is also somebody's device, and
+		// she books classes herself.
+		await expect(alice.getByTestId('nav-till')).toBeVisible();
+		await expect(alice.getByTestId('nav-tickets')).toBeVisible();
+
+		// A URL is still a URL — a bookmark or a shared link lands here — so the
+		// screen says which case it is rather than showing a bare heading.
+		await bob.goto('/till/?ice=host');
+		const notice = bob.getByTestId('counter-only');
+		await expect(notice).toBeVisible(READY);
+		await expect(notice).toHaveAttribute('data-joined', 'true');
+		await expect(bob.getByTestId('till-student')).toHaveCount(0);
+	});
+});
+
 test.describe('conflicts', () => {
 	test('a cancellation after check-in is stated, not resolved', async ({ alice, bob }) => {
 		test.setTimeout(600_000);

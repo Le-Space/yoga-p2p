@@ -17,11 +17,11 @@
 	 * overwrite. Nothing here trusts a QR image or a token — the redemption is a
 	 * verified ledger write, every time.
 	 */
+	import CounterOnly from '$lib/components/CounterOnly.svelte';
 	import StudioGate from '$lib/components/StudioGate.svelte';
 	import TicketCard from '$lib/components/TicketCard.svelte';
-	import { canEditProgram } from '$lib/db/join.js';
 	import { coursesStore, localized } from '$lib/db/program.js';
-	import { devicesStore, studioStore } from '$lib/db/registry.js';
+	import { devicesStore } from '$lib/db/registry.js';
 	import { redeemTicket, studentTicketsStore } from '$lib/db/tickets.js';
 	import { foldFromDb, foldStudentLedger } from '$lib/db/ledger-view.js';
 	import { ownDidStore } from '$lib/p2p/node.js';
@@ -34,10 +34,6 @@
 	let courseId = $state('');
 	let date = $state(new Date().toISOString().slice(0, 10));
 	let tickets = $state(/** @type {any[]} */ ([]));
-
-	let isStudioDevice = $derived(
-		Boolean($studioStore) && Boolean($devicesStore) && canEditProgram()
-	);
 
 	let students = $derived([...$studentTicketsStore.values()]);
 
@@ -126,15 +122,15 @@
 <h1 class="text-3xl font-bold">{m.checkin_title()}</h1>
 
 <StudioGate>
-	{#if error}
-		<p class="mt-4 text-danger" role="alert" data-testid="checkin-error">{error}</p>
-	{/if}
+	<CounterOnly>
+		{#if error}
+			<p class="mt-4 text-danger" role="alert" data-testid="checkin-error">{error}</p>
+		{/if}
 
-	{#if done}
-		<p class="mt-4 text-success" data-testid="checkin-done">{done}</p>
-	{/if}
+		{#if done}
+			<p class="mt-4 text-success" data-testid="checkin-done">{done}</p>
+		{/if}
 
-	{#if isStudioDevice}
 		<section class="mt-6 rounded-card border border-border bg-surface p-6">
 			{#if students.length === 0}
 				<p class="text-faint" data-testid="checkin-empty">{m.checkin_none()}</p>
@@ -202,5 +198,5 @@
 				{/each}
 			</div>
 		{/if}
-	{/if}
+	</CounterOnly>
 </StudioGate>
