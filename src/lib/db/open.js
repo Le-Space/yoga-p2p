@@ -6,7 +6,7 @@
 // added at runtime without the address changing, which is the acl01 pattern
 // this project inherits.
 
-import { get } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { OrbitDBAccessController } from '@orbitdb/core';
 
 import { orbitdbStore } from '../p2p/node.js';
@@ -85,10 +85,56 @@ export async function openDocuments({ key, name, address, accessController }) {
 	rememberAddress(key, db.address.toString());
 	recordReplicationErrors(db);
 	openDatabases.set(db.address.toString(), { key, db });
+	trackFreshness(key, db);
 
 	pullHistory(db);
 
 	return db;
+}
+
+/**
+ * What each open database looks like right now, for the sync status strip.
+ *
+ * @type {import('svelte/store').Writable<{ key: string, address: string, entries: number, changedAt: string | null }[]>}
+ */
+export const databaseStatusStore = writable(/** @type {any[]} */ ([]));
+
+/**
+ * Keep the status store in step with one database.
+ *
+ * `changedAt` is deliberately *this device's* clock at the moment something
+ * arrived, not a timestamp taken from the data. An OrbitDB entry carries a logical
+ * clock, not a wall time, and the wall times inside our documents say when an
+ * event happened rather than when it got here. "Last change seen here at 14:32" is
+ * something this device actually knows; "your data is current as of …" is not, and
+ * a status line that overstates its knowledge is worse than none at a counter.
+ *
+ * @param {string} key
+ * @param {any} db
+ */
+function trackFreshness(key, db) {
+	const address = db.address.toString();
+
+	const publish = async () => {
+		const entries = await db.all().then(
+			(/** @type {any[]} */ rows) => rows.length,
+			() => 0
+		);
+
+		databaseStatusStore.update((rows) => {
+			const next = rows.filter((row) => row.address !== address);
+			next.push({ key, address, entries, changedAt: new Date().toISOString() });
+			return next.sort((a, b) => (a.key < b.key ? -1 : 1));
+		});
+	};
+
+	db.events.on('update', publish);
+	publish();
+}
+
+/** Forget the status of databases that are no longer open. */
+export function forgetDatabaseStatus() {
+	databaseStatusStore.set([]);
 }
 
 /** How often to ask again for history, and how long to wait between tries. */

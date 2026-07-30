@@ -182,5 +182,14 @@
 	"checkin_refused_voided": "Die Karte wurde storniert.",
 	"checkin_refused_other": "Entwertung abgelehnt: {reason}",
 	"checkin_unlimited": "Zeitkarte",
-	"connect_hang_up": "Verbindung beenden"
+	"connect_hang_up": "Verbindung beenden",
+	"sync_status_title": "Sync-Status",
+	"sync_peers": "{count} Gerät(e) verbunden",
+	"sync_alone": "Mit niemandem verbunden — angezeigt wird nur, was dieses Gerät weiß",
+	"sync_last_change": "Letzte Änderung hier: {time}",
+	"sync_details": "Datenbanken",
+	"sync_entries": "{count} Einträge",
+	"conflict_title": "Widersprüche",
+	"conflict_cancelled_after_redeem": "Storniert, obwohl für {course} am {date} bereits entwertet wurde",
+	"conflict_body": "Zwei Geräte haben unabhängig entschieden. Nichts wird automatisch aufgelöst — die Fakten stehen hier, die Entscheidung trifft ein Mensch."
 }

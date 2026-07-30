@@ -4,6 +4,7 @@
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
 	import OmMark from '$lib/components/OmMark.svelte';
+	import SyncStatus from '$lib/components/SyncStatus.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { children } = $props();
@@ -50,6 +51,8 @@
 			<ThemeToggle />
 		</div>
 	</header>
+
+	<SyncStatus />
 
 	<main class="mx-auto max-w-4xl px-4 py-8">
 		{@render children?.()}

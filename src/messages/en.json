@@ -182,5 +182,14 @@
 	"checkin_refused_voided": "The pass was cancelled.",
 	"checkin_refused_other": "Redemption refused: {reason}",
 	"checkin_unlimited": "Time pass",
-	"connect_hang_up": "End connection"
+	"connect_hang_up": "End connection",
+	"sync_status_title": "Sync status",
+	"sync_peers": "{count} device(s) connected",
+	"sync_alone": "Not connected to anyone — showing only what this device knows",
+	"sync_last_change": "Last change here: {time}",
+	"sync_details": "Databases",
+	"sync_entries": "{count} entries",
+	"conflict_title": "Contradictions",
+	"conflict_cancelled_after_redeem": "Cancelled although {course} on {date} had already been checked in",
+	"conflict_body": "Two devices decided independently. Nothing is resolved automatically — the facts are here, a person decides."
 }
