@@ -22,7 +22,8 @@
 
 import { get, writable } from 'svelte/store';
 
-import { openDocuments, readAll } from './open.js';
+import { forgetDatabase, openDocuments, readAll } from './open.js';
+import { OpenSet } from './lru.js';
 import { studioAccessController } from './studio-acl.js';
 import { signEvent } from './ledger-signing.js';
 import { canRedeem, nextChainPosition } from '../ledger/index.js';
@@ -38,11 +39,38 @@ export const ticketEventsStore = writable(/** @type {any[]} */ ([]));
  */
 export const studentTicketsStore = writable(new Map());
 
+/**
+ * How many students' ledgers a studio device keeps open at once.
+ *
+ * A counter serves one person at a time; sixty covers a busy evening with room to
+ * spare, and the arithmetic in docs/PLAN.md §6.4 is what rules out "all of them" —
+ * two databases per student means a thousand students is two thousand OrbitDB
+ * instances, each with a pubsub subscription of its own.
+ *
+ * Closing a ledger loses nothing: the events are on disk, and reopening is what
+ * happens the moment that student turns up again.
+ */
+const OPEN_LEDGER_LIMIT = 60;
+
+export const openStudentLedgers = new OpenSet(
+	OPEN_LEDGER_LIMIT,
+	async (/** @type {string} */ did, /** @type {any} */ db) => {
+		await db.close?.();
+		forgetDatabase(db.address?.toString?.());
+		studentTicketsStore.update((all) => {
+			const next = new Map(all);
+			next.delete(did);
+			return next;
+		});
+	}
+);
+
 nodeStatusStore.subscribe(({ state }) => {
 	if (state !== 'idle') return;
 	ticketsDbStore.set(null);
 	ticketEventsStore.set([]);
 	studentTicketsStore.set(new Map());
+	openStudentLedgers.clear();
 });
 
 /** The one name a student's ledger ever has, on every device. */
@@ -229,6 +257,12 @@ export async function redeemTicket({ db, state, courseId, date, redeemedBy }) {
  * @param {string} ownerDid
  */
 export async function openStudentTickets(studentDid, ownerDid) {
+	// Already open: mark it as the newest and leave it alone. Re-opening would be
+	// wasted work and would reset the update listener.
+	if (openStudentLedgers.touch(studentDid)) {
+		return get(studentTicketsStore).get(studentDid)?.db;
+	}
+
 	const db = await openDocuments({
 		key: `tickets:${studentDid}`,
 		name: ticketLedgerName(studentDid),
@@ -246,6 +280,8 @@ export async function openStudentTickets(studentDid, ownerDid) {
 
 	db.events.on('update', load);
 	await load();
+
+	await openStudentLedgers.add(studentDid, db);
 
 	return db;
 }

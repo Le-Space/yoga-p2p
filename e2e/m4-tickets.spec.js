@@ -256,22 +256,24 @@ test.describe('check-in and the courier roundtrip', () => {
 		await carol.getByTestId('hang-up').click();
 		await expect(carol.getByTestId('hang-up')).toHaveCount(0);
 
-		// Alice redeems position 1. Carol cannot learn about it.
+		// Carol acts first, and that order is not cosmetic. She is cut off, so nothing
+		// can reach her; Bob has nothing from her yet, so nothing can reach Alice
+		// either. Both counters therefore write position 1 from the same view, every
+		// time. With Alice going first the hang-up races her check-in — under load
+		// Carol can still receive it, take position 2 and produce a perfectly legal
+		// chain, which is a test that fails for being right.
+		await carol.getByTestId('nav-checkin').click();
+		await carol.getByTestId('checkin-student').selectOption(bobDid);
+		await carol.getByTestId('checkin-course').selectOption('course:vinyasa-mi-18');
+		await carol.getByTestId('checkin-redeem').first().click();
+		await expect(carol.getByTestId('checkin-done')).toBeVisible();
+
 		await redeemAt(alice, bobDid);
 
 		// Read from Bob's own passes, not from the connect screen he was left on —
 		// a missing element there would pass for any balance at all.
 		await bob.getByTestId('nav-tickets').click();
 		await expect(bob.getByTestId('ticket-balance')).toHaveText('9', REPLICATED);
-
-		// And Carol redeems position 1 as well, from a view that is honest about
-		// everything it has actually seen.
-		await carol.getByTestId('nav-checkin').click();
-		await carol.getByTestId('checkin-student').selectOption(bobDid);
-		await carol.getByTestId('checkin-course').selectOption('course:vinyasa-mi-18');
-		await expect(carol.getByTestId('ticket-balance')).toHaveText('10');
-		await carol.getByTestId('checkin-redeem').first().click();
-		await expect(carol.getByTestId('checkin-done')).toBeVisible();
 
 		// The student walks back, and carries the contradiction with him.
 		await connectViaPaste(carol, bob);
@@ -287,8 +289,13 @@ test.describe('check-in and the courier roundtrip', () => {
 		// blanks".
 		const proofs = alarm.getByTestId('fork-proof');
 		await expect(proofs).toHaveCount(2);
-		await expect(proofs.first()).toContainText('location:altstadt');
-		await expect(proofs.last()).toContainText('location:west');
+
+		// Both locations, without pinning which comes first: the reducer orders a
+		// fork's events by a stable comparison of its own, and a test that fixed that
+		// order would be asserting an implementation detail rather than the evidence.
+		const text = (await proofs.allTextContents()).join(' ');
+		expect(text).toContain('location:altstadt');
+		expect(text).toContain('location:west');
 
 		// Nine, not eight: a fork costs exactly one unit. An ambiguous log must
 		// never hand out credit, and must never charge twice for one contradiction

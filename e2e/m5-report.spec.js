@@ -99,18 +99,24 @@ test.describe('reconciliation', () => {
 		await carol.getByTestId('hang-up').click();
 		await expect(carol.getByTestId('hang-up')).toHaveCount(0);
 
+		// Carol acts first, and that order is not cosmetic. She is cut off, so nothing
+		// can reach her; Bob has nothing from her yet, so nothing can reach Alice
+		// either. Both counters therefore write position 1 from the same view, every
+		// time. With Alice going first the hang-up races her check-in — under load
+		// Carol can still receive it, take position 2 and produce a perfectly legal
+		// chain, which is a test that fails for being right.
+		await carol.getByTestId('nav-checkin').click();
+		await carol.getByTestId('checkin-student').selectOption(bobDid);
+		await carol.getByTestId('checkin-course').selectOption('course:vinyasa-mi-18');
+		await carol.getByTestId('checkin-redeem').first().click();
+		await expect(carol.getByTestId('checkin-done')).toBeVisible();
+
 		await alice.getByTestId('nav-checkin').click();
 		await alice.getByTestId('checkin-student').selectOption(bobDid);
 		await alice.getByTestId('checkin-course').selectOption('course:vinyasa-mi-18');
 		await expect(alice.getByTestId('checkin-redeem').first()).toBeEnabled(REPLICATED);
 		await alice.getByTestId('checkin-redeem').first().click();
 		await expect(alice.getByTestId('checkin-done')).toBeVisible();
-
-		await carol.getByTestId('nav-checkin').click();
-		await carol.getByTestId('checkin-student').selectOption(bobDid);
-		await carol.getByTestId('checkin-course').selectOption('course:vinyasa-mi-18');
-		await carol.getByTestId('checkin-redeem').first().click();
-		await expect(carol.getByTestId('checkin-done')).toBeVisible();
 
 		// Bob collects Carol's half — she wrote it while cut off from everyone, so it
 		// sits on her counter until he turns up — and carries it back to Alice.
@@ -142,15 +148,17 @@ test.describe('reconciliation', () => {
 		// accepted — the reducer refuses both sides of a contradiction — but two
 		// classes were taught, and a report saying "0 check-ins" would be true and
 		// useless. That column exists because this test asked.
-		const disputed = await alice
-			.locator('[data-testid="cash-disputed"]')
-			.evaluateAll((nodes) => nodes.reduce((total, node) => total + Number(node.textContent), 0));
-		expect(disputed).toBe(2);
+		// Polled, not read once. `evaluateAll` with a plain `expect` does not retry, so
+		// it reads whatever is on screen the instant it runs — which here is a report
+		// rendered before Carol's half of the fork finished replicating. A count that
+		// does not wait is a coin toss dressed as an assertion.
+		const sum = (/** @type {string} */ testid) =>
+			alice
+				.locator(`[data-testid="${testid}"]`)
+				.evaluateAll((nodes) => nodes.reduce((total, node) => total + Number(node.textContent), 0));
 
-		const accepted = await alice
-			.locator('[data-testid="cash-redemptions"]')
-			.evaluateAll((nodes) => nodes.reduce((total, node) => total + Number(node.textContent), 0));
-		expect(accepted).toBe(0);
+		await expect.poll(() => sum('cash-disputed'), { timeout: 90_000 }).toBe(2);
+		await expect.poll(() => sum('cash-redemptions'), { timeout: 90_000 }).toBe(0);
 	});
 });
 

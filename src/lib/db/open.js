@@ -132,6 +132,21 @@ function trackFreshness(key, db) {
 	publish();
 }
 
+/**
+ * Stop tracking a database this device has closed.
+ *
+ * Called by the LRU when it evicts a student's ledger (./lru.js). Without it the
+ * diagnostics and the sync status would keep reporting handles that are gone, and
+ * `pullHistory` would keep asking peers about them.
+ *
+ * @param {string | undefined} address
+ */
+export function forgetDatabase(address) {
+	if (!address) return;
+	openDatabases.delete(address);
+	databaseStatusStore.update((rows) => rows.filter((row) => row.address !== address));
+}
+
 /** Forget the status of databases that are no longer open. */
 export function forgetDatabaseStatus() {
 	databaseStatusStore.set([]);

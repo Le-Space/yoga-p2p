@@ -449,10 +449,37 @@ Nach upstream noch nicht gemeldet — verwandt mit
 [orbitdb/orbitdb#1255](https://github.com/orbitdb/orbitdb/issues/1255), siehe
 Issue #13 in diesem Repo.
 
-## 3. Noch nicht gemessen
+## 3. Gemessen und nicht gemessen
 
-Die Skalierungszahlen in `docs/PLAN.md` §6.4 sind Schätzungen. Die
-Benchmark-Suite (`bench/`, T5.5) existiert noch nicht; bis dahin ist keine
-Aussage über Cold Start, Erst-Pairing oder Reconciliation-Dauer belegt.
-Budget-Verletzungen werden hier protokolliert und lösen eine Design-Aktion aus
-— niemals eine Anhebung des Budgets.
+Die Benchmark-Suite steht (`bench/`, `pnpm run bench`, Bericht in
+`bench/report.md`). Deterministischer Seed, damit zwei Läufe desselben Commits
+dieselben Zahlen liefern und eine Änderung daran eine echte ist.
+
+**Gemessen** (S1–S6, 100–1000 Schüler, 1–4 Jahre): Fold eines Schüler-Ledgers,
+Reconciliation über alle Ledger, Storage-Untergrenze. Alle Budgets deutlich
+eingehalten — S6 (1000 Schüler, 2 Jahre, 132 000 Events) rechnet in gut 5 s
+gegen ein skaliertes Budget von 600 s.
+
+**Und genau das ist der uninteressanteste Teil des Ergebnisses.** Der Reducer ist
+nicht der Engpass — was §6.4 vorhergesagt hat, zusammen mit der Stelle, wo der
+Engpass stattdessen sitzt: die **Anzahl** der Datenbanken, zwei pro Schüler. Das
+lässt sich aus Node heraus nicht messen.
+
+**Nicht gemessen**, und ohne Browser-Harness auch nicht messbar: Cold Start
+(< 5 s), Erst-Pairing (< 15 s), inkrementeller Check-in-Sync (< 3 s). Ein
+Node-Ersatzwert dafür würde wie Abdeckung aussehen; die Suite weist sie deshalb
+ausdrücklich als „nicht gemessen" aus, statt sie wegzulassen. Ebenfalls offen:
+der Remote-Lauf über echte Netze (Harness aus relay-button bzw. `simple-todo`).
+
+Die Signaturprüfung ist in den Benchmarks auf `true` gestubbt — sie ist eine
+WebAuthn-Operation. Die Fold-Zahlen sind also die Kosten des Reducers, nicht die
+eines Check-ins.
+
+Umgesetzt ist die Gegenmaßnahme, die §6.4 als **Voraussetzung** nennt: ein
+begrenzter LRU für offene Schüler-Ledger (`src/lib/db/lru.js`, 60 gleichzeitig).
+Er schließt immer das am längsten ungenutzte — der Mensch an der Theke ist per
+Definition das zuletzt benutzte und kann nie verdrängt werden. Sein Effekt auf
+Cold Start und RAM gehört zu den oben genannten, noch nicht messbaren Zahlen.
+
+Budget-Verletzungen werden hier protokolliert und lösen eine Design-Aktion aus —
+niemals eine Anhebung des Budgets.

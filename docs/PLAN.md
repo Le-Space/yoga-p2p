@@ -718,7 +718,10 @@ Hash-Kette und Fork-Erkennung von Tag eins. Kein Umbau-Meilenstein mehr.
   (S7 Stretch), Metriken + Budgets, Lazy-Open/LRU + Guthaben-Cache
   implementieren und je Szenario mit/ohne Gegenmaßnahmen messen; Remote-Lauf
   über den Harness aus relay-button bzw. simple-todos
-  `remote-replication.yml`. ✓ Budgets für S1–S5 grün; Report generiert.
+  `remote-replication.yml`. ✓ Budgets für S1–S6 grün, Report generiert
+  (`bench/report.md`); Lazy-Open/LRU umgesetzt (`src/lib/db/lru.js`). Offen und
+  in `LIMITS.md` §3 als solches ausgewiesen: Cold Start, Erst-Pairing und
+  Check-in-Sync brauchen einen Browser-Harness, der Remote-Lauf steht aus.
 
 ### E2E-Teststrategie (Playwright)
 
