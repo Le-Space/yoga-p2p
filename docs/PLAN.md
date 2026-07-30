@@ -706,8 +706,13 @@ Hash-Kette und Fork-Erkennung von Tag eins. Kein Umbau-Meilenstein mehr.
   DID-Verlust mit `void`+Transfer auf neue DID, Studio-Gerät-Widerruf;
   Setup-Wizard fordert Owner-Zweitgerät aktiv ein.
 - **T5.3** Reconciliation-Screen + Kassenbericht pro Location/Gerät.
-  ✓ E2E: A↔B-Abgleich per Paste-Pfad; negativer Saldo wird erkannt und als
-  Nachbelastung vorgemerkt.
+  ✓ E2E (`m5-report.spec.js`): Einnahmen nach Location und Gerät, Abgleich
+  ausschließlich über den Kurier (A↔B ohne Server). Zum **negativen Saldo**: Er
+  ist über die Oberfläche nicht erzeugbar — der Check-in weist bei leerem
+  Guthaben ab, und zwei rennende Theken erzeugen einen Fork, der genau eine
+  Einheit kostet. Die Nachbelastungs-Rechnung existiert für Ledger, die nicht von
+  diesen Schirmen stammen (§1.9), und ist per Unit-Test belegt. Was der Bericht
+  stattdessen zeigt: **strittige** Check-ins je Theke.
 - **T5.4** `LIMITS.md` + Upstream-Issues formulieren.
 - **T5.5** Benchmark-Suite `bench/`: Seed-Generator, Szenarien S1–S6
   (S7 Stretch), Metriken + Budgets, Lazy-Open/LRU + Guthaben-Cache

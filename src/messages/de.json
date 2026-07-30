@@ -207,5 +207,20 @@
 	"transfer_submit": "Guthaben übertragen",
 	"transfer_done": "{count} Karte(n) übertragen",
 	"transfer_void_failed": "Übertragen, aber {count} alte Karte(n) konnten nicht entwertet werden — das Guthaben steht jetzt doppelt. Bitte erneut versuchen.",
-	"transfer_same": "Alte und neue DID sind identisch."
+	"transfer_same": "Alte und neue DID sind identisch.",
+	"report_title": "Abgleich & Kasse",
+	"report_cash": "Kassenbericht",
+	"report_cash_intro": "Einnahmen nach Location und Gerät. Der Abgleich selbst braucht keinen Knopf: Sobald sich zwei Geräte begegnen, führen sie ihre Logs zusammen — hier steht, was danach da ist.",
+	"report_none": "Noch keine Verkäufe auf diesem Gerät.",
+	"report_location": "Location",
+	"report_device": "Gerät",
+	"report_sales": "Verkäufe",
+	"report_cash_eur": "Bar (EUR)",
+	"report_redemptions": "Entwertungen",
+	"report_total": "Summe",
+	"report_overdraft": "Nachbelastung",
+	"report_overdraft_intro": "Mehr Stunden besucht als bezahlt. Das passiert, wenn zwei Theken ohne Verbindung entwerten — erkannt statt verhindert. Der Betrag ist zum tatsächlich gezahlten Stundenpreis gerechnet.",
+	"report_overdraft_row": "…{student}: {units} Stunde(n) über dem Guthaben — {amount} EUR",
+	"nav_report": "Abgleich",
+	"report_disputed": "Strittig"
 }

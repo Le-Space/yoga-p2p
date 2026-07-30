@@ -13,7 +13,7 @@
 	import StudioGate from '$lib/components/StudioGate.svelte';
 	import { canEditProgram } from '$lib/db/join.js';
 	import { localized, packagesStore } from '$lib/db/program.js';
-	import { devicesStore, studioStore } from '$lib/db/registry.js';
+	import { devicesStore, locationsStore, studioStore } from '$lib/db/registry.js';
 	import { issueTicket, studentTicketsStore, transferTickets } from '$lib/db/tickets.js';
 	import { foldStudentLedger } from '$lib/db/ledger-view.js';
 	import { ownDidStore } from '$lib/p2p/node.js';
@@ -69,6 +69,12 @@
 
 	let students = $derived([...$studentTicketsStore.values()]);
 
+	/** The studio's location when it has exactly one, otherwise nothing. */
+	function onlyLocationId() {
+		const active = $locationsStore.filter((location) => location.active !== false);
+		return active.length === 1 ? active[0]._id : '';
+	}
+
 	/** @param {() => Promise<void>} action */
 	async function run(action) {
 		error = '';
@@ -97,10 +103,13 @@
 				package: pkg,
 				issuedBy: {
 					deviceDid: own,
-					// The owner has no device entry of her own; her studio has one
-					// location per sale either way, and the booking's is the honest
-					// fallback for a device that is not registered under a location.
-					locationId: device?.locationId ?? ''
+					// The owner's device is registered without a location — she is not
+					// tied to one. With a single location there is still only one place
+					// this sale can have happened, so saying so beats leaving it blank:
+					// a blank splits her row in the cash report and makes the takings
+					// harder to read than they need to be. With several locations it
+					// stays blank rather than guessing, and the report shows "—".
+					locationId: device?.locationId || onlyLocationId()
 				},
 				today: new Date().toISOString().slice(0, 10)
 			});

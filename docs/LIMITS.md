@@ -320,6 +320,29 @@ Controllers replizieren, bevor es anhängen darf; das begrenzte Wiederholen in
 davon unberührt: Buchungs-DBs gehören weiter dem Schüler, weil dort der Schüler
 der legitime Schreiber ist.
 
+### 1.9 Ein negativer Saldo ist über die Oberfläche nicht erreichbar
+
+`unitsRemaining` ist im Reducer bewusst **nicht** geklammert, und
+`findOverdrafts` (`src/lib/db/reconcile.js`) rechnet einen negativen Saldo in
+Euro um. Beim Bauen des E2E dazu stellte sich heraus: Über die Schirme dieser App
+lässt sich ein negativer Saldo gar nicht erzeugen — und das ist eine Eigenschaft
+des Entwurfs, kein fehlendes Feature.
+
+- Der Check-in weist ab, wenn nichts mehr übrig ist (`no-units-left`).
+- Zwei Theken, die um dieselbe Kettenposition rennen, erzeugen einen **Fork**, und
+  ein Fork kostet genau **eine** Einheit, nie zwei. Aus zwei Entwertungen auf einer
+  Einer-Karte wird also Saldo 0, nicht −1 (belegt in `e2e/m5-report.spec.js`).
+
+`findOverdrafts` bleibt trotzdem, denn es deckt genau den Fall aus §1.1 ab, der
+sich nur **erkennen** und nie verhindern lässt: ein Ledger, das nicht von diesen
+Schirmen geschrieben wurde — ein Import oder ein manipulierter Client, der die
+Vorprüfung überspringt. Seine Arithmetik ist in `src/lib/db/reconcile.spec.ts`
+bewiesen, wo sich so ein Ledger einfach hineinreichen lässt.
+
+Aus derselben Messung entstand die Spalte **Strittig** im Kassenbericht: Bei einem
+Fork ist _keine_ der beiden Entwertungen angenommen, es wurden aber zwei Stunden
+gehalten. „0 Check-ins" wäre wahr und nutzlos gewesen.
+
 ### 1.8 Einträge kommen an, werden abgewiesen und nie erneut angeboten
 
 Ein Studio-Gerät, das das Ledger eines Schülers **zum ersten Mal** öffnet,

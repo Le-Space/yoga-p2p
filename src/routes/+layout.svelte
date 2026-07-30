@@ -18,6 +18,7 @@
 		{ path: '/till', testid: 'nav-till', label: () => m.till_title() },
 		{ path: '/checkin', testid: 'nav-checkin', label: () => m.checkin_title() },
 		{ path: '/studio', testid: 'nav-studio', label: () => m.nav_registry() },
+		{ path: '/report', testid: 'nav-report', label: () => m.nav_report() },
 		{ path: '/tickets', testid: 'nav-tickets', label: () => m.nav_tickets() },
 		{ path: '/connect', testid: 'nav-connect', label: () => m.nav_connect() }
 	]);
