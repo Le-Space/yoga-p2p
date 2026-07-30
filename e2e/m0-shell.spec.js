@@ -5,10 +5,19 @@
 import { test, expect, onboard } from './fixtures.js';
 
 test.describe('app shell', () => {
-	test('renders the program screen', async ({ alice }) => {
+	test('the front page names both ways in, and the handbook', async ({ alice }) => {
 		await alice.goto('/');
 
-		await expect(alice.getByTestId('milestones').getByRole('listitem')).toHaveCount(5);
+		// Somebody arriving here has two questions — what is this, and where do I
+		// start — and neither is answered by a list of milestones, which is what this
+		// page used to show on a live domain.
+		await expect(alice.getByTestId('start-intro')).toBeVisible();
+		await expect(alice.getByTestId('start-studio')).toBeVisible();
+		await expect(alice.getByTestId('start-student')).toBeVisible();
+
+		// There is nobody to ring when something is unclear, so the way to the
+		// handbook belongs on the page before anyone needs it.
+		await expect(alice.getByTestId('start-handbook')).toHaveAttribute('href', /handbuch/);
 	});
 
 	// Language follows the device before anything else, so the locale is set on

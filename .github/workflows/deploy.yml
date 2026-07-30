@@ -39,6 +39,12 @@ jobs:
 
       - run: pnpm run build
 
+      # The handbook goes out with the app rather than to a domain of its own.
+      # It lands at build/handbuch/, so it is published by the same step and
+      # reachable at /handbuch/ — real files, which the catch-all onto
+      # /index.html does not touch because that only answers for missing paths.
+      - run: pnpm run build:handbook
+
       # Installed outside the project so the deploy tooling cannot pull its own
       # libp2p/OrbitDB versions into the app's dependency tree.
       - name: Install isolated Aleph deploy tooling

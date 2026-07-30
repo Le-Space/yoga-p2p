@@ -168,8 +168,16 @@ h3 {
 	font-family: var(--ls-font-display);
 }
 
-a {
-	color: var(--ls-link);
+/* In `@layer base`, and that is not cosmetic. Tailwind emits its utilities into
+   `@layer utilities`, and an *unlayered* rule beats every layered one in the
+   cascade — so this single line was quietly overriding `text-accent-contrast` on
+   every link styled as a button in the app. They were rendering Sync Cyan on
+   Signal Coral: 1.44:1, which axe found on the new front page and which had been
+   true of the studio and counter buttons all along. */
+@layer base {
+	a {
+		color: var(--ls-link);
+	}
 }
 
 /* The brand rule "one Coral action per view" only holds if focus is visible
