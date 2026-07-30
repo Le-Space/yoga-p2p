@@ -208,6 +208,101 @@ test.describe('check-in and the courier roundtrip', () => {
 		expect(own?.writers?.admin ?? []).not.toContain(bobDid);
 	});
 
+	test('two counters redeeming the same position raise a fork alarm', async ({
+		alice,
+		carol,
+		bob
+	}) => {
+		test.setTimeout(900_000);
+
+		// T4.4, and the case the whole ledger design is shaped around: detection
+		// rather than prevention (docs/LIMITS.md §1.1). Nothing is simulated here —
+		// two real counters that cannot see each other each write chain position 1,
+		// which is exactly what a reset ledger produces, and the contradiction only
+		// becomes visible when the student carries both halves into one place.
+		await setUpStudio(alice);
+		await addLocation(alice, 'west', 'Studio West');
+
+		await connectViaPaste(alice, carol);
+		await expect(carol.getByTestId('join-status')).toHaveAttribute('data-state', 'joined', READY);
+		const carolDid = await carol.evaluate(() => window.__yoga.identity());
+		await approveDevice(alice, carolDid, 'location:west');
+
+		await connectViaPaste(alice, bob);
+		await expect(bob.getByTestId('join-status')).toHaveAttribute('data-state', 'joined', READY);
+		const bobDid = await bob.evaluate(() => window.__yoga.identity());
+		await sellPass(alice, bobDid);
+
+		await bob.getByTestId('nav-tickets').click();
+		await expect(bob.getByTestId('ticket-balance')).toHaveText('10', REPLICATED);
+
+		// Carol's counter takes a copy while she can still reach anyone.
+		await connectViaPaste(carol, bob);
+		await carol.getByTestId('nav-checkin').click();
+		await carol.getByTestId('checkin-student').selectOption(bobDid);
+		await carol.getByTestId('checkin-course').selectOption('course:vinyasa-mi-18');
+		await expect(carol.getByTestId('ticket-balance')).toHaveText('10', REPLICATED);
+
+		// From here she is on her own — a second location with no line to the first,
+		// which is the normal state of this app rather than a failure of it.
+		//
+		// Ending the connection, not `setOffline`: that was the first attempt and it
+		// quietly did nothing, because an established WebRTC data channel over
+		// loopback survives the browser's network emulation. Carol went on receiving
+		// Alice's redemption and dutifully took position 2, producing a perfectly
+		// legal chain and no alarm — a test that proved the opposite of what it
+		// claimed. Hanging up closes the connection for real.
+		await carol.getByTestId('nav-connect').click();
+		await carol.getByTestId('hang-up').click();
+		await expect(carol.getByTestId('hang-up')).toHaveCount(0);
+
+		// Alice redeems position 1. Carol cannot learn about it.
+		await redeemAt(alice, bobDid);
+
+		// Read from Bob's own passes, not from the connect screen he was left on —
+		// a missing element there would pass for any balance at all.
+		await bob.getByTestId('nav-tickets').click();
+		await expect(bob.getByTestId('ticket-balance')).toHaveText('9', REPLICATED);
+
+		// And Carol redeems position 1 as well, from a view that is honest about
+		// everything it has actually seen.
+		await carol.getByTestId('nav-checkin').click();
+		await carol.getByTestId('checkin-student').selectOption(bobDid);
+		await carol.getByTestId('checkin-course').selectOption('course:vinyasa-mi-18');
+		await expect(carol.getByTestId('ticket-balance')).toHaveText('10');
+		await carol.getByTestId('checkin-redeem').first().click();
+		await expect(carol.getByTestId('checkin-done')).toBeVisible();
+
+		// The student walks back, and carries the contradiction with him.
+		await connectViaPaste(carol, bob);
+
+		await bob.getByTestId('nav-tickets').click();
+		const alarm = bob.getByTestId('fork-alarm');
+		await expect(alarm).toBeVisible(REPLICATED);
+
+		// Both signed events, as evidence rather than an accusation: same position,
+		// two locations, two devices, two signatures. That is what a person can act
+		// on — and it is what the first run of this test exposed as missing, because
+		// the owner's device carries no location of its own and the line read "at two
+		// blanks".
+		const proofs = alarm.getByTestId('fork-proof');
+		await expect(proofs).toHaveCount(2);
+		await expect(proofs.first()).toContainText('location:altstadt');
+		await expect(proofs.last()).toContainText('location:west');
+
+		// Nine, not eight: a fork costs exactly one unit. An ambiguous log must
+		// never hand out credit, and must never charge twice for one contradiction
+		// either (src/lib/ledger/reduce.spec.ts, "no credit from conflict").
+		await expect(bob.getByTestId('ticket-balance')).toHaveText('9');
+
+		// The alarm is a property of the log, not of Bob's screen: Alice reaches the
+		// same verdict from the same events once they reach her.
+		await connectViaPaste(alice, bob);
+		await alice.getByTestId('nav-checkin').click();
+		await alice.getByTestId('checkin-student').selectOption(bobDid);
+		await expect(alice.getByTestId('fork-alarm')).toBeVisible(REPLICATED);
+	});
+
 	test('a redemption outside the ticket’s window is refused', async ({ alice, bob }) => {
 		test.setTimeout(600_000);
 

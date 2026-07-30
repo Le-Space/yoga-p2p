@@ -18,7 +18,7 @@ import { createOrbitDB, Identities, useIdentityProvider } from '@orbitdb/core';
 import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import * as dagCbor from '@ipld/dag-cbor';
 
-import { openDatabases, replicationErrors } from '../db/open.js';
+import { askPeersForHistory, openDatabases, replicationErrors } from '../db/open.js';
 import { introductionLog } from '../db/introduction-log.js';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { createSignalling } from './session.js';
@@ -102,6 +102,31 @@ export async function startNode({ passkeyCredential = null } = {}) {
 		nodeStatusStore.set({ state: 'error', error: error?.message ?? String(error) });
 		throw error;
 	}
+}
+
+/**
+ * End every peer connection, without stopping the node.
+ *
+ * A real need rather than a convenience: a front-desk device pairs with one
+ * person after another, and a connection left open keeps replicating a student's
+ * ledger long after they have walked out. Someone at the counter has to be able
+ * to say "done" — and that is a privacy control, not a debug switch
+ * (docs/LIMITS.md §1.3: a peer holding an address can read the whole database).
+ *
+ * The node keeps running and the databases stay open, so what this device already
+ * knows is not lost. A new QR handshake is the only way back in.
+ */
+export async function hangUp() {
+	get(signallingStore)?.close();
+
+	// The signalling layer knows the sessions it created; libp2p knows every live
+	// connection, including inbound ones it upgraded. Both, or a connection can
+	// survive the hang-up that was supposed to end it.
+	for (const connection of running?.libp2p?.getConnections() ?? []) {
+		await connection.close().catch(() => {});
+	}
+
+	connectedPeersStore.set([]);
 }
 
 export async function stopNode() {
@@ -385,5 +410,17 @@ function trackConnections(libp2p) {
 
 	libp2p.addEventListener('connection:open', update);
 	libp2p.addEventListener('connection:close', update);
+
+	// A new peer is the one moment there is something new to learn, and the moment
+	// OrbitDB does least about it — see askPeersForHistory. Delayed a little so the
+	// gossipsub subscriptions have been exchanged before anyone asks.
+	libp2p.addEventListener('connection:open', () => {
+		setTimeout(() => {
+			askPeersForHistory().catch((error) => {
+				console.warn('Could not ask a new peer for history:', error);
+			});
+		}, 1_500);
+	});
+
 	update();
 }

@@ -10,7 +10,7 @@
 	 */
 	import { onDestroy } from 'svelte';
 	import StudioGate from '$lib/components/StudioGate.svelte';
-	import { connectedPeersStore, peerIdStore, signallingStore } from '$lib/p2p/node.js';
+	import { connectedPeersStore, hangUp, peerIdStore, signallingStore } from '$lib/p2p/node.js';
 	import { fitsInQrCode, renderQrCode, scanWithCamera, sharePayload } from '$lib/p2p/qr.js';
 	import { introduceToPeer, joinStore, joinStudioFromPeer } from '$lib/db/join.js';
 	import { studioStore } from '$lib/db/registry.js';
@@ -181,6 +181,17 @@
 	<p class="mt-4 font-mono text-sm text-faint" data-testid="own-peer-id">
 		{$peerIdStore ?? '…'}
 	</p>
+
+	{#if $connectedPeersStore.length > 0}
+		<button
+			type="button"
+			data-testid="hang-up"
+			onclick={() => hangUp()}
+			class="mt-2 rounded-control border border-border px-3 py-1 text-sm"
+		>
+			{m.connect_hang_up()}
+		</button>
+	{/if}
 
 	<p class="mt-1 text-sm" data-testid="connection-status" data-step={step}>
 		{#if step === 'connected'}

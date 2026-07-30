@@ -90,12 +90,21 @@
 			const own = $ownDidStore ?? '';
 			const device = $devicesStore.find((entry) => entry.deviceDid === own);
 
+			// Where this happened, and it has to be answerable. The owner's device is
+			// registered without a location — she is not tied to one — so falling back
+			// to the *course's* location is the honest answer rather than leaving the
+			// field empty. It was empty until the fork alarm exposed it: "the same
+			// position was redeemed at two locations" is the one thing that makes a
+			// fork actionable, and it read as "at two blanks".
+			const course = $coursesStore.find((entry) => entry._id === courseId);
+			const locationId = device?.locationId || course?.locationId || '';
+
 			await redeemTicket({
 				db: folded.db,
 				state: fresh,
 				courseId,
 				date,
-				redeemedBy: { deviceDid: own, locationId: device?.locationId ?? '' }
+				redeemedBy: { deviceDid: own, locationId }
 			});
 
 			// Straight from the database: the store has not been told yet.

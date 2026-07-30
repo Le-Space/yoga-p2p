@@ -690,8 +690,12 @@ Hash-Kette und Fork-Erkennung von Tag eins. Kein Umbau-Meilenstein mehr.
   Reihen-Ticket: Anwesenheit protokolliert ohne Abzug, Entwertung für
   fremden Kurs abgelehnt; `firstRedeem`-Karte startet ihr Fenster mit der
   ersten Entwertung (page.clock).
-- **T4.4** Fork-Alarm-UI. ✓ E2E: zurückgesetzter Bob-Ledger ⇒ Alarm mit
-  beiden signierten Events als Beweis.
+- **T4.4** Fork-Alarm-UI. ✓ E2E (`m4-tickets.spec.js`, „two counters redeeming
+  the same position raise a fork alarm"): Carol trennt die Verbindung, beide
+  Theken entwerten Kettenposition 1, der Schüler trägt den Widerspruch zusammen ⇒
+  Alarm mit beiden signierten Events, je Ort und Gerät, und Guthaben 9 statt 8
+  (ein Fork kostet genau eine Einheit). Nichts daran ist gestellt: der Fork
+  entsteht aus zwei echten Theken, die sich nicht sehen.
 
 ### M5 — Hardening & Reconciliation
 

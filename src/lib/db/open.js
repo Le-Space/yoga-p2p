@@ -95,6 +95,54 @@ export async function openDocuments({ key, name, address, accessController }) {
 const HISTORY_ATTEMPTS = 5;
 const HISTORY_INTERVAL_MS = 2_000;
 
+/** Set while a full re-ask is running, so overlapping triggers collapse into one. */
+let askingAll = false;
+
+/**
+ * Ask every open database's peers what they have.
+ *
+ * Called when a new peer turns up, because that is the moment there is something
+ * new to learn and the moment OrbitDB does the least about it. Two upstream
+ * behaviours combine against the courier model this app is built on
+ * (orbitdb/orbitdb#1255, and Le-Space/yoga-p2p#13):
+ *
+ *   - a device only publishes entries it appended *itself*, so a student holding
+ *     a redemption written at the other location never forwards it;
+ *   - the heads exchange happens once per peer, and reconnecting to a peer that
+ *     was never dropped from `sync.peers` does not repeat it.
+ *
+ * Together those mean a counter can be connected to the courier who is carrying
+ * exactly the entry it is missing, and never receive it. `pullHistory` does not
+ * cover this: it deliberately only rescues an empty log, and here the log is
+ * merely behind.
+ *
+ * Bounded and idempotent: one pass per trigger, overlapping triggers collapse,
+ * and asking again when there is nothing new costs one round trip per database.
+ */
+export async function askPeersForHistory() {
+	if (askingAll) return;
+	askingAll = true;
+
+	try {
+		for (const { db } of [...openDatabases.values()]) {
+			if ([...(db.sync?.peers ?? [])].length === 0) continue;
+			try {
+				await db.sync.stop();
+				await db.sync.start();
+			} catch (/** @type {any} */ error) {
+				replicationErrors.push({
+					address: db.address.toString(),
+					name: error?.name ?? 'Error',
+					message: `asking peers for history failed: ${error?.message ?? String(error)}`,
+					at: new Date().toISOString()
+				});
+			}
+		}
+	} finally {
+		askingAll = false;
+	}
+}
+
 /**
  * Ask again for a peer's history while this database is still empty.
  *

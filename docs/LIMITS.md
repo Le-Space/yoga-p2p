@@ -325,6 +325,26 @@ prüft gegen eine _replizierte_ Schreibmenge. Das passiert zuerst beim dritten
 Gerät am zweiten Standort, also genau in der Szene, für die dieses Projekt
 existiert.
 
+**Ein zweiter Fall, gefunden beim Fork-Alarm (T4.4): ein Gerät leitet nichts
+weiter, was es selbst nicht geschrieben hat.** Bob hielt beide widersprüchlichen
+Entwertungen, Alice war mit Bob durchgehend verbunden — und bekam die von Carol
+nie. Zwei Upstream-Verhaltensweisen wirken hier zusammen gegen das Kuriermodell,
+auf dem diese App aufbaut:
+
+- `sync.add()` publiziert nur **selbst angehängte** Einträge
+  ([#1255](https://github.com/orbitdb/orbitdb/issues/1255), Punkt 1). Ein
+  Schüler, der eine fremd geschriebene Entwertung trägt, gibt sie nicht weiter.
+- Der Heads-Austausch findet **einmal pro Peer** statt. Eine neue Verbindung zu
+  einem Peer, der nie aus `sync.peers` fiel, wiederholt ihn nicht (Punkt 2).
+
+Zusammen heißt das: Eine Theke kann mit genau dem Kurier verbunden sein, der den
+fehlenden Eintrag trägt, und ihn nie erhalten. `pullHistory` deckt das **nicht**
+ab — es rettet bewusst nur ein leeres Log, hier hängt das Log lediglich hinterher.
+Deshalb fragt `askPeersForHistory` bei **jeder neuen Verbindung** einmal alle
+offenen Datenbanken erneut nach Heads (`src/lib/p2p/node.js`, 1,5 s nach
+`connection:open`, damit die Subscriptions ausgetauscht sind). Begrenzt und
+idempotent: eine Runde pro Auslöser, überlappende Auslöser fallen zusammen.
+
 **Umsetzung heute.** `pullHistory` in `src/lib/db/open.js` fragt nach dem Öffnen
 erneut nach, solange das Log leer ist und Sync-Peers vorhanden sind — begrenzt
 auf fünf Versuche im Abstand von 2 s, ausschließlich über die öffentliche API.
