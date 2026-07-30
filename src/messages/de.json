@@ -167,5 +167,19 @@
 	"till_cash_received": "Bar erhalten",
 	"till_none": "Noch kein Schülergerät verbunden.",
 	"till_sold": "Verkauft: {package}",
-	"tickets_none": "Noch keine Karte gekauft."
+	"tickets_none": "Noch keine Karte gekauft.",
+	"checkin_title": "Check-in",
+	"checkin_student": "Schüler:in",
+	"checkin_course": "Kurs",
+	"checkin_date": "Datum",
+	"checkin_redeem": "Entwerten",
+	"checkin_none": "Kein Schülergerät verbunden.",
+	"checkin_no_ticket": "Diese Person hat keine gültige Karte.",
+	"checkin_done": "Entwertet — Restguthaben: {balance}",
+	"checkin_refused_wrong_course": "Diese Karte gilt nur für einen anderen Kurs.",
+	"checkin_refused_outside": "Die Karte ist für dieses Datum nicht gültig.",
+	"checkin_refused_empty": "Die Karte ist aufgebraucht.",
+	"checkin_refused_voided": "Die Karte wurde storniert.",
+	"checkin_refused_other": "Entwertung abgelehnt: {reason}",
+	"checkin_unlimited": "Zeitkarte"
 }

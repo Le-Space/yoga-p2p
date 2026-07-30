@@ -47,24 +47,56 @@ const DIAL_RETRY_MS = 300;
  * @param {any} node a started libp2p node
  */
 export function createSignalling(node) {
-	/** @type {OfferSession | null} */
-	let offerSession = null;
+	/**
+	 * Offers this device has made, keyed by session id.
+	 *
+	 * A map rather than one slot, and that was a real defect: with a single slot,
+	 * making a second offer closed the first connection. A front desk pairing
+	 * with one student after another silently dropped the previous one — and a
+	 * studio device that had just approved another device lost the connection
+	 * before the approval could replicate. Found by the courier roundtrip, which
+	 * is the first scenario that holds three devices at once.
+	 *
+	 * @type {Map<string, OfferSession>}
+	 */
+	const offerSessions = new Map();
+
 	/** @type {Set<RTCPeerConnection>} */
 	const inboundConnections = new Set();
 
 	/** The transport asks this for a verified session when a dial comes in. */
 	function getOutboundSession(/** @type {string} */ remotePeerId) {
-		return offerSession?.remotePeerId === remotePeerId ? offerSession.upgradeContext : null;
+		for (const session of offerSessions.values()) {
+			if (session.remotePeerId === remotePeerId) return session.upgradeContext;
+		}
+		return null;
+	}
+
+	/**
+	 * Forget sessions whose connection is gone.
+	 *
+	 * Without this the map would grow for the lifetime of the page. A closed
+	 * connection is also the one case where reusing a session id would be wrong.
+	 */
+	function pruneClosedSessions() {
+		for (const [id, session] of offerSessions) {
+			const state = session.peerConnection.connectionState;
+			if (state === 'closed' || state === 'failed') offerSessions.delete(id);
+		}
 	}
 
 	/**
 	 * Step 1 (offering device): produce a signed offer to be carried to the
-	 * other device. Replaces any offer still waiting for an answer.
+	 * other device.
+	 *
+	 * Adds a session rather than replacing one: earlier connections stay open, so
+	 * a front desk can pair with one student after another without dropping
+	 * anybody. Only sessions whose connection has already died are cleared out.
 	 *
 	 * @returns {Promise<string>} the payload to render as QR, copy or share
 	 */
 	async function createOffer() {
-		offerSession?.peerConnection.close();
+		pruneClosedSessions();
 
 		const peerConnection = new RTCPeerConnection(rtcConfiguration());
 		const sessionId = crypto.randomUUID();
@@ -77,13 +109,13 @@ export function createSignalling(node) {
 		await peerConnection.setLocalDescription(await peerConnection.createOffer());
 		await waitForIceGathering(peerConnection);
 
-		offerSession = {
+		offerSessions.set(sessionId, {
 			sessionId,
 			peerConnection,
 			initDataChannel,
 			remotePeerId: null,
 			upgradeContext: null
-		};
+		});
 
 		return encodeSignedPayload(node.components.privateKey, {
 			version: PAYLOAD_VERSION,
@@ -160,13 +192,12 @@ export function createSignalling(node) {
 	 * @returns {Promise<string>} the remote peer id
 	 */
 	async function acceptAnswer(text) {
-		if (!offerSession) throw new Error('Create an offer first.');
-
 		const answer = await decodeSignedPayload(text, QR_TYPE_ANSWER);
 
-		// Both checks matter: the first stops a stale code from a previous
-		// handshake, the second stops a code that was meant for a different device.
-		if (answer.sessionId !== offerSession.sessionId) {
+		// Matched by session id rather than against "the" current offer, so a
+		// reply that arrives after another offer was made still finds its session.
+		const offerSession = offerSessions.get(answer.sessionId);
+		if (!offerSession) {
 			throw new Error('This reply belongs to a different connection attempt.');
 		}
 		if (answer.offerPeerId !== node.peerId.toString()) {
@@ -220,8 +251,8 @@ export function createSignalling(node) {
 	}
 
 	function close() {
-		offerSession?.peerConnection.close();
-		offerSession = null;
+		for (const session of offerSessions.values()) session.peerConnection.close();
+		offerSessions.clear();
 		for (const connection of inboundConnections) connection.close();
 		inboundConnections.clear();
 	}

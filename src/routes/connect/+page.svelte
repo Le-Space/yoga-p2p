@@ -12,7 +12,7 @@
 	import StudioGate from '$lib/components/StudioGate.svelte';
 	import { connectedPeersStore, peerIdStore, signallingStore } from '$lib/p2p/node.js';
 	import { fitsInQrCode, renderQrCode, scanWithCamera, sharePayload } from '$lib/p2p/qr.js';
-	import { joinStore, joinStudioFromPeer } from '$lib/db/join.js';
+	import { introduceToPeer, joinStore, joinStudioFromPeer } from '$lib/db/join.js';
 	import { studioStore } from '$lib/db/registry.js';
 	import * as m from '$lib/paraglide/messages.js';
 
@@ -49,7 +49,15 @@
 	 * one. An unnamed studio is the marker for "this device has never been set
 	 * up", which is exactly the case a student device is in.
 	 */
-	async function joinIfGuest(/** @type {string} */ remotePeerId) {
+	async function greetAndMaybeJoin(/** @type {string} */ remotePeerId) {
+		// Always introduce: a counter cannot sell to, or check in, a device whose
+		// DID and ledger address it was never told — and that is true whether or
+		// not this device already belongs to a studio.
+		await introduceToPeer(remotePeerId);
+
+		// Joining is the other half, and only for a device that has not been set
+		// up: a studio owner connecting to a student must not be pulled into the
+		// student's empty studio.
 		if ($studioStore?.name) return;
 
 		try {
@@ -106,7 +114,7 @@
 				connected
 					.then(async () => {
 						step = 'connected';
-						await joinIfGuest(remotePeerId);
+						await greetAndMaybeJoin(remotePeerId);
 					})
 					.catch((/** @type {any} */ error) => {
 						failure = error?.message ?? String(error);
@@ -118,7 +126,7 @@
 			step = 'connecting';
 			const remotePeerId = await $signallingStore.acceptAnswer(trimmed);
 			step = 'connected';
-			await joinIfGuest(remotePeerId);
+			await greetAndMaybeJoin(remotePeerId);
 		} catch (/** @type {any} */ error) {
 			failure = error?.message ?? String(error);
 			step = 'failed';

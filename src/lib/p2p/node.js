@@ -19,6 +19,7 @@ import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-ident
 import * as dagCbor from '@ipld/dag-cbor';
 
 import { openDatabases, replicationErrors } from '../db/open.js';
+import { introductionLog } from '../db/introduction-log.js';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { createSignalling } from './session.js';
 
@@ -264,6 +265,7 @@ function installDiagnostics() {
 			protocols: () => running?.libp2p?.getProtocols?.() ?? [],
 			/** Failures OrbitDB's sync reported and then carried on from. */
 			replicationErrors: () => replicationErrors,
+			introductions: () => introductionLog,
 			/** Ask peers for heads again — see resyncOnceAccessRulesArrive. */
 			resync: async (/** @type {string} */ address) => {
 				const entry = openDatabases.get(address);

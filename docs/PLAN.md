@@ -260,6 +260,23 @@ konfliktfrei (eindeutige IDs, append-only) — das einzige Risiko ist
 
 ## 4. Verbindungs- und Ticket-Flows
 
+### 4.0 Vorstellung ≠ Beitritt
+
+Bei der Umsetzung von T4.3 fiel eine Unterscheidung auf, die der Plan implizit
+lässt und die beide Male gebraucht wird:
+
+- **Vorstellen** heißt: „meine DID ist X, meine Buchungen liegen dort, mein
+  Ledger dort." Das passiert bei **jeder** Verbindung, gewährt nichts und ist
+  bloß eine Behauptung. Ohne sie kann eine Theke ein Gerät weder bedienen noch
+  einchecken, weil sie dessen Adressen nicht kennt.
+- **Beitreten** heißt: „ich öffne die Registry und das Programm dieses Studios."
+  Das passiert nur auf einem Gerät, das noch kein Studio hat.
+
+Beides zusammenzufassen war ein Fehler: Ein Schüler, der bereits einem Studio
+beigetreten war, ließ die Vorstellung aus — und die **zweite** Location erfuhr
+seine DID nie und konnte ihn nicht einchecken. Genau der Fall, den §5 Schicht 1
+braucht.
+
 ### 4.1 Geräte-Onboarding (Inhaberin ↔ neues Studio-Gerät)
 
 QR-Handshake wie beim Schüler-Pairing; Inhaberin schreibt den `device`-Eintrag

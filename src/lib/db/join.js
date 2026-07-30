@@ -16,6 +16,7 @@ import { libp2pStore, orbitdbStore, ownDidStore } from '../p2p/node.js';
 import { introduceSelf, requestStudio } from '../p2p/studio-protocol.js';
 import { devicesStore, openRegistry, registryDbStore, studioStore } from './registry.js';
 import { bookingsDbStore, openStudentBookings } from './bookings.js';
+import { noteIntroduction as note } from './introduction-log.js';
 import { openStudentTickets, ticketsDbStore } from './tickets.js';
 import { openProgram, programDbStore } from './program.js';
 import { rememberAddress } from './open.js';
@@ -35,17 +36,27 @@ export const pendingDevicesStore = writable(new Map());
  * @param {{ peerId: string, did: string, label: string, publicKey?: string, bookingsAddress?: string | null, ticketsAddress?: string | null }} hello
  */
 export function rememberPendingDevice(hello) {
+	note({
+		direction: 'received',
+		did: hello.did,
+		detail: `studioDevice=${canEditProgram()} tickets=${Boolean(hello.ticketsAddress)}`
+	});
+
 	pendingDevicesStore.update((pending) => {
 		const next = new Map(pending);
 		next.set(hello.did, { ...hello, seenAt: new Date().toISOString() });
 		return next;
 	});
 
-	// Open the introducing device's bookings straight away, without waiting for
-	// an approval: a booking request has to be *visible* before anyone can act
-	// on it, and reading a database somebody handed over grants nothing.
-	if (!isOwnStudio()) return;
+	// Any studio device, not only the owner: a front-desk device at the second
+	// location has to open the ledger of a student standing in front of it, and
+	// checking `isOwnStudio()` here left it blind — which is exactly the case the
+	// courier design exists for (docs/PLAN.md §5, layer 1).
+	if (!canEditProgram()) return;
 
+	// Opened without waiting for an approval: a request or a ticket has to be
+	// *visible* before anyone can act on it, and reading a database somebody
+	// handed over grants nothing.
 	if (hello.bookingsAddress) {
 		openStudentBookings(hello.did, hello.bookingsAddress).catch((error) => {
 			console.warn('Could not open the introducing device’s bookings:', error);
@@ -135,6 +146,40 @@ export function describeOwnStudio() {
 		registryAddress: registry.address.toString(),
 		programAddress: program.address.toString()
 	};
+}
+
+/**
+ * Tell a connected peer who this device is.
+ *
+ * Separate from joining, and called on **every** connection — that separation
+ * was a bug once: a student who had already joined a studio skipped the
+ * introduction entirely, so the second location never learned his DID or ledger
+ * address and could not check him in. Introducing is not joining. It hands over
+ * where to look and grants nothing; the write access came from the registry.
+ *
+ * @param {string} peerId
+ */
+export async function introduceToPeer(peerId) {
+	const libp2p = get(libp2pStore);
+	const ownDid = get(ownDidStore);
+	if (!libp2p || !ownDid) return;
+
+	const self = {
+		did: ownDid,
+		label: navigator.userAgent.slice(0, 80),
+		publicKey: get(orbitdbStore)?.identity?.publicKey ?? '',
+		bookingsAddress: get(bookingsDbStore)?.address?.toString() ?? null,
+		ticketsAddress: get(ticketsDbStore)?.address?.toString() ?? null
+	};
+
+	try {
+		await introduceSelf(libp2p, peerId, self);
+		note({ direction: 'sent', did: ownDid, detail: `tickets=${Boolean(self.ticketsAddress)}` });
+	} catch (/** @type {any} */ error) {
+		// Recorded rather than swallowed: a peer that does not speak this protocol
+		// is fine, but so far every silent failure here has been a real one.
+		note({ direction: 'failed', did: ownDid, detail: error?.message ?? String(error) });
+	}
 }
 
 /**

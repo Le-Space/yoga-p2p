@@ -16,6 +16,7 @@ import { get, writable } from 'svelte/store';
 import { openDocuments, readAll } from './open.js';
 import { devicesStore, studioStore } from './registry.js';
 import { signEvent } from './ledger-signing.js';
+import { canRedeem, nextChainPosition } from '../ledger/index.js';
 import { nodeStatusStore, ownDidStore } from '../p2p/node.js';
 
 export const ticketsDbStore = writable(/** @type {any} */ (null));
@@ -127,9 +128,95 @@ export async function issueTicket({ db, studentDid, package: pkg, issuedBy, toda
 	};
 
 	event.sig = await signEvent(event);
-	await db.put(event);
+	await putWhenPermitted(db, event);
 
 	return ticketId;
+}
+
+const GRANT_WAIT_MS = 15_000;
+const GRANT_RETRY_MS = 500;
+
+/**
+ * Write, retrying while the write grant is still in flight.
+ *
+ * The student's device grants studio devices access to its ledger, and that
+ * grant has to replicate to the studio before its writes are accepted. A
+ * counter selling a pass seconds after a student paired therefore hits a real
+ * distributed handshake, not a bug: OrbitDB refuses the entry with "Could not
+ * append entry" until the grant lands.
+ *
+ * Retrying is the honest response — the action is legitimate and will be
+ * permitted shortly. Failing outright would tell the person at the counter that
+ * their sale was rejected when it was merely early.
+ *
+ * The alternative is to have the studio create the ledger instead, so it is
+ * admin from the start and no grant has to travel at all; recorded in
+ * docs/LIMITS.md as the cleaner design this trades against.
+ *
+ * @param {any} db
+ * @param {any} event
+ */
+async function putWhenPermitted(db, event) {
+	const deadline = Date.now() + GRANT_WAIT_MS;
+	/** @type {any} */
+	let lastError;
+
+	while (Date.now() < deadline) {
+		try {
+			return await db.put(event);
+		} catch (/** @type {any} */ error) {
+			if (!String(error?.message ?? '').includes('not allowed to write')) throw error;
+			lastError = error;
+			await new Promise((resolve) => setTimeout(resolve, GRANT_RETRY_MS));
+		}
+	}
+
+	throw lastError ?? new Error('Could not write to the ledger.');
+}
+
+/**
+ * Redeem a visit against a ticket (docs/PLAN.md §4.3).
+ *
+ * The order is the double-spend mechanism, not a style choice. The caller has
+ * already pulled the student's heads over the live connection and folded them;
+ * this writes the *next* chain position from that fold. A device working from a
+ * stale view therefore reuses a position somebody else already took, and the
+ * result is a detectable fork rather than a silent overwrite (§5, layer 2).
+ *
+ * The pre-flight is the same rule the fold applies afterwards, so the counter
+ * never writes a redemption that its own ledger would then reject.
+ *
+ * @param {object} redemption
+ * @param {any} redemption.db the student's ledger
+ * @param {import('../ledger/index.js').TicketState} redemption.state the fold
+ * @param {string} redemption.courseId
+ * @param {string} redemption.date
+ * @param {{ deviceDid: string, locationId: string }} redemption.redeemedBy
+ * @returns {Promise<string>} the redemption id
+ */
+export async function redeemTicket({ db, state, courseId, date, redeemedBy }) {
+	const verdict = canRedeem(state, { courseId, date });
+	if (!verdict.ok) throw new Error(`redeem-refused:${verdict.reason}`);
+
+	const { seq, prevRedeemHash } = nextChainPosition(state);
+
+	/** @type {any} */
+	const event = {
+		_id: `redeem:${crypto.randomUUID()}`,
+		type: 'redeem',
+		ticketId: state.ticketId,
+		seq,
+		prevRedeemHash,
+		courseId,
+		date,
+		redeemedBy,
+		redeemedAt: new Date().toISOString()
+	};
+
+	event.sig = await signEvent(event);
+	await putWhenPermitted(db, event);
+
+	return event._id;
 }
 
 /**

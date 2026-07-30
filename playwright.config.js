@@ -10,7 +10,12 @@ export default defineConfig({
 	webServer: {
 		command: 'pnpm run build && pnpm exec vite preview --port 4173 --strictPort',
 		port: 4173,
-		reuseExistingServer: !process.env.CI,
+		// Never reuse, not even locally. A server left running from an earlier run
+		// serves the bundle it was built from, so a local run can silently test
+		// code that no longer exists — which cost several debugging rounds where
+		// a fix appeared not to work because it was never in the bundle.
+		// Rebuilding costs ~20s; being wrong about what is under test costs more.
+		reuseExistingServer: false,
 		timeout: 240_000
 	},
 	use: {

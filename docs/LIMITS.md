@@ -212,6 +212,26 @@ dafür.
 Außerdem fehlen die Schriftdateien (Inter, JetBrains Mono) im Brand-Verzeichnis
 — die App rendert bis dahin in System-Fallbacks.
 
+### 1.7 Der Grant muss reisen, bevor die Theke schreiben darf
+
+Ein Schülergerät legt seine Buchungs- und Ledger-DB selbst an und erteilt den
+Studio-Geräten Schreibrecht (`src/lib/db/tickets.js`). Dieser Grant muss zum
+Studio replizieren, **bevor** dessen Schreibvorgänge angenommen werden — eine
+Kasse, die Sekunden nach dem Koppeln verkauft, ist einfach zu früh dran und
+bekommt `Could not append entry`.
+
+Umsetzung heute: begrenztes Wiederholen (15 s) statt Fehlermeldung. Der Vorgang
+ist berechtigt und wird in Kürze erlaubt; ein harter Fehler würde der Person an
+der Theke sagen, ihr Verkauf sei abgelehnt worden, obwohl er nur verfrüht war.
+
+**Die sauberere Alternative**, bewusst noch nicht umgesetzt: Das **Studio** legt
+`tickets-<studentDid>` an, wie §3.4 mit „Multi-Writer: Studio-Geräte" andeutet.
+Dann ist es von Anfang an Admin, es muss kein Grant reisen, und ein Schüler
+könnte nicht einmal wirkungslose Events in sein Ledger schreiben. Preis: Die
+Ledger-Adresse hängt von der DID des anfragenden Geräts ab, muss also pro Peer
+ausgeliefert werden — die Studio-Ankündigung wird damit anfragerspezifisch. Das
+ist ein Umbau, keine Zeile, und gehört vor T4.4 entschieden.
+
 ## 3. Noch nicht gemessen
 
 Die Skalierungszahlen in `docs/PLAN.md` §6.4 sind Schätzungen. Die
