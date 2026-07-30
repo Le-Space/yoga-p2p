@@ -74,6 +74,12 @@ docs/               PLAN · DESIGN · LIMITS · PRIVACY · TESTING · DEPLOY
 `src/lib/ledger/` stays free of UI, browser and OrbitDB — the most critical logic
 has to be testable without a browser.
 
+## Handbook
+
+The user-facing handbook — for owners, front-desk staff and students, in German
+and English — lives in [`docs-site/`](docs-site/) and is built with Docusaurus. It
+is deliberately separate from `docs/` below, which is the engineering record.
+
 ## Documents
 
 The plan and the design notes are written in German; English translations live in

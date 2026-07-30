@@ -75,6 +75,12 @@ docs/               PLAN · DESIGN · LIMITS · PRIVACY · TESTING · DEPLOY
 `src/lib/ledger/` bleibt frei von UI, Browser und OrbitDB — die kritischste Logik
 muss ohne Browser testbar sein.
 
+## Handbuch
+
+Die Anwenderdokumentation — für Inhaberinnen, Theke und Schüler, deutsch und
+englisch — liegt in [`docs-site/`](docs-site/) und wird mit Docusaurus gebaut. Sie
+ist bewusst getrennt von `docs/` weiter unten, das die technische Aufzeichnung ist.
+
 ## Dokumente
 
 Plan und Entwurfsnotizen sind auf Deutsch; die englischen Übersetzungen liegen in

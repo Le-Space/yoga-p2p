@@ -1,0 +1,91 @@
+/**
+ * Le-Space brand values, mapped onto Infima.
+ *
+ * Every value here is copied from `src/lib/styles/tokens.css`, which is itself
+ * sourced value-by-value from `Le-Space/landing → docs/le-space-brand` with the
+ * derivations recorded in `docs/DESIGN.md`. Nothing is invented here and nothing
+ * is picked by eye: if a colour is wrong, it is wrong in the token file, and this
+ * file is not the place to patch around it.
+ *
+ * The light values are the AA-corrected ones. Several brand colours miss WCAG AA
+ * for body text on the grounds they were meant for — Coral, Cyan and Mint among
+ * them — and `docs/DESIGN.md` carries the measured ratios and the derived
+ * replacements. A handbook that fails contrast is a handbook somebody cannot read.
+ */
+
+:root {
+	/* Light — from tokens.css, the AA-corrected column. */
+	--ifm-color-primary: #d22c19; /* from Coral #E8503F */
+	--ifm-color-primary-dark: #bd2817;
+	--ifm-color-primary-darker: #b22516;
+	--ifm-color-primary-darkest: #921f12;
+	--ifm-color-primary-light: #e7301c;
+	--ifm-color-primary-lighter: #ee3722;
+	--ifm-color-primary-lightest: #f15841;
+
+	--ifm-background-color: #edf1f8; /* Starlight as page ground */
+	--ifm-background-surface-color: #ffffff;
+	--ifm-font-color-base: #141b2e; /* Ink */
+	--ifm-color-emphasis-300: #d4dcea;
+	--ifm-link-color: #0c74aa; /* from Cyan #0E86C4 */
+
+	--ifm-font-family-base:
+		'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, 'Noto Sans Mono', monospace;
+
+	--ifm-code-font-size: 92%;
+	--docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] {
+	/* Dark — the brand's home ground, used as published. */
+	--ifm-color-primary: #ff6b5b; /* Signal Coral */
+	--ifm-color-primary-dark: #ff4d3a;
+	--ifm-color-primary-darker: #ff3e2a;
+	--ifm-color-primary-darkest: #e62200;
+	--ifm-color-primary-light: #ff897c;
+	--ifm-color-primary-lighter: #ff988c;
+	--ifm-color-primary-lightest: #ffc4bd;
+
+	--ifm-background-color: #0b0e15; /* Deep Space */
+	--ifm-background-surface-color: #141926; /* Nebula */
+	--ifm-font-color-base: #edf1f8; /* Starlight */
+	--ifm-color-emphasis-300: #232b3d; /* Horizon */
+	--ifm-link-color: #58c7f3; /* Sync Cyan */
+
+	--docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
+}
+
+/**
+ * Section headings in the brand's monospace, which the guide calls the brand
+ * voice. Body text stays in Inter — a handbook is read in paragraphs, and a
+ * monospace paragraph is a poster, not a page.
+ */
+.markdown h1,
+.markdown h2 {
+	font-family: var(--ifm-font-family-monospace);
+	letter-spacing: -0.01em;
+}
+
+/**
+ * A callout for the things this app does differently from every booking system
+ * the reader has used before. There are only a handful, and they are the whole
+ * reason the handbook exists, so they are marked rather than left in the flow.
+ */
+.no-server {
+	border-left: 3px solid var(--ifm-color-primary);
+	background: var(--ifm-background-surface-color);
+	padding: 0.75rem 1rem;
+	margin: 1.5rem 0;
+	border-radius: 0 6px 6px 0;
+}
+
+.no-server strong:first-child {
+	font-family: var(--ifm-font-family-monospace);
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--ifm-color-primary);
+	display: block;
+	margin-bottom: 0.25rem;
+}
