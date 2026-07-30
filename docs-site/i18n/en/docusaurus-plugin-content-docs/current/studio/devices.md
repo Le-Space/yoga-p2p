@@ -39,11 +39,11 @@ trail in.
 
 ## Roles
 
-| Role           | May                                                    |
-| -------------- | ------------------------------------------------------ |
-| **Owner**      | everything, including approving and revoking devices   |
-| **Front desk** | sell, check in, confirm bookings                       |
-| **Teacher**    | the same as front desk, meant for those teaching       |
+| Role           | May                                                  |
+| -------------- | ---------------------------------------------------- |
+| **Owner**      | everything, including approving and revoking devices |
+| **Front desk** | sell, check in, confirm bookings                     |
+| **Teacher**    | the same as front desk, meant for those teaching     |
 
 Only the owner can change the registry itself. A front-desk device that could
 change it could enter itself.

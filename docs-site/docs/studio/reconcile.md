@@ -19,12 +19,12 @@ Einnahmen nach **Standort und Gerät**. Beides, weil das zwei verschiedene Frage
 sind: „Was kam in der Altstadt herein?" und „Wer stand an der Kasse?" — und die
 zweite wird gestellt, wenn die Kasse nicht stimmt.
 
-| Spalte      | Bedeutet                                                    |
-| ----------- | ----------------------------------------------------------- |
-| Verkäufe    | verkaufte Karten                                            |
-| Bar         | tatsächlich eingenommenes Geld                              |
-| Entwertungen| angenommene Check-ins an dieser Theke                       |
-| Strittig    | Check-ins, die mit einer anderen Theke kollidiert sind      |
+| Spalte       | Bedeutet                                               |
+| ------------ | ------------------------------------------------------ |
+| Verkäufe     | verkaufte Karten                                       |
+| Bar          | tatsächlich eingenommenes Geld                         |
+| Entwertungen | angenommene Check-ins an dieser Theke                  |
+| Strittig     | Check-ins, die mit einer anderen Theke kollidiert sind |
 
 **Strittig** ist die Spalte, die man im Blick behalten sollte. Bei einem
 Widerspruch ist keine der beiden Entwertungen angenommen — es waren aber zwei

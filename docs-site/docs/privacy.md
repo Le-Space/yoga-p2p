@@ -7,12 +7,12 @@ sidebar_position: 30
 
 ## Was wo liegt
 
-| Daten                        | Liegen auf                             |
-| ---------------------------- | -------------------------------------- |
-| Studio, Standorte, Geräte    | allen verbundenen Geräten              |
-| Kurse und Preise             | allen verbundenen Geräten              |
-| Buchungen eines Schülers     | seinem Gerät und den Studio-Geräten    |
-| Kartenkonto eines Schülers   | seinem Gerät und den Studio-Geräten    |
+| Daten                      | Liegen auf                          |
+| -------------------------- | ----------------------------------- |
+| Studio, Standorte, Geräte  | allen verbundenen Geräten           |
+| Kurse und Preise           | allen verbundenen Geräten           |
+| Buchungen eines Schülers   | seinem Gerät und den Studio-Geräten |
+| Kartenkonto eines Schülers | seinem Gerät und den Studio-Geräten |
 
 Es gibt **keine** Stelle, an der alles zusammenläuft. Kein Anbieter, kein
 Auswertungsdienst, keine Statistik, die irgendwohin fließt.

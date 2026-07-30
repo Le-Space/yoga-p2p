@@ -25,12 +25,12 @@ verteilt, auch an die der Schüler.
 
 ## Karten
 
-| Art             | Bedeutung                                       |
-| --------------- | ----------------------------------------------- |
-| Einzelstunde    | eine Einheit                                    |
-| 10er-Karte      | zehn Einheiten                                  |
-| Wochen-/Monats- | Zeitkarte, keine Einheiten, gilt im Zeitraum    |
-| Jahreskarte     | dasselbe über ein Jahr                          |
+| Art             | Bedeutung                                    |
+| --------------- | -------------------------------------------- |
+| Einzelstunde    | eine Einheit                                 |
+| 10er-Karte      | zehn Einheiten                               |
+| Wochen-/Monats- | Zeitkarte, keine Einheiten, gilt im Zeitraum |
+| Jahreskarte     | dasselbe über ein Jahr                       |
 
 Zu jeder Karte gehören Preis und Gültigkeitsdauer. Bei der Gültigkeit gibt es
 zwei Varianten: ab **Kauf** oder ab der **ersten Entwertung**. Die zweite ist

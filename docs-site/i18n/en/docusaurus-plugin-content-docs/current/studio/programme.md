@@ -24,12 +24,12 @@ every device, including students'.
 
 ## Passes
 
-| Kind             | Meaning                                     |
-| ---------------- | ------------------------------------------- |
-| Single class     | one unit                                    |
-| Ten-class pass   | ten units                                   |
-| Week / month     | time pass, no units, valid for a period     |
-| Year             | the same over a year                        |
+| Kind           | Meaning                                 |
+| -------------- | --------------------------------------- |
+| Single class   | one unit                                |
+| Ten-class pass | ten units                               |
+| Week / month   | time pass, no units, valid for a period |
+| Year           | the same over a year                    |
 
 Each pass has a price and a validity period. Validity comes in two shapes: from
 **purchase** or from the **first redemption**. The second is kinder to somebody

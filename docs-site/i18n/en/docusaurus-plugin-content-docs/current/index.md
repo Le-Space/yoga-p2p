@@ -38,11 +38,11 @@ the same time, a pass can be redeemed twice. The app does not prevent that — i
 
 ## Where to start
 
-| You are …                          | Start here                          |
-| ---------------------------------- | ----------------------------------- |
-| the owner, setting up              | [Setting up](/studio/setup)         |
-| at the desk, checking people in    | [Check-in](/studio/checkin)         |
-| a student with a phone             | [Getting started](/student/start)   |
+| You are …                       | Start here                        |
+| ------------------------------- | --------------------------------- |
+| the owner, setting up           | [Setting up](/studio/setup)       |
+| at the desk, checking people in | [Check-in](/studio/checkin)       |
+| a student with a phone          | [Getting started](/student/start) |
 
 If you want to know what is underneath, that is in the
 [repository](https://github.com/Le-Space/yoga-p2p) — this handbook does without.

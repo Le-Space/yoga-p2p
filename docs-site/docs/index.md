@@ -41,11 +41,11 @@ kann](/what-it-cannot-do).
 
 ## Wo anfangen
 
-| Ihr seid …                       | Fangt hier an                        |
-| -------------------------------- | ------------------------------------ |
-| Inhaberin, richtet neu ein       | [Studio einrichten](/studio/setup)   |
-| an der Theke, sollt einchecken   | [Check-in](/studio/checkin)          |
-| Schüler mit einem Telefon        | [Erste Schritte](/student/start)     |
+| Ihr seid …                     | Fangt hier an                      |
+| ------------------------------ | ---------------------------------- |
+| Inhaberin, richtet neu ein     | [Studio einrichten](/studio/setup) |
+| an der Theke, sollt einchecken | [Check-in](/studio/checkin)        |
+| Schüler mit einem Telefon      | [Erste Schritte](/student/start)   |
 
 Wer wissen will, was technisch dahintersteckt, findet das im
 [Repository](https://github.com/Le-Space/yoga-p2p) — dieses Handbuch kommt ohne

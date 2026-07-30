@@ -19,12 +19,12 @@ Takings by **location and device**. Both, because those are two different
 questions: "what came in at the old town desk?" and "who was on the till?" — and
 the second one gets asked when the cash box does not match.
 
-| Column      | Means                                                   |
-| ----------- | ------------------------------------------------------- |
-| Sales       | passes sold                                             |
-| Cash        | money actually taken                                    |
-| Check-ins   | accepted redemptions at this counter                    |
-| Disputed    | check-ins that collided with another counter's          |
+| Column    | Means                                          |
+| --------- | ---------------------------------------------- |
+| Sales     | passes sold                                    |
+| Cash      | money actually taken                           |
+| Check-ins | accepted redemptions at this counter           |
+| Disputed  | check-ins that collided with another counter's |
 
 **Disputed** is the column to watch. In a contradiction neither redemption is
 accepted — but two people were in two classes. "0 check-ins" would have been true

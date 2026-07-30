@@ -6,7 +6,14 @@ export default {
 			type: 'category',
 			label: 'Studio',
 			collapsed: false,
-			items: ['studio/setup', 'studio/devices', 'studio/programme', 'studio/till', 'studio/checkin', 'studio/reconcile']
+			items: [
+				'studio/setup',
+				'studio/devices',
+				'studio/programme',
+				'studio/till',
+				'studio/checkin',
+				'studio/reconcile'
+			]
 		},
 		{
 			type: 'category',

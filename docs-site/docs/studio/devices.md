@@ -42,11 +42,11 @@ also: widerrufen **und** damit rechnen, dass ein paar Einträge nachlaufen.
 
 ## Rollen
 
-| Rolle          | Darf                                                     |
-| -------------- | -------------------------------------------------------- |
-| **Inhaberin**  | alles, einschließlich Geräte freigeben und widerrufen    |
-| **Front-Desk** | verkaufen, einchecken, Buchungen bestätigen              |
-| **Teacher**    | dasselbe wie Front-Desk, gedacht für Kursleitungen       |
+| Rolle          | Darf                                                  |
+| -------------- | ----------------------------------------------------- |
+| **Inhaberin**  | alles, einschließlich Geräte freigeben und widerrufen |
+| **Front-Desk** | verkaufen, einchecken, Buchungen bestätigen           |
+| **Teacher**    | dasselbe wie Front-Desk, gedacht für Kursleitungen    |
 
 Die Registry selbst kann nur die Inhaberin ändern. Ein Front-Desk-Gerät, das sie
 ändern könnte, könnte sich selbst eintragen.

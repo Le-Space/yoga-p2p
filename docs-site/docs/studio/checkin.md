@@ -26,11 +26,11 @@ sprechen.
 
 ## Wenn abgelehnt wird
 
-| Meldung                | Bedeutet                                             |
-| ---------------------- | ---------------------------------------------------- |
-| Kein Guthaben mehr     | Karte aufgebraucht                                   |
-| Außerhalb der Laufzeit | Karte ist abgelaufen oder noch nicht gültig          |
-| Falscher Kurs          | Reihen-Ticket, das für einen anderen Kurs gilt       |
+| Meldung                | Bedeutet                                              |
+| ---------------------- | ----------------------------------------------------- |
+| Kein Guthaben mehr     | Karte aufgebraucht                                    |
+| Außerhalb der Laufzeit | Karte ist abgelaufen oder noch nicht gültig           |
+| Falscher Kurs          | Reihen-Ticket, das für einen anderen Kurs gilt        |
 | Storniert              | die Karte wurde entwertet, etwa nach einer Erstattung |
 
 ## Der Fork-Alarm

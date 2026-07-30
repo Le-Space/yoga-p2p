@@ -7,12 +7,12 @@ sidebar_position: 30
 
 ## What lives where
 
-| Data                          | Lives on                                |
-| ----------------------------- | --------------------------------------- |
-| Studio, locations, devices    | every connected device                  |
-| Courses and prices            | every connected device                  |
-| A student's bookings          | their device and the studio's devices   |
-| A student's pass account      | their device and the studio's devices   |
+| Data                       | Lives on                              |
+| -------------------------- | ------------------------------------- |
+| Studio, locations, devices | every connected device                |
+| Courses and prices         | every connected device                |
+| A student's bookings       | their device and the studio's devices |
+| A student's pass account   | their device and the studio's devices |
 
 There is **no** place where it all comes together. No provider, no analytics, no
 statistics flowing anywhere.

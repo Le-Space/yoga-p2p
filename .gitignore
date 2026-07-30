@@ -25,3 +25,11 @@ Thumbs.db
 
 # Vite
 vite.config.js.timestamp-*
+
+# The handbook's build output and dependency tree. Listed here rather than in a
+# docs-site/.gitignore, because ESLint and Prettier both read the *root* ignore
+# file only — a nested one keeps git happy and still leaves 2500 lint errors in
+# generated JavaScript, which is how this was found.
+docs-site/node_modules
+docs-site/build
+docs-site/.docusaurus
