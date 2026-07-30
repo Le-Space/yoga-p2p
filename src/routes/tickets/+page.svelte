@@ -14,9 +14,32 @@
 	import { ticketEventsStore } from '$lib/db/tickets.js';
 	import { devicesStore } from '$lib/db/registry.js';
 	import StudioGate from '$lib/components/StudioGate.svelte';
+	import { buildExport, countEvents, downloadExport, exportFilename } from '$lib/db/export.js';
+	import { ownDidStore } from '$lib/p2p/node.js';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let tickets = $state(/** @type {any[]} */ ([]));
+	let exported = $state(/** @type {number | null} */ (null));
+
+	/**
+	 * The student's own copy, as signed events.
+	 *
+	 * Only their own ledger — a student has no business exporting the studio's
+	 * registry, and `buildExport` leaves out what it was not handed rather than
+	 * shipping empty fields that would imply it asked.
+	 */
+	function exportOwn() {
+		const did = $ownDidStore ?? '';
+		const exportedAt = new Date().toISOString();
+		const bundle = buildExport({
+			exportedBy: did,
+			exportedAt,
+			ledgers: { [did]: $ticketEventsStore }
+		});
+
+		downloadExport(bundle, exportFilename('yoga-passes', exportedAt));
+		exported = countEvents(bundle);
+	}
 
 	// Signature verification is asynchronous and the reducer must stay pure, so
 	// every event is verified first and the verdicts handed over as a lookup.
@@ -57,4 +80,24 @@
 			{/each}
 		</div>
 	{/if}
+
+	<section class="mt-6 rounded-card border border-border bg-surface p-6">
+		<h2 class="eyebrow">{m.export_title()}</h2>
+		<p class="mt-1 text-sm text-muted">{m.export_intro()}</p>
+
+		<button
+			type="button"
+			data-testid="export-own"
+			onclick={exportOwn}
+			class="mt-3 rounded-control border border-border px-4 py-2 text-sm"
+		>
+			{m.export_own()}
+		</button>
+
+		{#if exported !== null}
+			<p class="mt-2 text-sm text-success" data-testid="export-done">
+				{m.export_done({ count: exported })}
+			</p>
+		{/if}
+	</section>
 </StudioGate>

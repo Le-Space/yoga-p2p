@@ -191,5 +191,21 @@
 	"sync_entries": "{count} entries",
 	"conflict_title": "Contradictions",
 	"conflict_cancelled_after_redeem": "Cancelled although {course} on {date} had already been checked in",
-	"conflict_body": "Two devices decided independently. Nothing is resolved automatically — the facts are here, a person decides."
+	"conflict_body": "Two devices decided independently. Nothing is resolved automatically — the facts are here, a person decides.",
+	"export_title": "Export",
+	"export_intro": "Everything this device knows, as readable JSON — with the signed events, not just balances. With no server, the export is the backup.",
+	"export_studio": "Export studio",
+	"export_own": "Export my passes",
+	"export_done": "{count} signed events exported",
+	"second_device_title": "No second device",
+	"second_device_body": "This studio hangs on a single device. Lose it and the registry is gone, and nobody can approve or revoke anything again. A second owner device is not a convenience, it is the backup.",
+	"second_device_action": "Connect a second device",
+	"transfer_title": "Move a pass to a new DID",
+	"transfer_intro": "When a passkey is lost the DID goes with it. The balance that was paid for does not: it moves to the new device and the old card is voided.",
+	"transfer_from": "Old DID",
+	"transfer_to": "New DID",
+	"transfer_submit": "Move balance",
+	"transfer_done": "{count} pass(es) moved",
+	"transfer_void_failed": "Moved, but {count} old pass(es) could not be voided — the balance now exists twice. Please try again.",
+	"transfer_same": "The old and new DID are the same."
 }

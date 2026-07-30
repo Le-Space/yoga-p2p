@@ -43,7 +43,9 @@ export const test = base.extend({
 async function newActor(browser) {
 	const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
 	const page = await context.newPage();
-	await addVirtualAuthenticator(page);
+	// Kept on the page so a test can model "same person, new device": the passkey
+	// lives in the authenticator, so carrying it is the only honest way to do that.
+	page.__cdp = await addVirtualAuthenticator(page);
 	return page;
 }
 

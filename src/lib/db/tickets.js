@@ -251,6 +251,96 @@ export async function openStudentTickets(studentDid, ownerDid) {
 }
 
 /**
+ * Move a student's remaining balance to a new DID (T5.2).
+ *
+ * The case: a student loses the passkey. The DID comes from the passkey, so it is
+ * gone with it, and the old ledger can never be written to on their behalf again —
+ * but the balance was paid for and has to survive. So the studio issues a
+ * replacement ticket on the new DID's ledger and voids the old one with
+ * `reason: 'transfer'`, pointing at its successor.
+ *
+ * **Issue first, then void**, and that order is the whole design of this function.
+ * Either write can fail — two logs, two access checks. Voiding first and failing to
+ * issue destroys a balance somebody paid cash for, and nothing short of the export
+ * brings it back. Issuing first and failing to void leaves the balance existing
+ * twice: worse on paper, but visible on both screens and fixable by voiding the new
+ * one. Of the two ways to be wrong, only one is recoverable. It is also the only
+ * possible order, since the void has to name its successor's id.
+ *
+ * The validity window is copied, never extended. A transfer replaces a card; it
+ * does not sell a new one.
+ *
+ * @param {object} transfer
+ * @param {any} transfer.fromDb the old student's ledger
+ * @param {any} transfer.toDb the new student's ledger
+ * @param {string} transfer.toStudentDid
+ * @param {import('../ledger/index.js').LedgerState} transfer.state fold of the old ledger
+ * @param {{ deviceDid: string, locationId: string }} transfer.by
+ * @returns {Promise<{ moved: number, failedVoids: string[] }>}
+ */
+export async function transferTickets({ fromDb, toDb, toStudentDid, state, by }) {
+	let moved = 0;
+	/** @type {string[]} */
+	const failedVoids = [];
+
+	for (const ticket of state.tickets.values()) {
+		// Only what still has value. A used-up or already-voided ticket would
+		// otherwise reappear on the new device as a fresh zero-unit card.
+		if (ticket.status !== 'active') continue;
+		if (ticket.unitsRemaining !== null && ticket.unitsRemaining <= 0) continue;
+
+		const successorId = `ticket:${crypto.randomUUID()}`;
+
+		/** @type {any} */
+		const issue = {
+			_id: successorId,
+			type: 'issue',
+			studentDid: toStudentDid,
+			packageId: ticket.issue?.packageId ?? null,
+			courseId: ticket.issue?.courseId ?? null,
+			unitsTotal: ticket.unitsRemaining,
+			// No money changed hands here. Recording a payment would double-count the
+			// original sale in every cash report from now on.
+			payment: { method: 'transfer', amountEUR: 0, receivedAt: new Date().toISOString() },
+			issuedBy: by,
+			validFrom: ticket.validFrom,
+			validUntil: ticket.validUntil,
+			validityStart: 'issue',
+			validityDays: null,
+			transferredFrom: { studentDid: ticket.issue?.studentDid ?? null, ticketId: ticket.ticketId }
+		};
+
+		issue.sig = await signEvent(issue);
+		await putWhenPermitted(toDb, issue);
+
+		/** @type {any} */
+		const voided = {
+			_id: `void:${crypto.randomUUID()}`,
+			type: 'void',
+			ticketId: ticket.ticketId,
+			reason: 'transfer',
+			transferTicketId: successorId,
+			voidedBy: by,
+			voidedAt: new Date().toISOString()
+		};
+
+		voided.sig = await signEvent(voided);
+
+		try {
+			await putWhenPermitted(fromDb, voided);
+		} catch {
+			// Loud rather than swallowed: the balance now exists on both ledgers, and
+			// whoever is at the counter has to know that and void the old card again.
+			failedVoids.push(ticket.ticketId);
+		}
+
+		moved += 1;
+	}
+
+	return { moved, failedVoids };
+}
+
+/**
  * @param {string} date
  * @param {number} days
  */

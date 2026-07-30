@@ -23,7 +23,10 @@ import {
 	clearWebAuthnCredential
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
 
-const CREDENTIAL_STORAGE_KEY = 'simpleTodo.webauthnCredential';
+// Named for this app. It read `simpleTodo.webauthnCredential` until now — a
+// leftover from the branch this project was scaffolded from, and the kind of thing
+// that becomes permanent the moment anyone has real data under it.
+const CREDENTIAL_STORAGE_KEY = 'yoga-p2p.passkeyCredential';
 
 /**
  * Register a brand-new passkey and persist its identity metadata for later
@@ -87,6 +90,14 @@ export async function recoverPasskeyCredential() {
 				storeWebAuthnCredential(credential, CREDENTIAL_STORAGE_KEY);
 				return credential;
 			}
+			console.warn('largeBlob held no usable identity; falling back to local storage.');
+		} else {
+			// Said out loud, because an *empty* blob and a *failed read* are different
+			// problems with the same symptom, and only one of them throws. This is the
+			// quiet one: it is what the CDP virtual authenticator does (docs/LIMITS.md
+			// §2.5), and on a real device it would mean the recovery path is not
+			// actually there — worth knowing before somebody loses a phone.
+			console.warn('No identity in the authenticator largeBlob; trying local storage.');
 		}
 	} catch (error) {
 		console.warn('largeBlob recovery unavailable, trying localStorage:', error);

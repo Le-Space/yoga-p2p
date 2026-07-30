@@ -229,6 +229,30 @@ Loads durch (vorher drei).
   (Zeile 157) statt in ein `error`-Event. Genau der Fall, den eine Anwendung
   bemerken müsste, ist damit der einzige, den sie nicht abfangen kann.
 
+### 2.5 CDP Virtual Authenticator: largeBlob ist nicht prüfbar
+
+Der Recovery-Pfad „neues Gerät, gleicher Passkey" legt die Identitätsdaten in den
+**largeBlob** des Credentials — dorthin, wo sie ein Plattform-Keychain mitsynct.
+Unter dem CDP Virtual Authenticator lässt sich das **nicht** testen, und zwar aus
+zwei getrennt gemessenen Gründen:
+
+- Ein Schreibvorgang meldet Erfolg (keine Warnung, keine Exception), der
+  anschließende Lesevorgang liefert **keinen Blob** — auch im selben Authenticator.
+- `WebAuthn.getCredentials` gibt überhaupt kein `largeBlob`-Feld heraus. Zurück
+  kommen `credentialId`, `privateKey`, `userHandle`, `signCount` und Namensfelder.
+  Der Blob lässt sich also auch nicht in einen zweiten virtuellen Authenticator
+  übertragen.
+
+Folge für die Tests: `e2e/m5-recovery.spec.js` prüft den Wiederanlauf mit
+erhaltenem Passkey-Eintrag und die Rückkehr der Karten allein durch Kopplung. Der
+largeBlob-Rundlauf ist **auf echter Hardware zu prüfen** und steht in
+`docs/TESTING.md` auf der Geräte-Checkliste.
+
+Folge für die App: `recoverPasskeyCredential` sagt jetzt auch dann etwas, wenn der
+Blob schlicht **leer** ist, nicht nur wenn das Lesen wirft. Beides sieht auf dem
+Schirm gleich aus („Kein Passkey auf diesem Gerät"), ist aber ein völlig anderes
+Problem — und die stille Variante ist die gefährlichere.
+
 ### 2.4 Le-Space Brand-Repo
 
 Mehrere Brand-Werte verfehlen WCAG AA für Fließtext auf den Gründen, für die

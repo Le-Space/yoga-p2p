@@ -191,5 +191,21 @@
 	"sync_entries": "{count} Einträge",
 	"conflict_title": "Widersprüche",
 	"conflict_cancelled_after_redeem": "Storniert, obwohl für {course} am {date} bereits entwertet wurde",
-	"conflict_body": "Zwei Geräte haben unabhängig entschieden. Nichts wird automatisch aufgelöst — die Fakten stehen hier, die Entscheidung trifft ein Mensch."
+	"conflict_body": "Zwei Geräte haben unabhängig entschieden. Nichts wird automatisch aufgelöst — die Fakten stehen hier, die Entscheidung trifft ein Mensch.",
+	"export_title": "Export",
+	"export_intro": "Alles, was dieses Gerät weiß, als lesbare JSON-Datei — mit den signierten Events, nicht nur mit Salden. Ohne Server ist der Export die Sicherung.",
+	"export_studio": "Studio exportieren",
+	"export_own": "Meine Karten exportieren",
+	"export_done": "{count} signierte Events exportiert",
+	"second_device_title": "Zweitgerät fehlt",
+	"second_device_body": "Dieses Studio hängt an einem einzigen Gerät. Geht es verloren, ist die Registry weg und niemand kann mehr freigeben oder widerrufen. Ein zweites Gerät der Inhaberin ist keine Bequemlichkeit, sondern die Sicherung.",
+	"second_device_action": "Zweitgerät verbinden",
+	"transfer_title": "Karte auf neue DID übertragen",
+	"transfer_intro": "Wenn ein Passkey verloren ist, ist die DID mit ihm weg. Das bezahlte Guthaben nicht: es wandert auf das neue Gerät, die alte Karte wird entwertet.",
+	"transfer_from": "Alte DID",
+	"transfer_to": "Neue DID",
+	"transfer_submit": "Guthaben übertragen",
+	"transfer_done": "{count} Karte(n) übertragen",
+	"transfer_void_failed": "Übertragen, aber {count} alte Karte(n) konnten nicht entwertet werden — das Guthaben steht jetzt doppelt. Bitte erneut versuchen.",
+	"transfer_same": "Alte und neue DID sind identisch."
 }

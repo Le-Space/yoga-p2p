@@ -20,12 +20,54 @@
 	} from '$lib/db/registry.js';
 	import { localized } from '$lib/db/program.js';
 	import { forgetPendingDevice, pendingDevicesStore } from '$lib/db/join.js';
+	import { buildExport, countEvents, downloadExport, exportFilename } from '$lib/db/export.js';
+	import { coursesStore, packagesStore } from '$lib/db/program.js';
+	import { studentTicketsStore } from '$lib/db/tickets.js';
+	import { bookingsStore } from '$lib/db/bookings.js';
+	import { resolve } from '$app/paths';
 	import { ownDidStore } from '$lib/p2p/node.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import * as m from '$lib/paraglide/messages.js';
 
 	let studioName = $state('');
 	let error = $state('');
+	let exported = $state(/** @type {number | null} */ (null));
+
+	/**
+	 * A studio running on one device has no backup of its registry.
+	 *
+	 * Asked for rather than suggested: if that device is lost, nobody can approve or
+	 * revoke anything ever again, and every ledger address in this studio derives
+	 * from the owner DID it held (src/lib/db/studio-acl.js). The plan calls for the
+	 * setup to demand this, so it stays on screen until a second device exists
+	 * instead of being a hint somebody dismisses once.
+	 */
+	let needsSecondDevice = $derived(
+		Boolean($studioStore?.ownerDid) &&
+			$devicesStore.filter((device) => !device.revokedAt).length < 2
+	);
+
+	function exportStudio() {
+		const exportedAt = new Date().toISOString();
+		const bundle = buildExport({
+			exportedBy: $ownDidStore ?? '',
+			exportedAt,
+			studio: $studioStore,
+			locations: $locationsStore,
+			devices: $devicesStore,
+			packages: $packagesStore,
+			courses: $coursesStore,
+			bookings: $bookingsStore,
+			// Every ledger this device holds, as signed events. A studio's own copy is
+			// the only backup of a student's balance that survives losing their phone.
+			ledgers: Object.fromEntries(
+				[...$studentTicketsStore.values()].map((student) => [student.did, student.events])
+			)
+		});
+
+		downloadExport(bundle, exportFilename('yoga-studio', exportedAt));
+		exported = countEvents(bundle);
+	}
 
 	let location = $state({ id: '', nameDe: '', nameEn: '', address: '' });
 
@@ -325,5 +367,42 @@
 				<li class="text-faint" data-testid="device-empty">{m.device_none()}</li>
 			{/each}
 		</ul>
+	</section>
+	{#if needsSecondDevice}
+		<section
+			class="mt-6 rounded-card border border-warning bg-surface p-6"
+			data-testid="second-device-warning"
+			role="alert"
+		>
+			<h2 class="eyebrow text-warning">{m.second_device_title()}</h2>
+			<p class="mt-1 text-sm text-muted">{m.second_device_body()}</p>
+			<a
+				href={resolve('/connect')}
+				data-testid="second-device-action"
+				class="mt-3 inline-block rounded-control bg-accent px-4 py-2 text-sm font-medium text-accent-contrast no-underline"
+			>
+				{m.second_device_action()}
+			</a>
+		</section>
+	{/if}
+
+	<section class="mt-6 rounded-card border border-border bg-surface p-6">
+		<h2 class="eyebrow">{m.export_title()}</h2>
+		<p class="mt-1 text-sm text-muted">{m.export_intro()}</p>
+
+		<button
+			type="button"
+			data-testid="export-studio"
+			onclick={exportStudio}
+			class="mt-3 rounded-control border border-border px-4 py-2 text-sm"
+		>
+			{m.export_studio()}
+		</button>
+
+		{#if exported !== null}
+			<p class="mt-2 text-sm text-success" data-testid="export-done">
+				{m.export_done({ count: exported })}
+			</p>
+		{/if}
 	</section>
 </StudioGate>

@@ -20,7 +20,7 @@ export async function addVirtualAuthenticator(page) {
 	const cdp = await page.context().newCDPSession(page);
 
 	await cdp.send('WebAuthn.enable');
-	await cdp.send('WebAuthn.addVirtualAuthenticator', {
+	const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {
 		options: {
 			protocol: 'ctap2',
 			ctap2Version: 'ctap2_1',
@@ -33,5 +33,39 @@ export async function addVirtualAuthenticator(page) {
 		}
 	});
 
-	return cdp;
+	// The id is carried on the session so callers that only keep the CDP handle can
+	// still address the authenticator. Both are needed for the recovery tests.
+	return Object.assign(cdp, { authenticatorId });
+}
+
+/**
+ * Read the passkeys out of a virtual authenticator.
+ *
+ * This is how "the same person, a different device" gets modelled: a passkey lives
+ * in the authenticator, not in the browser profile, so restoring onto a fresh
+ * profile means carrying the credential — and its `largeBlob`, which is where the
+ * identity metadata lives — rather than copying any app storage.
+ *
+ * @param {any} cdp a session from addVirtualAuthenticator
+ */
+export async function exportCredentials(cdp) {
+	const { credentials } = await cdp.send('WebAuthn.getCredentials', {
+		authenticatorId: cdp.authenticatorId
+	});
+	return credentials;
+}
+
+/**
+ * Put passkeys into a virtual authenticator.
+ *
+ * @param {any} cdp a session from addVirtualAuthenticator
+ * @param {any[]} credentials from exportCredentials
+ */
+export async function importCredentials(cdp, credentials) {
+	for (const credential of credentials) {
+		await cdp.send('WebAuthn.addCredential', {
+			authenticatorId: cdp.authenticatorId,
+			credential
+		});
+	}
 }

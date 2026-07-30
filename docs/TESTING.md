@@ -84,3 +84,11 @@ ist:
   erreichbar sein, ohne Neuladen.
 - **Symmetrisches NAT:** Der Remote-Pfad kann ohne TURN scheitern
   (`docs/LIMITS.md` §1.2). Der Assistent muss das benennen, nicht endlos drehen.
+
+## Nur auf echter Hardware prüfbar
+
+- **largeBlob-Recovery.** Passkey auf Gerät A registrieren, App auf Gerät B mit
+  demselben Plattform-Account installieren, „Mit vorhandenem Passkey fortfahren"
+  — es muss dieselbe DID erscheinen. Der CDP Virtual Authenticator kann das nicht
+  abbilden (`docs/LIMITS.md` §2.5), also fällt dieser Punkt auf ein echtes
+  Gerätepaar zurück. Bis das einmal bestätigt ist, gilt der Pfad als unbelegt.

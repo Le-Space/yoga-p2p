@@ -70,16 +70,24 @@
 				</p>
 			{/if}
 
-			{#if knownIdentity}
-				<button
-					type="button"
-					data-testid="recover-identity"
-					onclick={recover}
-					class="mt-4 rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast"
-				>
-					{m.onboarding_recover()}
-				</button>
-			{:else}
+			<!--
+				Recovering is offered unconditionally, and that was a real gap: it used to
+				appear only when local storage still remembered a credential — which is
+				never true on the device somebody reaches for *after* losing the last one.
+				A passkey lives in the authenticator and can be synced or carried, so the
+				new phone has to be allowed to ask. It costs one WebAuthn prompt and fails
+				with a plain "No passkey found on this device."
+			-->
+			<button
+				type="button"
+				data-testid="recover-identity"
+				onclick={recover}
+				class="mt-4 rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast"
+			>
+				{m.onboarding_recover()}
+			</button>
+
+			{#if !knownIdentity}
 				<form class="mt-4 grid max-w-md gap-3" onsubmit={create}>
 					<label class="grid gap-1 text-sm">
 						{m.onboarding_user_id()}
