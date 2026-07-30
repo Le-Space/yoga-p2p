@@ -214,6 +214,24 @@
 			pkg = { ...pkg, id: '', nameDe: '', nameEn: '' };
 		});
 	}
+
+	/**
+	 * The location's name rather than its id.
+	 *
+	 * A course list that says `location:altstadt` is fine for whoever typed it and
+	 * useless to a student deciding which side of town to cycle to. The name lives
+	 * in the registry and the id on the course, so this is also the first place a
+	 * student can see that the registry reached them at all.
+	 *
+	 * Falls back to the id: better a raw string than an empty gap while the registry
+	 * is still on its way.
+	 *
+	 * @param {string} locationId
+	 */
+	function locationName(locationId) {
+		const location = $locationsStore.find((entry) => entry._id === locationId);
+		return location ? localized(location.name, getLocale()) : locationId;
+	}
 </script>
 
 <h1 class="text-3xl font-bold">{m.program_title()}</h1>
@@ -244,11 +262,12 @@
 					data-sessions={entry.sessions?.length ?? 0}
 					data-active={entry.active}
 					data-free={free ? Math.max(0, free.capacity - free.confirmed) : ''}
+					data-location-id={entry.locationId}
 				>
 					<span class="flex-1">
 						{localized(entry.title, getLocale())}
 						<span class="text-faint">
-							· {entry.locationId}
+							· {locationName(entry.locationId)}
 							{#if entry.mode === 'series'}
 								· {m.series_session_count({ count: entry.sessions?.length ?? 0 })}
 								· {window.from} – {window.until}

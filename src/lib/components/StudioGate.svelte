@@ -11,7 +11,6 @@
 		bootStore,
 		bootIfIdentityKnown,
 		createIdentityAndBoot,
-		hasIdentity,
 		recoverIdentityAndBoot,
 		studioReady
 	} from '$lib/identity/onboarding.js';
@@ -22,10 +21,8 @@
 
 	let userId = $state('');
 	let displayName = $state('');
-	let knownIdentity = $state(false);
 
 	onMount(async () => {
-		knownIdentity = hasIdentity();
 		try {
 			await bootIfIdentityKnown();
 		} catch {
@@ -70,56 +67,60 @@
 				</p>
 			{/if}
 
-			{#if knownIdentity}
+			<form class="mt-4 grid max-w-md gap-3" onsubmit={create}>
+				<label class="grid gap-1 text-sm">
+					{m.onboarding_user_id()}
+					<input
+						data-testid="onboarding-user-id"
+						bind:value={userId}
+						required
+						autocomplete="username"
+						class="rounded-control border p-2"
+					/>
+				</label>
+
+				<label class="grid gap-1 text-sm">
+					{m.onboarding_display_name()}
+					<input
+						data-testid="onboarding-display-name"
+						bind:value={displayName}
+						required
+						class="rounded-control border p-2"
+					/>
+				</label>
+
 				<button
-					type="button"
-					data-testid="recover-identity"
-					onclick={recover}
-					class="mt-4 rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast"
+					type="submit"
+					data-testid="onboarding-submit"
+					class="justify-self-start rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast"
 				>
-					{m.onboarding_recover()}
+					{m.onboarding_create()}
 				</button>
-			{:else}
-				<form class="mt-4 grid max-w-md gap-3" onsubmit={create}>
-					<label class="grid gap-1 text-sm">
-						{m.onboarding_user_id()}
-						<input
-							data-testid="onboarding-user-id"
-							bind:value={userId}
-							required
-							autocomplete="username"
-							class="rounded-control border p-2"
-						/>
-					</label>
+			</form>
 
-					<label class="grid gap-1 text-sm">
-						{m.onboarding_display_name()}
-						<input
-							data-testid="onboarding-display-name"
-							bind:value={displayName}
-							required
-							class="rounded-control border p-2"
-						/>
-					</label>
+			<!--
+				No advice about a second owner device here, and that was a real defect:
+				this gate wraps *every* route, so a student setting up their phone was
+				told to register a second device "as the owner" and that their passkey
+				was "the studio's key". At this moment nothing knows which it is — the
+				role is decided later, by creating a studio or joining one. The demand
+				lives on /studio instead, where the registry answers the question.
 
-					<button
-						type="submit"
-						data-testid="onboarding-submit"
-						class="justify-self-start rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast"
-					>
-						{m.onboarding_create()}
-					</button>
-				</form>
-
-				<!--
-					§6.2: losing the owner device costs the studio its ability to
-					register or revoke anything. The wizard has to ask for a second
-					owner device up front, not after the first loss.
-				-->
-				<p class="mt-4 max-w-xl text-sm text-warning" data-testid="second-device-reminder">
-					{m.onboarding_second_device()}
-				</p>
-			{/if}
+				Recovering is offered unconditionally, and that was a real gap: it used to
+				appear only when local storage still remembered a credential — which is
+				never true on the device somebody reaches for *after* losing the last one.
+				A passkey lives in the authenticator and can be synced or carried, so the
+				new phone has to be allowed to ask. It costs one WebAuthn prompt and fails
+				with a plain "No passkey found on this device."
+			-->
+			<button
+				type="button"
+				data-testid="recover-identity"
+				onclick={recover}
+				class="mt-4 rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast"
+			>
+				{m.onboarding_recover()}
+			</button>
 		{/if}
 	</section>
 {/if}

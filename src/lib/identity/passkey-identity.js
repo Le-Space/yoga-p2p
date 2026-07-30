@@ -23,7 +23,10 @@ import {
 	clearWebAuthnCredential
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
 
-const CREDENTIAL_STORAGE_KEY = 'simpleTodo.webauthnCredential';
+// Named for this app. It read `simpleTodo.webauthnCredential` until now — a
+// leftover from the branch this project was scaffolded from, and the kind of thing
+// that becomes permanent the moment anyone has real data under it.
+const CREDENTIAL_STORAGE_KEY = 'yoga-p2p.passkeyCredential';
 
 /**
  * Register a brand-new passkey and persist its identity metadata for later
@@ -48,10 +51,19 @@ export async function createPasskeyCredential({ userId, displayName }) {
 	// identity survives a cleared browser profile. Costs one extra WebAuthn
 	// prompt right after registration; not every authenticator supports it.
 	try {
-		const payload = createDidLargeBlobPayload(credential, credential.did);
-		await writeLargeBlobMetadata(
-			/** @type {any} */ ({ credentialId: credential.rawCredentialId, payload })
-		);
+		// Both functions are called the way they are actually implemented, and both
+		// casts exist because 0.4.0's `types/index.d.ts` disagrees with its own
+		// `src/`: it declares `createDidLargeBlobPayload(credentialInfo)` and
+		// `writeLargeBlobMetadata(credentialId, payload, options?)`, while the
+		// implementation takes `(credential, did)` and a single options object
+		// (`src/webauthn/large-blob-metadata.js`). Following the types would break at
+		// runtime, so the runtime wins and the mismatch is recorded in
+		// docs/LIMITS.md §2.2 instead of being papered over here.
+		const payload = /** @type {any} */ (createDidLargeBlobPayload)(credential, credential.did);
+		await /** @type {any} */ (writeLargeBlobMetadata)({
+			credentialId: credential.rawCredentialId,
+			payload
+		});
 	} catch (error) {
 		console.warn('largeBlob write skipped (falling back to localStorage only):', error);
 	}
@@ -66,8 +78,9 @@ export async function createPasskeyCredential({ userId, displayName }) {
  */
 export async function recoverPasskeyCredential() {
 	try {
-		const { blob } = await readLargeBlobMetadata(
-			/** @type {any} */ ({ discoverableCredentials: true })
+		// Declared as `Promise<unknown>` upstream though it resolves to `{ blob }`.
+		const { blob } = /** @type {any} */ (
+			await readLargeBlobMetadata(/** @type {any} */ ({ discoverableCredentials: true }))
 		);
 		if (blob?.length) {
 			const payload = /** @type {any} */ (parseDidLargeBlobPayload(blob));
@@ -77,6 +90,14 @@ export async function recoverPasskeyCredential() {
 				storeWebAuthnCredential(credential, CREDENTIAL_STORAGE_KEY);
 				return credential;
 			}
+			console.warn('largeBlob held no usable identity; falling back to local storage.');
+		} else {
+			// Said out loud, because an *empty* blob and a *failed read* are different
+			// problems with the same symptom, and only one of them throws. This is the
+			// quiet one: it is what the CDP virtual authenticator does (docs/LIMITS.md
+			// §2.5), and on a real device it would mean the recovery path is not
+			// actually there — worth knowing before somebody loses a phone.
+			console.warn('No identity in the authenticator largeBlob; trying local storage.');
 		}
 	} catch (error) {
 		console.warn('largeBlob recovery unavailable, trying localStorage:', error);

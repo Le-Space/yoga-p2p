@@ -222,6 +222,16 @@ Schüler, Schreibrecht für alle registrierten (nicht widerrufenen) Studio-Gerä
 repliziert auf dem Schülergerät. Append-only: `issue` und `redeem` sind Events,
 nie In-Place-Updates.
 
+**Angelegt wird das Ledger vom Studio, nicht vom Schüler.** Wer die Zahlung
+erhalten hat, entscheidet über das Ticket — das trug schon immer die Signatur im
+`issue`-Event, aber das _Buch_ gehörte dem Schüler, und damit auch die Macht, dem
+Studio das Schreibrecht zu entziehen. Alle Ledger eines Studios teilen deshalb
+einen Access-Controller mit fester Schreibliste (Owner). Weil ein
+OrbitDB-Manifest den Ersteller nicht enthält, folgt die Adresse allein aus
+`yoga-tickets-<studentDid>` und der Owner-DID: jedes Gerät leitet sie ab, keines
+bekommt sie gesagt, und der Schüler ist weder Admin noch Writer seines eigenen
+Ledgers. Begründung und Messwerte in `docs/LIMITS.md` §1.7.
+
 ```json
 { "_id": "ticket:<uuid>", "type": "issue",
   "studentDid": "did:key:…", "packageId": "package:10er",
@@ -680,8 +690,12 @@ Hash-Kette und Fork-Erkennung von Tag eins. Kein Umbau-Meilenstein mehr.
   Reihen-Ticket: Anwesenheit protokolliert ohne Abzug, Entwertung für
   fremden Kurs abgelehnt; `firstRedeem`-Karte startet ihr Fenster mit der
   ersten Entwertung (page.clock).
-- **T4.4** Fork-Alarm-UI. ✓ E2E: zurückgesetzter Bob-Ledger ⇒ Alarm mit
-  beiden signierten Events als Beweis.
+- **T4.4** Fork-Alarm-UI. ✓ E2E (`m4-tickets.spec.js`, „two counters redeeming
+  the same position raise a fork alarm"): Carol trennt die Verbindung, beide
+  Theken entwerten Kettenposition 1, der Schüler trägt den Widerspruch zusammen ⇒
+  Alarm mit beiden signierten Events, je Ort und Gerät, und Guthaben 9 statt 8
+  (ein Fork kostet genau eine Einheit). Nichts daran ist gestellt: der Fork
+  entsteht aus zwei echten Theken, die sich nicht sehen.
 
 ### M5 — Hardening & Reconciliation
 
@@ -692,14 +706,22 @@ Hash-Kette und Fork-Erkennung von Tag eins. Kein Umbau-Meilenstein mehr.
   DID-Verlust mit `void`+Transfer auf neue DID, Studio-Gerät-Widerruf;
   Setup-Wizard fordert Owner-Zweitgerät aktiv ein.
 - **T5.3** Reconciliation-Screen + Kassenbericht pro Location/Gerät.
-  ✓ E2E: A↔B-Abgleich per Paste-Pfad; negativer Saldo wird erkannt und als
-  Nachbelastung vorgemerkt.
+  ✓ E2E (`m5-report.spec.js`): Einnahmen nach Location und Gerät, Abgleich
+  ausschließlich über den Kurier (A↔B ohne Server). Zum **negativen Saldo**: Er
+  ist über die Oberfläche nicht erzeugbar — der Check-in weist bei leerem
+  Guthaben ab, und zwei rennende Theken erzeugen einen Fork, der genau eine
+  Einheit kostet. Die Nachbelastungs-Rechnung existiert für Ledger, die nicht von
+  diesen Schirmen stammen (§1.9), und ist per Unit-Test belegt. Was der Bericht
+  stattdessen zeigt: **strittige** Check-ins je Theke.
 - **T5.4** `LIMITS.md` + Upstream-Issues formulieren.
 - **T5.5** Benchmark-Suite `bench/`: Seed-Generator, Szenarien S1–S6
   (S7 Stretch), Metriken + Budgets, Lazy-Open/LRU + Guthaben-Cache
   implementieren und je Szenario mit/ohne Gegenmaßnahmen messen; Remote-Lauf
   über den Harness aus relay-button bzw. simple-todos
-  `remote-replication.yml`. ✓ Budgets für S1–S5 grün; Report generiert.
+  `remote-replication.yml`. ✓ Budgets für S1–S6 grün, Report generiert
+  (`bench/report.md`); Lazy-Open/LRU umgesetzt (`src/lib/db/lru.js`). Offen und
+  in `LIMITS.md` §3 als solches ausgewiesen: Cold Start, Erst-Pairing und
+  Check-in-Sync brauchen einen Browser-Harness, der Remote-Lauf steht aus.
 
 ### E2E-Teststrategie (Playwright)
 

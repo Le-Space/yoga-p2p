@@ -114,7 +114,9 @@
 				{#each state.forks as fork (fork.seq)}
 					{#each fork.events as event (event._id)}
 						<li data-testid="fork-proof">
-							#{fork.seq} · {event.date} · {event.redeemedBy.locationId} · {event.sig}
+							#{fork.seq} · {event.date} · {event.redeemedBy.locationId || '—'} · {event.redeemedBy.deviceDid.slice(
+								-12
+							)} · {event.sig.slice(0, 16)}…
 						</li>
 					{/each}
 				{/each}

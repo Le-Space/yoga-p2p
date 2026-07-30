@@ -16,6 +16,9 @@
 		studentBookingsStore
 	} from '$lib/db/bookings.js';
 	import { canEditProgram } from '$lib/db/join.js';
+	import { findConflicts } from '$lib/db/conflicts.js';
+	import { foldLedger } from '$lib/db/ledger-view.js';
+	import { ticketEventsStore } from '$lib/db/tickets.js';
 	import { coursesStore, localized } from '$lib/db/program.js';
 	import { hasFreePlace, syncOccupancy } from '$lib/db/occupancy.js';
 	import { studentBookingsStore as allStudentBookings } from '$lib/db/bookings.js';
@@ -25,6 +28,33 @@
 	import * as m from '$lib/paraglide/messages.js';
 
 	let error = $state('');
+
+	/**
+	 * Contradictions between this device's own bookings and its own ledger.
+	 *
+	 * Shown to the student rather than only at the counter, because they are the
+	 * one who can explain it — and because a cancellation that the studio has
+	 * already checked in is a bill they may not be expecting. Nothing is resolved
+	 * automatically; see src/lib/db/conflicts.js for why.
+	 */
+	let conflicts = $state(/** @type {import('$lib/db/conflicts.js').Conflict[]} */ ([]));
+
+	$effect(() => {
+		const bookings = $bookingsStore;
+		const events = $ticketEventsStore;
+		void $devicesStore;
+
+		let cancelled = false;
+		(async () => {
+			const ledger = await foldLedger(events);
+			if (cancelled) return;
+			conflicts = findConflicts(bookings, ledger);
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	let isStudioDevice = $derived(
 		Boolean($studioStore) && Boolean($devicesStore) && canEditProgram()
@@ -178,6 +208,30 @@
 		</section>
 	{/if}
 
+	{#if conflicts.length > 0}
+		<section
+			class="mt-6 rounded-card border border-warning bg-surface p-6"
+			data-testid="conflict-list"
+			role="alert"
+		>
+			<h2 class="eyebrow text-warning">{m.conflict_title()}</h2>
+			<p class="mt-1 text-sm text-muted">{m.conflict_body()}</p>
+			<ul class="mt-3 grid gap-2 text-sm">
+				{#each conflicts as conflict (conflict.bookingId)}
+					<li data-testid="conflict" data-kind={conflict.kind} data-booking-id={conflict.bookingId}>
+						{m.conflict_cancelled_after_redeem({
+							course: localized(
+								$coursesStore.find((course) => course._id === conflict.courseId)?.title,
+								getLocale()
+							),
+							date: conflict.date
+						})}
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
 	<section class="mt-6 rounded-card border border-border bg-surface p-6">
 		<h2 class="eyebrow">{m.bookings_mine()}</h2>
 
@@ -189,6 +243,7 @@
 					data-booking-id={booking._id}
 					data-status={booking.status}
 					data-course-id={booking.courseId}
+					data-date={booking.date ?? ''}
 				>
 					<span class="flex-1">
 						{courseTitle(booking.courseId)}

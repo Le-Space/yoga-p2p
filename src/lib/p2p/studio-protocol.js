@@ -90,7 +90,7 @@ export async function stopServingStudio(libp2p) {
  * against, so a lie would simply produce events nobody can verify.
  *
  * @param {any} libp2p
- * @param {(hello: { peerId: string, did: string, label: string, publicKey: string, bookingsAddress: string | null, ticketsAddress: string | null }) => void} onHello
+ * @param {(hello: { peerId: string, did: string, label: string, publicKey: string, bookingsAddress: string | null }) => void} onHello
  */
 export async function listenForDevices(libp2p, onHello) {
 	await libp2p.handle(
@@ -108,8 +108,11 @@ export async function listenForDevices(libp2p, onHello) {
 					// signing key from OrbitDB's keystore, and only the latter can
 					// verify a ledger event's signature.
 					publicKey: typeof hello.publicKey === 'string' ? hello.publicKey : '',
-					bookingsAddress: typeof hello.bookingsAddress === 'string' ? hello.bookingsAddress : null,
-					ticketsAddress: typeof hello.ticketsAddress === 'string' ? hello.ticketsAddress : null
+					// No ledger address: a ticket ledger belongs to the studio, and its
+					// address is derived from this DID rather than taken on trust
+					// (src/lib/db/studio-acl.js). Accepting one here would let whoever
+					// is standing at the counter choose which books get written.
+					bookingsAddress: typeof hello.bookingsAddress === 'string' ? hello.bookingsAddress : null
 				});
 			} catch (error) {
 				console.warn('Malformed device introduction ignored:', error);
@@ -126,7 +129,7 @@ export async function listenForDevices(libp2p, onHello) {
  *
  * @param {any} libp2p
  * @param {string | any} peerId
- * @param {{ did: string, label: string, publicKey?: string, bookingsAddress?: string | null, ticketsAddress?: string | null }} self
+ * @param {{ did: string, label: string, publicKey?: string, bookingsAddress?: string | null }} self
  */
 export async function introduceSelf(libp2p, peerId, self) {
 	const peer = typeof peerId === 'string' ? peerIdFromString(peerId) : peerId;

@@ -18,7 +18,8 @@
 		"lint": "prettier --check . && eslint .",
 		"test:unit": "vitest --run",
 		"test:e2e": "playwright test",
-		"test": "pnpm run test:unit && pnpm run test:e2e"
+		"test": "pnpm run test:unit && pnpm run test:e2e",
+		"bench": "vite-node bench/run.js"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.12.1",
@@ -51,7 +52,7 @@
 	},
 	"pnpm": {
 		"overrides": {
-			"@le-space/orbitdb-identity-provider-webauthn-did": "0.3.1"
+			"@le-space/orbitdb-identity-provider-webauthn-did": "github:Le-Space/orbitdb-identity-provider-webauthn-did#v0.4.0"
 		},
 		"onlyBuiltDependencies": [
 			"esbuild"
@@ -62,7 +63,7 @@
 		"@helia/libp2p": "^1.0.6",
 		"@ipld/dag-cbor": "^10.0.1",
 		"@le-space/libp2p-webrtc-qr": "^0.1.0",
-		"@le-space/orbitdb-identity-provider-webauthn-did": "0.3.1",
+		"@le-space/orbitdb-identity-provider-webauthn-did": "github:Le-Space/orbitdb-identity-provider-webauthn-did#v0.4.0",
 		"@libp2p/crypto": "^5.1.21",
 		"@libp2p/gossipsub": "^16.1.0",
 		"@libp2p/identify": "^4.1.10",

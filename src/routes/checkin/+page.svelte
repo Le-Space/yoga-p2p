@@ -17,11 +17,11 @@
 	 * overwrite. Nothing here trusts a QR image or a token — the redemption is a
 	 * verified ledger write, every time.
 	 */
+	import CounterOnly from '$lib/components/CounterOnly.svelte';
 	import StudioGate from '$lib/components/StudioGate.svelte';
 	import TicketCard from '$lib/components/TicketCard.svelte';
-	import { canEditProgram } from '$lib/db/join.js';
 	import { coursesStore, localized } from '$lib/db/program.js';
-	import { devicesStore, studioStore } from '$lib/db/registry.js';
+	import { devicesStore } from '$lib/db/registry.js';
 	import { redeemTicket, studentTicketsStore } from '$lib/db/tickets.js';
 	import { foldFromDb, foldStudentLedger } from '$lib/db/ledger-view.js';
 	import { ownDidStore } from '$lib/p2p/node.js';
@@ -34,10 +34,6 @@
 	let courseId = $state('');
 	let date = $state(new Date().toISOString().slice(0, 10));
 	let tickets = $state(/** @type {any[]} */ ([]));
-
-	let isStudioDevice = $derived(
-		Boolean($studioStore) && Boolean($devicesStore) && canEditProgram()
-	);
 
 	let students = $derived([...$studentTicketsStore.values()]);
 
@@ -90,12 +86,21 @@
 			const own = $ownDidStore ?? '';
 			const device = $devicesStore.find((entry) => entry.deviceDid === own);
 
+			// Where this happened, and it has to be answerable. The owner's device is
+			// registered without a location — she is not tied to one — so falling back
+			// to the *course's* location is the honest answer rather than leaving the
+			// field empty. It was empty until the fork alarm exposed it: "the same
+			// position was redeemed at two locations" is the one thing that makes a
+			// fork actionable, and it read as "at two blanks".
+			const course = $coursesStore.find((entry) => entry._id === courseId);
+			const locationId = device?.locationId || course?.locationId || '';
+
 			await redeemTicket({
 				db: folded.db,
 				state: fresh,
 				courseId,
 				date,
-				redeemedBy: { deviceDid: own, locationId: device?.locationId ?? '' }
+				redeemedBy: { deviceDid: own, locationId }
 			});
 
 			// Straight from the database: the store has not been told yet.
@@ -117,15 +122,15 @@
 <h1 class="text-3xl font-bold">{m.checkin_title()}</h1>
 
 <StudioGate>
-	{#if error}
-		<p class="mt-4 text-danger" role="alert" data-testid="checkin-error">{error}</p>
-	{/if}
+	<CounterOnly>
+		{#if error}
+			<p class="mt-4 text-danger" role="alert" data-testid="checkin-error">{error}</p>
+		{/if}
 
-	{#if done}
-		<p class="mt-4 text-success" data-testid="checkin-done">{done}</p>
-	{/if}
+		{#if done}
+			<p class="mt-4 text-success" data-testid="checkin-done">{done}</p>
+		{/if}
 
-	{#if isStudioDevice}
 		<section class="mt-6 rounded-card border border-border bg-surface p-6">
 			{#if students.length === 0}
 				<p class="text-faint" data-testid="checkin-empty">{m.checkin_none()}</p>
@@ -193,5 +198,5 @@
 				{/each}
 			</div>
 		{/if}
-	{/if}
+	</CounterOnly>
 </StudioGate>

@@ -18,7 +18,7 @@ import { createOrbitDB, Identities, useIdentityProvider } from '@orbitdb/core';
 import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import * as dagCbor from '@ipld/dag-cbor';
 
-import { openDatabases, replicationErrors } from '../db/open.js';
+import { askPeersForHistory, openDatabases, replicationErrors } from '../db/open.js';
 import { introductionLog } from '../db/introduction-log.js';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { createSignalling } from './session.js';
@@ -104,6 +104,31 @@ export async function startNode({ passkeyCredential = null } = {}) {
 	}
 }
 
+/**
+ * End every peer connection, without stopping the node.
+ *
+ * A real need rather than a convenience: a front-desk device pairs with one
+ * person after another, and a connection left open keeps replicating a student's
+ * ledger long after they have walked out. Someone at the counter has to be able
+ * to say "done" — and that is a privacy control, not a debug switch
+ * (docs/LIMITS.md §1.3: a peer holding an address can read the whole database).
+ *
+ * The node keeps running and the databases stay open, so what this device already
+ * knows is not lost. A new QR handshake is the only way back in.
+ */
+export async function hangUp() {
+	get(signallingStore)?.close();
+
+	// The signalling layer knows the sessions it created; libp2p knows every live
+	// connection, including inbound ones it upgraded. Both, or a connection can
+	// survive the hang-up that was supposed to end it.
+	for (const connection of running?.libp2p?.getConnections() ?? []) {
+		await connection.close().catch(() => {});
+	}
+
+	connectedPeersStore.set([]);
+}
+
 export async function stopNode() {
 	if (!running) return;
 
@@ -164,59 +189,13 @@ async function createOrbitDBInstance(helia, passkeyCredential) {
 
 	ownDidStore.set(identity.id);
 
-	return createOrbitDB(
-		/** @type {any} */ ({
-			ipfs: helia,
-			identities,
-			identity: await stableIdentity(identities, identity)
-		})
-	);
-}
-
-const IDENTITY_HASH_KEY = 'yoga-p2p.identityHash';
-
-/**
- * Reuse the identity document this device created the first time.
- *
- * `createIdentity` re-signs on every call, and the signature it embeds is a
- * live WebAuthn assertion — fresh challenge, incremented counter — so the
- * document is content-addressed to a different hash on every page load. Every
- * entry points at the document that signed it; a peer must resolve that exact
- * document to validate the entry, and OrbitDB permanently drops what it cannot
- * validate. The result is a device whose older writes nobody else can accept.
- *
- * Only the signature varies: id, public key and `signatures.id` are stable
- * across loads (measured — see repro/webauthn-identity-stability). So the first
- * document stays valid forever and can simply be kept.
- *
- * `getIdentity` returns it without a `sign` function, because it is rebuilt
- * from bytes alone. The signer from the freshly created identity is borrowed
- * for that — it holds the same private key, which is what makes the public key
- * stable in the first place.
- *
- * @param {any} identities
- * @param {any} identity the identity just created
- */
-async function stableIdentity(identities, identity) {
-	let remembered = null;
-	try {
-		remembered = localStorage.getItem(IDENTITY_HASH_KEY);
-	} catch {
-		// Storage blocked — fall through and use the fresh identity.
-	}
-
-	if (remembered && remembered !== identity.hash) {
-		const cached = await identities.getIdentity(remembered).catch(() => null);
-		if (cached) return { ...cached, sign: identity.sign, verify: identity.verify };
-	}
-
-	try {
-		localStorage.setItem(IDENTITY_HASH_KEY, identity.hash);
-	} catch {
-		// Not fatal: without it the identity is simply new again next load.
-	}
-
-	return identity;
+	// The identity is handed over as created. Until 0.4.0 of the provider it could
+	// not be: `signIdentity()` ran a fresh WebAuthn assertion on every call, so
+	// `signatures.publicKey` and with it the document's content address changed on
+	// every page load, and a local cache of the first document was the only way to
+	// keep older writes acceptable to peers. Fixed upstream (issue #18), and
+	// `e2e/m2-identity.spec.js` guards the property rather than the workaround.
+	return createOrbitDB(/** @type {any} */ ({ ipfs: helia, identities, identity }));
 }
 
 /**
@@ -266,7 +245,60 @@ function installDiagnostics() {
 			/** Failures OrbitDB's sync reported and then carried on from. */
 			replicationErrors: () => replicationErrors,
 			introductions: () => introductionLog,
-			/** Ask peers for heads again — see resyncOnceAccessRulesArrive. */
+			/**
+			 * This device's own ledger and the verdict the fold reaches on it.
+			 *
+			 * "No ticket card" has two completely different causes — nothing
+			 * replicated, or events that arrived and were then rejected — and the
+			 * screen looks identical either way. The `rejected` list is what tells
+			 * them apart, which is why it is worth a diagnostic of its own.
+			 *
+			 * The database layer is imported lazily on purpose: pulling it into this
+			 * module's import graph created a cycle that broke app boot once already.
+			 */
+			ledger: async (/** @type {string} [studentDid] */ studentDid) => {
+				const [{ ticketsDbStore, studentTicketsStore }, { foldFromDb }, { deviceRegistry }] =
+					await Promise.all([
+						import('../db/tickets.js'),
+						import('../db/ledger-view.js'),
+						import('../db/registry.js')
+					]);
+
+				// Without an argument, this device's own ledger; with one, the ledger it
+				// holds for that student — the studio side of the same question.
+				const db = studentDid ? get(studentTicketsStore).get(studentDid)?.db : get(ticketsDbStore);
+				if (!db) return { open: false, students: [...get(studentTicketsStore).keys()] };
+
+				const state = await foldFromDb(db);
+
+				return {
+					open: true,
+					events: (await db.all()).map((/** @type {any} */ row) => ({
+						id: row.value?._id,
+						type: row.value?.type,
+						seq: row.value?.seq ?? null,
+						signer: row.value?.issuedBy?.deviceDid ?? row.value?.redeemedBy?.deviceDid ?? null
+					})),
+					tickets: [...state.tickets.values()].map((/** @type {any} */ ticket) => ({
+						ticketId: ticket.ticketId,
+						status: ticket.status,
+						unitsRemaining: ticket.unitsRemaining
+					})),
+					rejected: state.rejected.map((/** @type {any} */ rejection) => ({
+						id: rejection.event?._id,
+						type: rejection.event?.type,
+						reason: rejection.reason
+					})),
+					forks: state.forks.map((/** @type {any} */ fork) => ({
+						ticketId: fork.ticketId,
+						seq: fork.seq
+					})),
+					// The registry is half the verdict: an event signed by a device that
+					// is not in it is rejected as `unknown-device`, ticket and all.
+					devices: [...deviceRegistry().keys()]
+				};
+			},
+			/** Ask peers for heads again — see `pullHistory` in db/open.js. */
 			resync: async (/** @type {string} */ address) => {
 				const entry = openDatabases.get(address);
 				if (!entry) return 'unknown address';
@@ -282,6 +314,26 @@ function installDiagnostics() {
 						key,
 						address,
 						entries: (await db.all()).length,
+						// The log behind the documents view. Reported separately because
+						// the two can disagree, and which one is empty says where to look:
+						// nothing joined the log at all, or it joined and the view is stale.
+						logEntries: await (async () => {
+							try {
+								let count = 0;
+								// eslint-disable-next-line @typescript-eslint/no-unused-vars
+								for await (const entry of db.log.iterator()) count += 1;
+								return count;
+							} catch (/** @type {any} */ e) {
+								return e?.message ?? String(e);
+							}
+						})(),
+						heads: await (async () => {
+							try {
+								return (await db.log.heads()).length;
+							} catch (/** @type {any} */ e) {
+								return e?.message ?? String(e);
+							}
+						})(),
 						// Who OrbitDB's sync believes it is exchanging heads with.
 						syncPeers: [...(db.sync?.peers ?? [])].map(String),
 						writers: await (async () => {
@@ -312,5 +364,17 @@ function trackConnections(libp2p) {
 
 	libp2p.addEventListener('connection:open', update);
 	libp2p.addEventListener('connection:close', update);
+
+	// A new peer is the one moment there is something new to learn, and the moment
+	// OrbitDB does least about it — see askPeersForHistory. Delayed a little so the
+	// gossipsub subscriptions have been exchanged before anyone asks.
+	libp2p.addEventListener('connection:open', () => {
+		setTimeout(() => {
+			askPeersForHistory().catch((error) => {
+				console.warn('Could not ask a new peer for history:', error);
+			});
+		}, 1_500);
+	});
+
 	update();
 }

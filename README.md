@@ -1,80 +1,101 @@
 # yoga-p2p
 
-Local-first Kursbuchung für Yogastudios mit mehreren Standorten. Programm,
-Karten und Check-in laufen direkt zwischen den Geräten — **kein Server, kein
-Relay, kein Konto**.
+**[Deutsch](README.de.md)** · English
 
-Zwei Geräte finden zueinander, indem ein Mensch einen signierten Code trägt:
-per QR-Scan an der Rezeption, per Copy & Paste oder über einen Messenger.
-Danach replizieren sie direkt über WebRTC.
+Local-first class booking for yoga studios with more than one location. The
+programme, the passes and the check-in run directly between devices — **no
+server, no relay, no account**.
 
-> **Status:** Gerüst. Der Ledger und der Verbindungs-Assistent stehen und sind
-> getestet; Registry, Programm-Editor, Buchungen und Barkauf folgen in M1–M4.
-> Der verbindliche Plan steht in [`docs/PLAN.md`](docs/PLAN.md).
+Two devices find each other because a person carries a signed code between them:
+scanned as a QR code at the front desk, pasted, or sent through a messenger.
+After that they replicate directly over WebRTC.
 
-## Loslegen
+> **Status:** M1–M5 are implemented — registry, programme editor, bookings, cash
+> sales, check-in with the courier roundtrip, fork alarm, export and recovery,
+> reconciliation and the benchmark suite. The binding plan is
+> [`docs/PLAN.md`](docs/PLAN.md) (German); what the design cannot do is
+> [`docs/LIMITS.md`](docs/LIMITS.md).
+
+## Getting started
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Node ≥ 22 wird erzwungen (`engine-strict`).
+Node ≥ 22 is enforced (`engine-strict`).
 
 ```bash
-pnpm test        # vitest (Ledger, Node) + Playwright (Chromium)
-pnpm check       # Typen
+pnpm test        # vitest (ledger, Node) + Playwright (Chromium)
+pnpm check       # types
 pnpm lint        # prettier + eslint
+pnpm bench       # scaling scenarios, writes bench/report.md
 ```
 
-## Wie es funktioniert
+## How it works
 
-**Der Ticket-Ledger ist der Kern.** Jede Karte ist ein append-only Log aus
-`issue`-, `redeem`- und `void`-Events, jedes signiert vom Gerät, das es
-geschrieben hat. Ein Guthaben wird nie gespeichert, immer gefaltet — deshalb
-kommen zwei Standorte, die dieselbe Karte unabhängig entwerten, ohne
-Abstimmung zum selben Ergebnis.
+**The ticket ledger is the core.** Every pass is an append-only log of `issue`,
+`redeem` and `void` events, each signed by the device that wrote it. A balance is
+never stored, always folded — which is why two locations redeeming the same pass
+independently arrive at the same answer without talking to each other.
 
-**Der Schüler ist der Sync-Kurier.** Sein Gerät trägt seinen eigenen Ledger
-von Standort zu Standort. Weil der Check-in die neuesten Stände _vor_ dem
-Entwerten zieht, sieht Standort B die Entwertung von Standort A, sobald
-dieselbe Person auftaucht — strukturell, ohne Relay.
+**The student is the sync courier.** Their device carries their own ledger from
+location to location. Because check-in pulls the latest heads _before_ redeeming,
+location B sees location A's redemption as soon as the same person turns up —
+structurally, with no relay involved.
 
-**Manipulation wird nachweisbar, nicht verhindert.** Monotone `seq` +
-`prevRedeemHash` + Gerätesignatur machen jeden zurückgesetzten Ledger beim
-nächsten Sync als Fork sichtbar, mit beiden signierten Events als Beleg. Ein
-mehrdeutiger Log kann eine Einheit kosten, aber nie eine verschenken.
+**The studio keeps the books.** A ticket ledger is created under a shared studio
+access controller, so its address follows from the student's DID and the owner's
+rather than being handed over. Whoever took the money decides whether a ticket
+exists; the student can read their passes and cannot write to them.
 
-Vollständige Grenzen — inklusive der Frage, was ohne TURN bei symmetrischen
-NATs passiert und was OrbitDBs Voll-Replikation für die Privatsphäre bedeutet
-— in [`docs/LIMITS.md`](docs/LIMITS.md).
+**Tampering is made evident, not prevented.** Monotonic `seq` plus
+`prevRedeemHash` plus a device signature turn any rolled-back ledger into a
+visible fork at the next sync, with both signed events as evidence. An ambiguous
+log can cost a unit; it can never hand one out.
 
-## Aufbau
+Full limits — including what happens behind symmetric NATs without TURN, and what
+OrbitDB's whole-database replication means for privacy — in
+[`docs/LIMITS.md`](docs/LIMITS.md).
+
+## Layout
 
 ```
-src/lib/ledger/     reines TypeScript: Guthaben-Reducer, Ketten- und Fork-Prüfung
-src/lib/p2p/        libp2p über @le-space/libp2p-webrtc-qr, QR-Signalisierung
-src/lib/identity/   Passkey-DID (WebAuthn)
-src/lib/styles/     Le-Space-Design-Tokens
-e2e/                Playwright: Fixtures alice / carol / bob
-docs/               PLAN · DESIGN · LIMITS · TESTING
+src/lib/ledger/     pure TypeScript: balance reducer, chain and fork checks
+src/lib/db/         OrbitDB stores, access control, reconciliation, export
+src/lib/p2p/        libp2p over @le-space/libp2p-webrtc-qr, QR signalling
+src/lib/identity/   passkey DID (WebAuthn)
+src/lib/styles/     Le-Space design tokens
+e2e/                Playwright: alice / carol / bob fixtures
+bench/              deterministic scaling scenarios
+docs/               PLAN · DESIGN · LIMITS · PRIVACY · TESTING · DEPLOY
 ```
 
-`src/lib/ledger/` bleibt frei von UI, Browser und OrbitDB — die kritischste
-Logik muss ohne Browser testbar sein.
+`src/lib/ledger/` stays free of UI, browser and OrbitDB — the most critical logic
+has to be testable without a browser.
 
-## Dokumente
+## Handbook
 
-| Datei                                | Inhalt                                                            |
-| ------------------------------------ | ----------------------------------------------------------------- |
-| [`docs/PLAN.md`](docs/PLAN.md)       | Architektur, Datenmodell, Meilensteine — verbindlich              |
-| [`docs/DESIGN.md`](docs/DESIGN.md)   | Le-Space-Tokens mit Quelle je Wert, Kontrast-Messwerte            |
-| [`docs/LIMITS.md`](docs/LIMITS.md)   | Entwurfsgrenzen und Upstream-Fragen                               |
-| [`docs/PRIVACY.md`](docs/PRIVACY.md) | Personenbezogene Daten und Metadaten, Wirkung von Verschlüsselung |
-| [`docs/TESTING.md`](docs/TESTING.md) | Teststrategie, Checkliste für echte Geräte                        |
-| [`docs/DEPLOY.md`](docs/DEPLOY.md)   | Veröffentlichung auf Aleph IPFS, DNS, SEO                         |
-| [`CLAUDE.md`](CLAUDE.md)             | Konventionen für die Arbeit mit Claude Code                       |
+The user-facing handbook — for owners, front-desk staff and students, in German
+and English — lives in [`docs-site/`](docs-site/) and is built with Docusaurus. It
+is deliberately separate from `docs/` below, which is the engineering record.
 
-## Lizenz
+## Documents
+
+The plan and the design notes are written in German; English translations live in
+[`docs/en/`](docs/en/) and are listed in [`docs/en/README.md`](docs/en/README.md).
+Code comments reference the German paths, which is why those stay where they are.
+
+| File                                 | Contents                                                      |
+| ------------------------------------ | ------------------------------------------------------------- |
+| [`docs/PLAN.md`](docs/PLAN.md)       | Architecture, data model, milestones — binding                |
+| [`docs/DESIGN.md`](docs/DESIGN.md)   | Le-Space tokens with a source per value, measured contrast    |
+| [`docs/LIMITS.md`](docs/LIMITS.md)   | Design limits and upstream questions                          |
+| [`docs/PRIVACY.md`](docs/PRIVACY.md) | Personal data and metadata, and what encryption does about it |
+| [`docs/TESTING.md`](docs/TESTING.md) | Test strategy, real-device checklist                          |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md)   | Publishing to Aleph IPFS, DNS, SEO                            |
+| [`CLAUDE.md`](CLAUDE.md)             | Conventions for working with Claude Code                      |
+
+## Licence
 
 Apache-2.0 OR MIT
