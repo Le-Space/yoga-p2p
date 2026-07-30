@@ -10,6 +10,7 @@
 import { get, writable } from 'svelte/store';
 
 import { openDocuments, readAll } from './open.js';
+import { setLedgerWriteAccess } from './studio-acl.js';
 import { nodeStatusStore, orbitdbStore, ownDidStore } from '../p2p/node.js';
 import { programDbStore } from './program.js';
 
@@ -167,11 +168,12 @@ export async function deactivateLocation(locationId) {
 export async function registerDevice({ deviceDid, role, locationId, label, publicKey = '' }) {
 	const db = requireDb();
 
-	// The grant comes first. If the registry entry landed and the ACL write
+	// The grants come first. If the registry entry landed and an ACL write
 	// failed, the studio would show a registered device that cannot actually
 	// write — the confusing half. The other order fails safe: an unrecorded
 	// grant is harmless, because the ledger judges events by the registry.
 	await grantProgramWrite(deviceDid);
+	await grantLedgerWrite(deviceDid);
 
 	await db.put({
 		_id: `device:${deviceDid}`,
@@ -203,6 +205,29 @@ async function grantProgramWrite(deviceDid) {
 }
 
 /**
+ * Let a device write to every ticket ledger in this studio.
+ *
+ * One grant, not one per student: all ledgers share a single access controller
+ * (src/lib/db/studio-acl.js), so this covers the students already known and every
+ * one who ever pairs afterwards. Before this change the grant travelled the other
+ * way — each student granting each device — which meant a counter could not sell
+ * to somebody who had just walked in.
+ *
+ * @param {string} deviceDid
+ */
+async function grantLedgerWrite(deviceDid) {
+	const ownerDid = get(studioStore)?.ownerDid;
+	if (!ownerDid) return;
+
+	await setLedgerWriteAccess('grant', deviceDid, ownerDid).catch((error) => {
+		// Not fatal, and deliberately not silent: the device is registered either
+		// way, and the ledger still judges its events by the registry. What it
+		// cannot do until this succeeds is append them at all.
+		console.warn('Could not grant ledger access to', deviceDid, error);
+	});
+}
+
+/**
  * Revoke a device.
  *
  * The timestamp is the whole point: revocation is not retroactive. Events the
@@ -226,6 +251,13 @@ export async function revokeDevice(deviceDid) {
 	const program = get(programDbStore);
 	if (program?.access?.revoke) {
 		await program.access.revoke('write', deviceDid);
+	}
+
+	const ownerDid = get(studioStore)?.ownerDid;
+	if (ownerDid) {
+		await setLedgerWriteAccess('revoke', deviceDid, ownerDid).catch((error) => {
+			console.warn('Could not revoke ledger access from', deviceDid, error);
+		});
 	}
 }
 

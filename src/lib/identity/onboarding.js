@@ -13,7 +13,7 @@ import { describeOwnStudio, rememberPendingDevice } from '../db/join.js';
 import { openRegistry, registryDbStore } from '../db/registry.js';
 import { openProgram, programDbStore } from '../db/program.js';
 import { grantStudioDevices, openOwnBookings } from '../db/bookings.js';
-import { grantStudioDevices as grantLedgerAccess, openOwnTickets } from '../db/tickets.js';
+import { openOwnTickets, ticketsDbStore } from '../db/tickets.js';
 import { devicesStore, studioStore } from '../db/registry.js';
 import {
 	createPasskeyCredential,
@@ -107,7 +107,6 @@ async function boot(obtainCredential) {
 		// Every device keeps its own bookings, students and studio alike: a studio
 		// device that also books classes is a person, not a special case.
 		await openOwnBookings();
-		await openOwnTickets();
 
 		// A device approved after this student paired must still be able to
 		// confirm their bookings, so the grants follow the registry rather than a
@@ -116,10 +115,20 @@ async function boot(obtainCredential) {
 		// device list, and either can arrive by replication after this point.
 		const regrant = () => {
 			grantStudioDevices().catch(() => {});
-			grantLedgerAccess().catch(() => {});
 		};
 		devicesStore.subscribe(regrant);
 		studioStore.subscribe(regrant);
+
+		// The ledger cannot be opened yet on a device that has not joined a studio:
+		// it belongs to the studio, and its address follows from the owner's DID
+		// (src/lib/db/studio-acl.js). For a returning student that DID arrives by
+		// replication moments from now, so this waits for it rather than guessing.
+		studioStore.subscribe((studio) => {
+			if (!studio?.ownerDid || get(ticketsDbStore)) return;
+			openOwnTickets({ ownerDid: studio.ownerDid }).catch((error) => {
+				console.warn('Could not open this device’s ledger:', error);
+			});
+		});
 
 		// Answer peers that ask which studio this device belongs to. Registered
 		// after the databases exist, so the first answer is never an empty one.

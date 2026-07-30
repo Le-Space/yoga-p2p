@@ -218,25 +218,57 @@ dafür.
 Außerdem fehlen die Schriftdateien (Inter, JetBrains Mono) im Brand-Verzeichnis
 — die App rendert bis dahin in System-Fallbacks.
 
-### 1.7 Der Grant muss reisen, bevor die Theke schreiben darf
+### 1.7 Wer das Ledger besitzt — entschieden: das Studio
 
-Ein Schülergerät legt seine Buchungs- und Ledger-DB selbst an und erteilt den
-Studio-Geräten Schreibrecht (`src/lib/db/tickets.js`). Dieser Grant muss zum
-Studio replizieren, **bevor** dessen Schreibvorgänge angenommen werden — eine
-Kasse, die Sekunden nach dem Koppeln verkauft, ist einfach zu früh dran und
-bekommt `Could not append entry`.
+Bis T4.3 legte das **Schülergerät** seine Ledger-DB selbst an und erteilte den
+Studio-Geräten Schreibrecht. Zwei Probleme, eines davon operativ:
 
-Umsetzung heute: begrenztes Wiederholen (15 s) statt Fehlermeldung. Der Vorgang
-ist berechtigt und wird in Kürze erlaubt; ein harter Fehler würde der Person an
-der Theke sagen, ihr Verkauf sei abgelehnt worden, obwohl er nur verfrüht war.
+- Der Grant musste zum Studio replizieren, **bevor** dessen Schreibvorgänge
+  angenommen wurden. Eine Kasse, die Sekunden nach dem Koppeln verkauft, war
+  einfach zu früh dran und bekam `Could not append entry` (Behelf: 15 s
+  Wiederholen statt Fehlermeldung).
+- Admin des Ledgers war der **Schüler**. Ausnutzbar war das nicht — ohne
+  schreibbare Entwertung lässt die Theke niemanden ein —, aber es lag die Macht,
+  weitere Abbuchungen zu verhindern, bei genau der Person mit dem Interesse
+  daran. Der Anspruch richtet sich gegen das Studio, also sollte das Studio das
+  Buch führen.
 
-**Die sauberere Alternative**, bewusst noch nicht umgesetzt: Das **Studio** legt
-`tickets-<studentDid>` an, wie §3.4 mit „Multi-Writer: Studio-Geräte" andeutet.
-Dann ist es von Anfang an Admin, es muss kein Grant reisen, und ein Schüler
-könnte nicht einmal wirkungslose Events in sein Ledger schreiben. Preis: Die
-Ledger-Adresse hängt von der DID des anfragenden Geräts ab, muss also pro Peer
-ausgeliefert werden — die Studio-Ankündigung wird damit anfragerspezifisch. Das
-ist ein Umbau, keine Zeile, und gehört vor T4.4 entschieden.
+**Umgesetzt: das Studio besitzt jedes Ledger** (`src/lib/db/studio-acl.js`). Es
+brauchte kein neues Protokoll, nur eine feste Schreibliste — der Schlüssel liegt
+darin, dass ein OrbitDB-Manifest genau `{ name, type, accessController }` ist und
+den Ersteller **nicht** enthält:
+
+- Alle Ledger eines Studios teilen einen Access-Controller
+  (`yoga-acl-<ownerDid>`), dessen `IPFSAccessController`-Schreibliste auf den
+  Owner festgelegt ist. Ein IPFS-Controller ist unveränderlich und
+  content-adressiert.
+- Damit landet jedes Gerät, das `yoga-tickets-<studentDid>` über den **Namen**
+  öffnet, auf derselben Adresse — Owner, Theke am zweiten Standort, Schüler.
+  `ticketsAddress` ist aus dem `device-hello` **entfernt**: Niemand bekommt die
+  Adresse gesagt, alle leiten sie ab. Zwei Theken, die sich nie begegnet sind,
+  können also nicht zwei Ledger für dieselbe Person anlegen.
+- `capabilities().admin` ist die Vereinigung der Admin-Einträge mit der
+  Schreibliste des darunterliegenden IPFS-Controllers
+  (`access-controllers/orbitdb.js`). Der Owner ist deshalb Admin **jedes**
+  Ledgers, der Schüler ist weder Admin noch Writer.
+- Ein vom Owner signierter Eintrag ist **ohne jede Replikation** gültig: dessen
+  DID steht im unveränderlichen Manifest, nicht in einem Log, das erst ankommen
+  muss. Für alles, was der Owner schreibt, ist das Rennen aus §1.8 damit weg.
+- Ein Theken-Gerät braucht **einen** Grant, nicht einen pro Schüler: der
+  gemeinsame Controller deckt alle bestehenden und künftigen Ledger ab. Erteilt
+  wird er bei der Gerätefreigabe (`registerDevice`), zurückgezogen beim Widerruf.
+
+Belegt in `e2e/m4-tickets.spec.js` („the studio owns the ledger and the student
+cannot write to it"): Beide Seiten kommen auf dieselbe Adresse, ohne dass eine
+ausgetauscht wurde, und Alices DID steht in `admin`, Bobs in keiner der beiden
+Mengen. Der Kurier-Rundlauf lief danach 32,6 s statt 42,8 s — der Grant reist
+nicht mehr.
+
+**Was bleibt.** Ein Theken-Gerät muss seinen einen Grant in die eigene Kopie des
+Controllers replizieren, bevor es anhängen darf; das begrenzte Wiederholen in
+`putWhenPermitted` bleibt deshalb als Absicherung. Und das Buchungsmodell ist
+davon unberührt: Buchungs-DBs gehören weiter dem Schüler, weil dort der Schüler
+der legitime Schreiber ist.
 
 ### 1.8 Einträge kommen an, werden abgewiesen und nie erneut angeboten
 

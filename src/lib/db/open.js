@@ -62,9 +62,12 @@ export function forgetAddresses() {
  * @param {string} options.name the database name used when creating it
  * @param {string} [options.address] open this exact address instead of the
  *   remembered one — this is how a paired device joins the studio's databases
+ * @param {any} [options.accessController] use this access controller instead of
+ *   the default one. Ticket ledgers pass the shared studio controller, which is
+ *   what makes their address the same on every device (see ./studio-acl.js)
  * @returns {Promise<any>} the opened OrbitDB documents store
  */
-export async function openDocuments({ key, name, address }) {
+export async function openDocuments({ key, name, address, accessController }) {
 	const orbitdb = get(orbitdbStore);
 	if (!orbitdb) throw new Error('The node is not running yet.');
 
@@ -76,7 +79,7 @@ export async function openDocuments({ key, name, address }) {
 		sync: true,
 		// Only the creator may write at first. Everything else is a runtime
 		// grant, so the address stays stable as the studio grows.
-		AccessController: OrbitDBAccessController({ write: [orbitdb.identity.id] })
+		AccessController: accessController ?? OrbitDBAccessController({ write: [orbitdb.identity.id] })
 	});
 
 	rememberAddress(key, db.address.toString());

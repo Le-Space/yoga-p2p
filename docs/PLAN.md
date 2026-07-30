@@ -222,6 +222,16 @@ Schüler, Schreibrecht für alle registrierten (nicht widerrufenen) Studio-Gerä
 repliziert auf dem Schülergerät. Append-only: `issue` und `redeem` sind Events,
 nie In-Place-Updates.
 
+**Angelegt wird das Ledger vom Studio, nicht vom Schüler.** Wer die Zahlung
+erhalten hat, entscheidet über das Ticket — das trug schon immer die Signatur im
+`issue`-Event, aber das _Buch_ gehörte dem Schüler, und damit auch die Macht, dem
+Studio das Schreibrecht zu entziehen. Alle Ledger eines Studios teilen deshalb
+einen Access-Controller mit fester Schreibliste (Owner). Weil ein
+OrbitDB-Manifest den Ersteller nicht enthält, folgt die Adresse allein aus
+`yoga-tickets-<studentDid>` und der Owner-DID: jedes Gerät leitet sie ab, keines
+bekommt sie gesagt, und der Schüler ist weder Admin noch Writer seines eigenen
+Ledgers. Begründung und Messwerte in `docs/LIMITS.md` §1.7.
+
 ```json
 { "_id": "ticket:<uuid>", "type": "issue",
   "studentDid": "did:key:…", "packageId": "package:10er",

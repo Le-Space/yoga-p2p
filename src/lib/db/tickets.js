@@ -4,17 +4,26 @@
 // between locations, which is what makes them the sync courier that keeps
 // double-spending honest without a relay (§5).
 //
-// Who may write is *not* enforced by the access controller here, and that is
-// deliberate. The student is admin of their own ledger — they could grant
-// themselves write access and forge a redemption. It would buy them nothing:
-// the reducer refuses events from devices that are not in the registry
-// (`unknown-device`), so a forged event is inert on every device including
-// their own. Security lives in the fold, not in the ACL.
+// The studio owns the books, not the student (docs/PLAN.md §3.4). Whoever took
+// the money decides whether a ticket exists — that part was always true, because
+// the `issue` event carries the selling device's signature and the reducer refuses
+// events from devices outside the registry. What changed is who holds the
+// database: the student used to be admin of their own ledger, which put the power
+// to revoke the studio's write access in the hands of the one person with an
+// interest in no further redemptions being written.
+//
+// Every ledger is now opened with the shared studio access controller, so its
+// address follows from the student's DID alone and nobody has to be told it. See
+// ./studio-acl.js for why that works and what it buys.
+//
+// Security still lives in the fold, not in the ACL: even a writer who got past
+// the access controller produces nothing usable unless the registry knows their
+// device.
 
 import { get, writable } from 'svelte/store';
 
 import { openDocuments, readAll } from './open.js';
-import { devicesStore, studioStore } from './registry.js';
+import { studioAccessController } from './studio-acl.js';
 import { signEvent } from './ledger-signing.js';
 import { canRedeem, nextChainPosition } from '../ledger/index.js';
 import { nodeStatusStore, ownDidStore } from '../p2p/node.js';
@@ -36,20 +45,36 @@ nodeStatusStore.subscribe(({ state }) => {
 	studentTicketsStore.set(new Map());
 });
 
+/** The one name a student's ledger ever has, on every device. */
+export function ticketLedgerName(/** @type {string} */ studentDid) {
+	return `yoga-tickets-${studentDid}`;
+}
+
 /**
- * @param {object} [options]
- * @param {string} [options.address]
+ * Open this device's own ledger, as a reader.
+ *
+ * The studio owner is the only writer in the manifest, so this device replicates
+ * its passes and can show them, but cannot write to them — which is the point.
+ * Needs the owner's DID, which a student learns when joining the studio; before
+ * that there is no ledger to open, because there is no studio it would belong to.
+ *
+ * @param {object} options
+ * @param {string} options.ownerDid
  */
-export async function openOwnTickets({ address } = {}) {
+export async function openOwnTickets({ ownerDid }) {
 	const own = get(ownDidStore);
 	if (!own) throw new Error('This device has no identity yet.');
+	if (!ownerDid) throw new Error('This device does not belong to a studio yet.');
 
-	const db = await openDocuments({ key: 'tickets', name: `yoga-tickets-${own}`, address });
+	const db = await openDocuments({
+		key: 'tickets',
+		name: ticketLedgerName(own),
+		accessController: studioAccessController(ownerDid)
+	});
 
 	ticketsDbStore.set(db);
 	db.events.on('update', () => refreshTickets());
 	await refreshTickets();
-	await grantStudioDevices();
 
 	return db;
 }
@@ -58,29 +83,6 @@ export async function refreshTickets() {
 	const db = get(ticketsDbStore);
 	if (!db) return;
 	ticketEventsStore.set(await readAll(db));
-}
-
-/** Let the owner and every unrevoked studio device write here. */
-export async function grantStudioDevices() {
-	const db = get(ticketsDbStore);
-	if (!db?.access?.grant) return;
-
-	const current = await db.access.capabilities().catch(() => null);
-	const known = new Set([...(current?.write ?? []), ...(current?.admin ?? [])].map(String));
-
-	const writers = [
-		get(studioStore)?.ownerDid,
-		...get(devicesStore)
-			.filter((device) => !device.revokedAt)
-			.map((device) => device.deviceDid)
-	].filter(Boolean);
-
-	for (const did of writers) {
-		if (known.has(did)) continue;
-		await db.access.grant('write', did).catch((/** @type {any} */ error) => {
-			console.warn('Could not grant a studio device access to the ledger:', error);
-		});
-	}
 }
 
 /**
@@ -137,21 +139,17 @@ const GRANT_WAIT_MS = 15_000;
 const GRANT_RETRY_MS = 500;
 
 /**
- * Write, retrying while the write grant is still in flight.
+ * Write, retrying while a write grant is still in flight.
  *
- * The student's device grants studio devices access to its ledger, and that
- * grant has to replicate to the studio before its writes are accepted. A
- * counter selling a pass seconds after a student paired therefore hits a real
- * distributed handshake, not a bug: OrbitDB refuses the entry with "Could not
- * append entry" until the grant lands.
+ * The owner never needs this: their DID is in the ledger's immutable manifest, so
+ * their writes are valid the moment the database exists. A front-desk device does,
+ * once — its grant lives in the shared studio controller and has to replicate into
+ * its own copy before it may append. Approving a device and selling from it
+ * seconds later is therefore early, not forbidden.
  *
  * Retrying is the honest response — the action is legitimate and will be
  * permitted shortly. Failing outright would tell the person at the counter that
  * their sale was rejected when it was merely early.
- *
- * The alternative is to have the studio create the ledger instead, so it is
- * admin from the start and no grant has to travel at all; recorded in
- * docs/LIMITS.md as the cleaner design this trades against.
  *
  * @param {any} db
  * @param {any} event
@@ -222,14 +220,19 @@ export async function redeemTicket({ db, state, courseId, date, redeemedBy }) {
 /**
  * Open a student's ledger on a studio device.
  *
+ * No address argument any more, and that is the whole gain: name plus the shared
+ * controller give the same address on every device, so a front-desk device at the
+ * second location opens the ledger of a student it has never met without anyone
+ * having exchanged an address for them.
+ *
  * @param {string} studentDid
- * @param {string} address
+ * @param {string} ownerDid
  */
-export async function openStudentTickets(studentDid, address) {
+export async function openStudentTickets(studentDid, ownerDid) {
 	const db = await openDocuments({
 		key: `tickets:${studentDid}`,
-		name: `yoga-tickets-${studentDid}`,
-		address
+		name: ticketLedgerName(studentDid),
+		accessController: studioAccessController(ownerDid)
 	});
 
 	const load = async () => {

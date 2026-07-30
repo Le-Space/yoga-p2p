@@ -17,7 +17,7 @@ import { introduceSelf, requestStudio } from '../p2p/studio-protocol.js';
 import { devicesStore, openRegistry, registryDbStore, studioStore } from './registry.js';
 import { bookingsDbStore, openStudentBookings } from './bookings.js';
 import { noteIntroduction as note } from './introduction-log.js';
-import { openStudentTickets, ticketsDbStore } from './tickets.js';
+import { openStudentTickets } from './tickets.js';
 import { openProgram, programDbStore } from './program.js';
 import { rememberAddress } from './open.js';
 
@@ -33,13 +33,13 @@ import { rememberAddress } from './open.js';
 export const pendingDevicesStore = writable(new Map());
 
 /**
- * @param {{ peerId: string, did: string, label: string, publicKey?: string, bookingsAddress?: string | null, ticketsAddress?: string | null }} hello
+ * @param {{ peerId: string, did: string, label: string, publicKey?: string, bookingsAddress?: string | null }} hello
  */
 export function rememberPendingDevice(hello) {
 	note({
 		direction: 'received',
 		did: hello.did,
-		detail: `studioDevice=${canEditProgram()} tickets=${Boolean(hello.ticketsAddress)}`
+		detail: `studioDevice=${canEditProgram()} bookings=${Boolean(hello.bookingsAddress)}`
 	});
 
 	pendingDevicesStore.update((pending) => {
@@ -66,8 +66,14 @@ export function rememberPendingDevice(hello) {
 	// The ledger too: a counter cannot sell or check in against a ledger it
 	// cannot see, and pulling the heads *before* deciding anything is the whole
 	// double-spend mechanism (docs/PLAN.md §4.3).
-	if (hello.ticketsAddress) {
-		openStudentTickets(hello.did, hello.ticketsAddress).catch((error) => {
+	//
+	// Derived, not received. The ledger belongs to the studio and its address
+	// follows from the student's DID plus the owner's (src/lib/db/studio-acl.js),
+	// so a counter opens the right one for somebody it has never met and cannot be
+	// pointed at a different database by whoever is standing in front of it.
+	const ownerDid = get(studioStore)?.ownerDid;
+	if (ownerDid) {
+		openStudentTickets(hello.did, ownerDid).catch((error) => {
 			console.warn('Could not open the introducing device’s ledger:', error);
 		});
 	}
@@ -168,13 +174,12 @@ export async function introduceToPeer(peerId) {
 		did: ownDid,
 		label: navigator.userAgent.slice(0, 80),
 		publicKey: get(orbitdbStore)?.identity?.publicKey ?? '',
-		bookingsAddress: get(bookingsDbStore)?.address?.toString() ?? null,
-		ticketsAddress: get(ticketsDbStore)?.address?.toString() ?? null
+		bookingsAddress: get(bookingsDbStore)?.address?.toString() ?? null
 	};
 
 	try {
 		await introduceSelf(libp2p, peerId, self);
-		note({ direction: 'sent', did: ownDid, detail: `tickets=${Boolean(self.ticketsAddress)}` });
+		note({ direction: 'sent', did: ownDid, detail: `bookings=${Boolean(self.bookingsAddress)}` });
 	} catch (/** @type {any} */ error) {
 		// Recorded rather than swallowed: a peer that does not speak this protocol
 		// is fine, but so far every silent failure here has been a real one.
@@ -207,8 +212,7 @@ export async function joinStudioFromPeer(peerId) {
 				// address is what "pairing" amounts to here — it grants nothing by
 				// itself, the write access was granted from the registry.
 				publicKey: get(orbitdbStore)?.identity?.publicKey ?? '',
-				bookingsAddress: get(bookingsDbStore)?.address?.toString() ?? null,
-				ticketsAddress: get(ticketsDbStore)?.address?.toString() ?? null
+				bookingsAddress: get(bookingsDbStore)?.address?.toString() ?? null
 			}).catch(() => {
 				// A studio that does not speak this protocol is still worth joining.
 			});

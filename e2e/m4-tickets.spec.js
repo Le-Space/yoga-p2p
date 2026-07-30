@@ -166,6 +166,48 @@ test.describe('check-in and the courier roundtrip', () => {
 		await expect(bob.getByTestId('fork-alarm')).toHaveCount(0);
 	});
 
+	test('the studio owns the ledger and the student cannot write to it', async ({ alice, bob }) => {
+		test.setTimeout(600_000);
+
+		// The books belong to whoever took the money (docs/PLAN.md §3.4). Two
+		// properties carry that, and both are checked here rather than described:
+		// the address is derived on both sides instead of exchanged, and the studio
+		// owner — not the student — is admin of the student's own ledger.
+		await setUpStudio(alice);
+		await connectViaPaste(alice, bob);
+		await expect(bob.getByTestId('join-status')).toHaveAttribute('data-state', 'joined', READY);
+
+		const bobDid = await bob.evaluate(() => window.__yoga.identity());
+		const aliceDid = await alice.evaluate(() => window.__yoga.identity());
+		await sellPass(alice, bobDid);
+
+		await bob.getByTestId('nav-tickets').click();
+		await expect(bob.getByTestId('ticket-balance')).toHaveText('10', REPLICATED);
+
+		const own = await bob.evaluate(
+			async () => (await window.__yoga.databases()).find((row) => row.key === 'tickets'),
+			null
+		);
+		const asStudio = await alice.evaluate(
+			async (key) => (await window.__yoga.databases()).find((row) => row.key === key),
+			`tickets:${bobDid}`
+		);
+
+		// Nobody sent this address. Both sides derived it from Bob's DID and the
+		// owner's, which is what let the introduction protocol stop carrying it —
+		// and what stops two counters that have never met creating two ledgers for
+		// the same person.
+		expect(asStudio?.address).toBe(own?.address);
+
+		// Bob replicates his own passes and can read them, and is in neither the
+		// write nor the admin set of the log they live in. Before this change he was
+		// its admin, which put the power to lock the studio out of writing further
+		// redemptions in the hands of the one person who benefits from that.
+		expect(own?.writers?.admin).toContain(aliceDid);
+		expect(own?.writers?.write ?? []).not.toContain(bobDid);
+		expect(own?.writers?.admin ?? []).not.toContain(bobDid);
+	});
+
 	test('a redemption outside the ticket’s window is refused', async ({ alice, bob }) => {
 		test.setTimeout(600_000);
 
