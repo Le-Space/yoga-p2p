@@ -196,9 +196,12 @@ entfallen.
 - `createOrbitDB` akzeptiert `identities` zur Laufzeit, die Typdeklaration
   kennt den Parameter nicht.
 - Feld-Level-Rechte in Access-Controllern (siehe 1.4).
-- Der erste Heads-Austausch geht lautlos verloren, wenn die leere Seite den
-  gemeinsamen Stream schließt (siehe 1.8) — der teuerste Befund des Projekts
-  bisher, weil er wie „nichts gekauft" aussieht.
+- Einträge, die vor der Schreibmenge eintreffen, werden abgewiesen und nie
+  erneut angeboten (siehe 1.8) — der teuerste Befund des Projekts bisher, weil er
+  wie „nichts gekauft" aussieht.
+- `database.js` schreibt die Ablehnung eines Eintrags in ein `console.error`
+  (Zeile 157) statt in ein `error`-Event. Genau der Fall, den eine Anwendung
+  bemerken müsste, ist damit der einzige, den sie nicht abfangen kann.
 
 ### 2.4 Le-Space Brand-Repo
 
@@ -235,36 +238,62 @@ Ledger-Adresse hängt von der DID des anfragenden Geräts ab, muss also pro Peer
 ausgeliefert werden — die Studio-Ankündigung wird damit anfragerspezifisch. Das
 ist ein Umbau, keine Zeile, und gehört vor T4.4 entschieden.
 
-### 1.8 Der erste Heads-Austausch geht lautlos verloren
+### 1.8 Einträge kommen an, werden abgewiesen und nie erneut angeboten
 
 Ein Studio-Gerät, das das Ledger eines Schülers **zum ersten Mal** öffnet,
 bekommt dessen bestehende Historie oft nicht — und zwar völlig geräuschlos.
 Gemessen an der Kurier-Szene (Carol öffnet Bobs Ledger, in dem ein Verkauf und
 eine Entwertung stehen):
 
-| Beobachtung                               | Wert                         |
-| ----------------------------------------- | ---------------------------- |
-| Topic subscribed, Gossipsub-Mesh          | beidseitig vollständig       |
-| `db.sync.peers`                           | beide Seiten führen einander |
-| `error`-Events auf allen drei Geräten     | keine                        |
-| Carols Log nach 20 s                      | **0 Einträge, 0 Heads**      |
-| nach einem `sync.stop()` / `sync.start()` | beide Einträge in unter 5 s  |
+| Beobachtung                               | Wert                                   |
+| ----------------------------------------- | -------------------------------------- |
+| Topic subscribed, Gossipsub-Mesh          | beidseitig vollständig                 |
+| `db.sync.peers`                           | beide Seiten führen einander           |
+| `error`-Events auf allen drei Geräten     | keine                                  |
+| Carols Log nach 20 s                      | **0 Einträge, 0 Heads**                |
+| Carols Browser-Konsole                    | **genau 2 × `Could not append entry`** |
+| abgewiesener Key                          | Alices Identity-Hash                   |
+| `resolveIdentity(hash)` auf Carol         | löst auf — DID + `webauthn`            |
+| nach einem `sync.stop()` / `sync.start()` | 2 Einträge, 1 Head, in unter 5 s       |
 
-Ursache in `@orbitdb/core/src/sync.js`: Beide Enden **eines** bidirektionalen
-Streams lesen und schreiben gleichzeitig, und jedes Ende ruft `stream.close()`,
-sobald sein _eigenes_ Senden fertig ist (Zeilen 175 und 202). Wer eine Datenbank
-erstmals öffnet, hat nichts zu senden, ist also sofort fertig und schließt — und
-das ist immer genau die Seite, die die Daten braucht. Dieser Transport hat keinen
-Half-Close, es gibt für sie also keine Möglichkeit zu sagen „fertig mit Senden,
-lese aber noch". `UnsupportedProtocolError` wird in Zeile 206 zusätzlich
-kommentarlos verworfen, ohne Retry.
+**Ursache.** Die Einträge kommen an und werden dann _abgelehnt_. Ein
+`OrbitDBAccessController` ist selbst eine OrbitDB-Datenbank: Wer ein Log erstmals
+öffnet, muss die **Schreibmenge** replizieren, bevor er irgendetwas darin
+validieren kann. Beides läuft gleichzeitig über dieselbe Verbindung, und wenn die
+Einträge dieses Rennen gewinnen, prüft `canAppend` sie gegen eine Schreibmenge,
+die noch nicht da ist:
 
-Warum es lange unentdeckt blieb: Bei zwei Geräten schreibt das Studio jedes Event
-selbst, und ein Write wird **live** publiziert. Der Heads-Austausch wird erst
-gebraucht, wenn ein Gerät _bestehende_ Historie braucht — und das passiert zuerst
-beim zweiten Standort, also genau in der Szene, für die dieses Projekt existiert.
+```
+Could not append entry:
+Key "zdpuAndNWkQ93hV9Ndhp6CNQPoibdfRJWScz3jm4rfuWd7fs9" is not allowed to write to the log
+```
 
-Umsetzung heute: `pullHistory` in `src/lib/db/open.js` fragt nach dem Öffnen
+`database.js` macht daraus in Zeile 157 ein nacktes `console.error` statt eines
+`error`-Events — deshalb sieht keine Diagnose es. Die Schreibmenge kommt Sekunden
+später an, die abgewiesenen Einträge werden aber **nie erneut angeboten**.
+
+Damit ist das dieselbe Fehlerklasse wie das Grant-Rennen in §1.7, nur von der
+Leseseite aus: korrekte Daten, zu früh eingetroffen, endgültig verworfen.
+
+**Zwei Erklärungen, die wir gemessen und verworfen haben** — beide sahen
+plausibel aus, und der Unterschied ließ sich nur an Zahlen entscheiden:
+
+1. _Der leere Partner schließt den gemeinsamen Stream._ In `sync.js` lesen und
+   schreiben beide Enden denselben bidirektionalen Stream, und jedes ruft
+   `stream.close()`, sobald sein eigenes Senden fertig ist (Zeilen 175 und 202) —
+   wer nichts zu senden hat, ist sofort fertig. Widerlegt: Beide Seiten führten
+   einander in `peers` (Upstream löscht bei jedem Fehler wieder), und die
+   Konsolenmeldungen beweisen, dass die Einträge sehr wohl ankamen.
+2. _Die Identity ist nicht auflösbar._ Widerlegt: `resolveIdentity` liefert auf
+   Carol Alices DID und Typ `webauthn`.
+
+**Warum es lange unentdeckt blieb.** Bei zwei Geräten ist die schreibende Seite
+Admin ihres eigenen Logs und die lesende hat den Grant selbst erteilt — niemand
+prüft gegen eine _replizierte_ Schreibmenge. Das passiert zuerst beim dritten
+Gerät am zweiten Standort, also genau in der Szene, für die dieses Projekt
+existiert.
+
+**Umsetzung heute.** `pullHistory` in `src/lib/db/open.js` fragt nach dem Öffnen
 erneut nach, solange das Log leer ist und Sync-Peers vorhanden sind — begrenzt
 auf fünf Versuche im Abstand von 2 s, ausschließlich über die öffentliche API.
 Bewusst konservativ: Es rettet nur die totale Stille und füllt nie ein Log auf,
@@ -272,7 +301,28 @@ das lediglich hinterherhängt. Ein wirklich leeres Ledger — ein Schüler, der 
 nichts gekauft hat — ist der Normalfall und darf an der Theke nicht zu einer
 Endlosschleife werden.
 
-Nach upstream gemeldet; kein Patch, kein Vendoring.
+Wenn das Studio die Ledger anlegt (§1.7), verschwindet die Ursache für Ledger:
+Das Studio ist dann von Anfang an Admin, und die Schreibmenge muss nicht mehr
+reisen. Für Registry und Programm bleibt der Fall bestehen, dort ist `pullHistory`
+weiterhin die Absicherung.
+
+**Wir haben das schon einmal gelöst, an einer besseren Stelle.**
+`Le-Space/orbitdb-relay-pinner` enthält in
+`src/access/deferred-orbitdb-access-controller.ts` einen eigenen
+Access-Controller, dessen `canAppend` bei fehlendem Schreibrecht **wartet**
+(`waitForAclReplication`, 5 s, sofortige Rückkehr wenn es keine Peers gibt) und
+dann erneut prüft, statt den Eintrag zu verwerfen. Das behandelt die Ursache am
+Ort des Ausfalls; `pullHistory` behandelt nur die Folge. Der in simple-todo
+verwendete `@le-space/orbitdb-access-controller-delegated-todo` hat diese Logik
+**nicht** — er ergänzt Delegation, nicht Deferral.
+
+Zu entscheiden: dieselbe Deferral-Logik hier übernehmen und `pullHistory` auf
+Registry und Programm beschränken oder ganz entfernen. Kein Vendoring — ein
+eigener Access-Controller ist der dafür vorgesehene Erweiterungspunkt.
+
+Nach upstream noch nicht gemeldet — verwandt mit
+[orbitdb/orbitdb#1255](https://github.com/orbitdb/orbitdb/issues/1255), siehe
+Issue #13 in diesem Repo.
 
 ## 3. Noch nicht gemessen
 

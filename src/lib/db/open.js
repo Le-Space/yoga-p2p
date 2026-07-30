@@ -102,13 +102,19 @@ const HISTORY_INTERVAL_MS = 2_000;
  * at zero entries indefinitely. One `sync.stop()` / `sync.start()` then brings
  * everything within seconds, which is what this does on a schedule.
  *
- * Why it happens: in @orbitdb/core's `sync.js`, both ends of one bidirectional
- * stream read and write at the same time, and each end calls `stream.close()` as
- * soon as its *own* sending finishes. A device opening a database for the first
- * time has nothing to send, so it finishes instantly and closes — and it is
- * always that device that needed the data. This transport has no half-close, so
- * there is no way for it to say "done sending, still reading". Measured and
- * written up in docs/LIMITS.md §1.8; filed upstream.
+ * Why it happens: the entries do arrive, and are then refused. An
+ * `OrbitDBAccessController` is itself an OrbitDB database, so a device opening a
+ * log for the first time has to replicate the *write set* before it can validate
+ * anything written to that log. Both travel over the same connection at once, and
+ * when the entries win that race `canAppend` judges them against a write set that
+ * is not there yet — `Could not append entry: Key "<hash>" is not allowed to
+ * write to the log`. Upstream's database.js turns that into a bare
+ * `console.error` instead of an `error` event, which is why no diagnostic sees
+ * it. The write set lands moments later, but the refused entries are never
+ * offered again.
+ *
+ * So this is the grant race of §1.7 seen from the reading side: correct data,
+ * arrived too early, dropped for good. Measured evidence in docs/LIMITS.md §1.8.
  *
  * Deliberately conservative: it only ever rescues total silence, never tops up a
  * log that is merely behind, and it gives up after a bounded number of tries. A
