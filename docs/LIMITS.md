@@ -196,6 +196,9 @@ entfallen.
 - `createOrbitDB` akzeptiert `identities` zur Laufzeit, die Typdeklaration
   kennt den Parameter nicht.
 - Feld-Level-Rechte in Access-Controllern (siehe 1.4).
+- Der erste Heads-Austausch geht lautlos verloren, wenn die leere Seite den
+  gemeinsamen Stream schließt (siehe 1.8) — der teuerste Befund des Projekts
+  bisher, weil er wie „nichts gekauft" aussieht.
 
 ### 2.4 Le-Space Brand-Repo
 
@@ -231,6 +234,45 @@ könnte nicht einmal wirkungslose Events in sein Ledger schreiben. Preis: Die
 Ledger-Adresse hängt von der DID des anfragenden Geräts ab, muss also pro Peer
 ausgeliefert werden — die Studio-Ankündigung wird damit anfragerspezifisch. Das
 ist ein Umbau, keine Zeile, und gehört vor T4.4 entschieden.
+
+### 1.8 Der erste Heads-Austausch geht lautlos verloren
+
+Ein Studio-Gerät, das das Ledger eines Schülers **zum ersten Mal** öffnet,
+bekommt dessen bestehende Historie oft nicht — und zwar völlig geräuschlos.
+Gemessen an der Kurier-Szene (Carol öffnet Bobs Ledger, in dem ein Verkauf und
+eine Entwertung stehen):
+
+| Beobachtung                               | Wert                         |
+| ----------------------------------------- | ---------------------------- |
+| Topic subscribed, Gossipsub-Mesh          | beidseitig vollständig       |
+| `db.sync.peers`                           | beide Seiten führen einander |
+| `error`-Events auf allen drei Geräten     | keine                        |
+| Carols Log nach 20 s                      | **0 Einträge, 0 Heads**      |
+| nach einem `sync.stop()` / `sync.start()` | beide Einträge in unter 5 s  |
+
+Ursache in `@orbitdb/core/src/sync.js`: Beide Enden **eines** bidirektionalen
+Streams lesen und schreiben gleichzeitig, und jedes Ende ruft `stream.close()`,
+sobald sein _eigenes_ Senden fertig ist (Zeilen 175 und 202). Wer eine Datenbank
+erstmals öffnet, hat nichts zu senden, ist also sofort fertig und schließt — und
+das ist immer genau die Seite, die die Daten braucht. Dieser Transport hat keinen
+Half-Close, es gibt für sie also keine Möglichkeit zu sagen „fertig mit Senden,
+lese aber noch". `UnsupportedProtocolError` wird in Zeile 206 zusätzlich
+kommentarlos verworfen, ohne Retry.
+
+Warum es lange unentdeckt blieb: Bei zwei Geräten schreibt das Studio jedes Event
+selbst, und ein Write wird **live** publiziert. Der Heads-Austausch wird erst
+gebraucht, wenn ein Gerät _bestehende_ Historie braucht — und das passiert zuerst
+beim zweiten Standort, also genau in der Szene, für die dieses Projekt existiert.
+
+Umsetzung heute: `pullHistory` in `src/lib/db/open.js` fragt nach dem Öffnen
+erneut nach, solange das Log leer ist und Sync-Peers vorhanden sind — begrenzt
+auf fünf Versuche im Abstand von 2 s, ausschließlich über die öffentliche API.
+Bewusst konservativ: Es rettet nur die totale Stille und füllt nie ein Log auf,
+das lediglich hinterherhängt. Ein wirklich leeres Ledger — ein Schüler, der noch
+nichts gekauft hat — ist der Normalfall und darf an der Theke nicht zu einer
+Endlosschleife werden.
+
+Nach upstream gemeldet; kein Patch, kein Vendoring.
 
 ## 3. Noch nicht gemessen
 

@@ -266,7 +266,60 @@ function installDiagnostics() {
 			/** Failures OrbitDB's sync reported and then carried on from. */
 			replicationErrors: () => replicationErrors,
 			introductions: () => introductionLog,
-			/** Ask peers for heads again — see resyncOnceAccessRulesArrive. */
+			/**
+			 * This device's own ledger and the verdict the fold reaches on it.
+			 *
+			 * "No ticket card" has two completely different causes — nothing
+			 * replicated, or events that arrived and were then rejected — and the
+			 * screen looks identical either way. The `rejected` list is what tells
+			 * them apart, which is why it is worth a diagnostic of its own.
+			 *
+			 * The database layer is imported lazily on purpose: pulling it into this
+			 * module's import graph created a cycle that broke app boot once already.
+			 */
+			ledger: async (/** @type {string} [studentDid] */ studentDid) => {
+				const [{ ticketsDbStore, studentTicketsStore }, { foldFromDb }, { deviceRegistry }] =
+					await Promise.all([
+						import('../db/tickets.js'),
+						import('../db/ledger-view.js'),
+						import('../db/registry.js')
+					]);
+
+				// Without an argument, this device's own ledger; with one, the ledger it
+				// holds for that student — the studio side of the same question.
+				const db = studentDid ? get(studentTicketsStore).get(studentDid)?.db : get(ticketsDbStore);
+				if (!db) return { open: false, students: [...get(studentTicketsStore).keys()] };
+
+				const state = await foldFromDb(db);
+
+				return {
+					open: true,
+					events: (await db.all()).map((/** @type {any} */ row) => ({
+						id: row.value?._id,
+						type: row.value?.type,
+						seq: row.value?.seq ?? null,
+						signer: row.value?.issuedBy?.deviceDid ?? row.value?.redeemedBy?.deviceDid ?? null
+					})),
+					tickets: [...state.tickets.values()].map((/** @type {any} */ ticket) => ({
+						ticketId: ticket.ticketId,
+						status: ticket.status,
+						unitsRemaining: ticket.unitsRemaining
+					})),
+					rejected: state.rejected.map((/** @type {any} */ rejection) => ({
+						id: rejection.event?._id,
+						type: rejection.event?.type,
+						reason: rejection.reason
+					})),
+					forks: state.forks.map((/** @type {any} */ fork) => ({
+						ticketId: fork.ticketId,
+						seq: fork.seq
+					})),
+					// The registry is half the verdict: an event signed by a device that
+					// is not in it is rejected as `unknown-device`, ticket and all.
+					devices: [...deviceRegistry().keys()]
+				};
+			},
+			/** Ask peers for heads again — see `pullHistory` in db/open.js. */
 			resync: async (/** @type {string} */ address) => {
 				const entry = openDatabases.get(address);
 				if (!entry) return 'unknown address';
@@ -282,6 +335,26 @@ function installDiagnostics() {
 						key,
 						address,
 						entries: (await db.all()).length,
+						// The log behind the documents view. Reported separately because
+						// the two can disagree, and which one is empty says where to look:
+						// nothing joined the log at all, or it joined and the view is stale.
+						logEntries: await (async () => {
+							try {
+								let count = 0;
+								// eslint-disable-next-line @typescript-eslint/no-unused-vars
+								for await (const entry of db.log.iterator()) count += 1;
+								return count;
+							} catch (/** @type {any} */ e) {
+								return e?.message ?? String(e);
+							}
+						})(),
+						heads: await (async () => {
+							try {
+								return (await db.log.heads()).length;
+							} catch (/** @type {any} */ e) {
+								return e?.message ?? String(e);
+							}
+						})(),
 						// Who OrbitDB's sync believes it is exchanging heads with.
 						syncPeers: [...(db.sync?.peers ?? [])].map(String),
 						writers: await (async () => {

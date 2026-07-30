@@ -95,29 +95,13 @@ async function setUpStudio(page) {
 }
 
 test.describe('check-in and the courier roundtrip', () => {
-	// Unfinished, and stopped deliberately rather than pursued further in one
-	// sitting. Where it stands after several rounds:
+	// The scenario the whole design exists for: two locations that never speak to
+	// each other, kept consistent by the student walking between them.
 	//
-	//   ✓ Carol is approved, replicates the registry and counts as a studio device
-	//   ✓ Bob introduces himself to both locations; each opens his ledger
-	//   ✓ Alice sells a pass (needed the grant-in-flight retry in tickets.js)
-	//   ✓ Alice redeems once
-	//   ✗ Bob's ticket card then disappears instead of showing 9
-	//
-	// The last step is the open question: the fold produces no tickets at all,
-	// which means the event list it read was empty — not that a redemption was
-	// rejected, which would still render a card. Next step is to log Bob's
-	// ledger contents around that moment rather than guess again.
-	//
-	// Everything else in T4.3 is green and covered: the chain position comes from
-	// the fold, the fold is repeated immediately before writing, a redemption
-	// outside the validity window is refused with a usable reason, and the
-	// balance is read back from the database rather than a stale store.
-	test.fixme('a redemption at one location is visible at the other', async ({
-		alice,
-		carol,
-		bob
-	}) => {
+	// Slow on purpose, and worth the minutes — it is the only test that holds
+	// three devices at once, which is what surfaced the single-offer-slot defect
+	// and the grant-in-flight race that the two-device tests cannot reach.
+	test('a redemption at one location is visible at the other', async ({ alice, carol, bob }) => {
 		test.setTimeout(900_000);
 
 		// --- Alice's studio, with Carol's device approved for location West ----
@@ -158,6 +142,11 @@ test.describe('check-in and the courier roundtrip', () => {
 		// --- Redeemed again, at the second location ---------------------------
 		await carol.getByTestId('checkin-redeem').first().click();
 		await expect(carol.getByTestId('checkin-done')).toBeVisible();
+
+		// Back to his own passes: pairing left him on the connect screen, which has
+		// no ticket card on it at all — and a missing element is not a balance of
+		// eight, so asserting from there would prove nothing either way.
+		await bob.getByTestId('nav-tickets').click();
 		await expect(bob.getByTestId('ticket-balance')).toHaveText('8', REPLICATED);
 
 		// --- Back to Alice ------------------------------------------------------
@@ -171,7 +160,10 @@ test.describe('check-in and the courier roundtrip', () => {
 
 		// And the chain is intact: two accepted redemptions, no fork anywhere.
 		await expect(alice.getByTestId('fork-alarm')).toHaveCount(0);
+
+		await bob.getByTestId('nav-tickets').click();
 		await expect(bob.getByTestId('ticket-card').first()).toHaveAttribute('data-status', 'active');
+		await expect(bob.getByTestId('fork-alarm')).toHaveCount(0);
 	});
 
 	test('a redemption outside the ticket’s window is refused', async ({ alice, bob }) => {

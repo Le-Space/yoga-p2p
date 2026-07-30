@@ -83,7 +83,69 @@ export async function openDocuments({ key, name, address }) {
 	recordReplicationErrors(db);
 	openDatabases.set(db.address.toString(), { key, db });
 
+	pullHistory(db);
+
 	return db;
+}
+
+/** How often to ask again for history, and how long to wait between tries. */
+const HISTORY_ATTEMPTS = 5;
+const HISTORY_INTERVAL_MS = 2_000;
+
+/**
+ * Ask again for a peer's history while this database is still empty.
+ *
+ * Opening a database that a connected peer already holds is supposed to pull
+ * their heads once, and often does. When it does not, it fails in total silence:
+ * the topic is subscribed, the gossipsub mesh is formed, both sides list each
+ * other as sync peers, no `error` event is emitted anywhere — and the log stays
+ * at zero entries indefinitely. One `sync.stop()` / `sync.start()` then brings
+ * everything within seconds, which is what this does on a schedule.
+ *
+ * Why it happens: in @orbitdb/core's `sync.js`, both ends of one bidirectional
+ * stream read and write at the same time, and each end calls `stream.close()` as
+ * soon as its *own* sending finishes. A device opening a database for the first
+ * time has nothing to send, so it finishes instantly and closes — and it is
+ * always that device that needed the data. This transport has no half-close, so
+ * there is no way for it to say "done sending, still reading". Measured and
+ * written up in docs/LIMITS.md §1.8; filed upstream.
+ *
+ * Deliberately conservative: it only ever rescues total silence, never tops up a
+ * log that is merely behind, and it gives up after a bounded number of tries. A
+ * genuinely empty ledger — a student who has never bought anything — is the
+ * normal case, and must not turn into an endless retry loop at the counter.
+ *
+ * Not awaited by the caller: a check-in screen should render from what is here
+ * now and update when more arrives, not block on a peer that may be gone.
+ *
+ * @param {any} db
+ */
+async function pullHistory(db) {
+	for (let attempt = 0; attempt < HISTORY_ATTEMPTS; attempt++) {
+		await new Promise((resolve) => setTimeout(resolve, HISTORY_INTERVAL_MS));
+
+		// Stop as soon as anything at all is here, and stop if the database was
+		// closed in the meantime — a page navigation is not an error to report.
+		if (!openDatabases.has(db.address.toString())) return;
+		if ((await db.log.heads().catch(() => [])).length > 0) return;
+
+		// Nobody to ask yet. Not a failure — the student may still be walking in.
+		if ([...(db.sync?.peers ?? [])].length === 0) continue;
+
+		try {
+			await db.sync.stop();
+			await db.sync.start();
+		} catch (/** @type {any} */ error) {
+			// Same treatment as any other replication problem: recorded, not fatal.
+			replicationErrors.push({
+				address: db.address.toString(),
+				name: error?.name ?? 'Error',
+				message: `asking again for history failed: ${error?.message ?? String(error)}`,
+				at: new Date().toISOString()
+			});
+			return;
+		}
+	}
 }
 
 /**
