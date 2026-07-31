@@ -9,4 +9,4 @@ Disallow: /studio/
 Disallow: /program/
 Disallow: /tickets/
 
-Sitemap: https://yoga.le-space.de/sitemap.xml
+Sitemap: https://yogasuci.le-space.de/sitemap.xml

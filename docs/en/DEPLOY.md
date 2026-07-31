@@ -1,4 +1,4 @@
-# DEPLOY.md — publishing to yoga.le-space.de
+# DEPLOY.md — publishing to yogasuci.le-space.de
 
 English · **[Deutsch](../DEPLOY.md)**
 
@@ -20,7 +20,7 @@ stays between the devices.
 1. `pnpm build` → static bundle in `build/`
 2. **`site-publish`** (`@le-space/node`) uploads `build/` to Aleph IPFS, pins it
    and returns `ipfs_cid` and `item_hash`
-3. **`site-domain-link`** ties `yoga.le-space.de` to that CID, with a catch-all
+3. **`site-domain-link`** ties `yogasuci.le-space.de` to that CID, with a catch-all
    onto `/index.html` (single-page app: every unknown path has to reach
    `index.html`, or deep links go nowhere)
 
@@ -45,15 +45,16 @@ gh secret set ALEPH_PRIVATE_KEY --repo Le-Space/yoga-p2p
 Or as an organisation secret in `Le-Space`, released to this repository, so
 future projects share one entry.
 
-### 2. DNS for `yoga.le-space.de` — ✅ done
+### 2. DNS for `yogasuci.le-space.de` — ✅ done
 
-Three records, all verified with `dig` on 2026-07-29:
+Three records, verified with `dig` again on 2026-08-01 after the rename. The old
+`yoga.le-space.de` is gone — a deploy there would go nowhere:
 
-| Name                        | Type    | Value                                               |
-| --------------------------- | ------- | --------------------------------------------------- |
-| `yoga.le-space.de`          | `CNAME` | `ipfs.public.aleph.sh.`                             |
-| `_dnslink.yoga.le-space.de` | `CNAME` | `_dnslink.yoga.le-space.de.static.public.aleph.sh.` |
-| `_control.yoga.le-space.de` | `TXT`   | `0xD139E44669fD96C714F888B6b04Fe5D02D02B4fD`        |
+| Name                            | Type    | Value                                                   |
+| ------------------------------- | ------- | ------------------------------------------------------- |
+| `yogasuci.le-space.de`          | `CNAME` | `ipfs.public.aleph.sh.`                                 |
+| `_dnslink.yogasuci.le-space.de` | `CNAME` | `_dnslink.yogasuci.le-space.de.static.public.aleph.sh.` |
+| `_control.yogasuci.le-space.de` | `TXT`   | `0xD139E44669fD96C714F888B6b04Fe5D02D02B4fD`            |
 
 What each does:
 
@@ -71,7 +72,7 @@ What each does:
 To check:
 
 ```bash
-dig +short yoga.le-space.de CNAME; dig +short _dnslink.yoga.le-space.de CNAME; dig +short _control.yoga.le-space.de TXT
+dig +short yogasuci.le-space.de CNAME; dig +short _dnslink.yogasuci.le-space.de CNAME; dig +short _control.yogasuci.le-space.de TXT
 ```
 
 ## SEO
@@ -112,8 +113,8 @@ gh workflow run "Build & Deploy to Aleph IPFS" --repo Le-Space/yoga-p2p --ref ma
 Then check:
 
 ```bash
-curl -sI https://yoga.le-space.de/ | head -5
-curl -s https://yoga.le-space.de/robots.txt
+curl -sI https://yogasuci.le-space.de/ | head -5
+curl -s https://yogasuci.le-space.de/robots.txt
 ```
 
 DNS propagation and the gateway's first rollout take a few minutes in practice. A

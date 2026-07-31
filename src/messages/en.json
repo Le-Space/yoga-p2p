@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"app_name": "Yoga booking",
+	"app_name": "Yogasūcī (योगसूची)",
 	"app_tagline": "Classes, passes and check-in — no server, no account.",
 	"nav_program": "Programme",
 	"nav_tickets": "My passes",

@@ -107,16 +107,21 @@ test.describe('app shell', () => {
 	// the context rather than assumed. Both directions are checked: a German
 	// browser must not land in English, and an English one must not land in
 	// German just because the studio is German.
+	//
+	// Probed on a navigation label rather than on the app's name. The name used to
+	// serve as the probe and stopped working the moment it became a proper noun —
+	// Yogasūcī is the same word in both languages, so asserting on it proved
+	// nothing at all. A label that genuinely differs is what this test always meant.
 	for (const { locale, expected } of [
-		{ locale: 'de-DE', expected: 'Yoga-Buchung' },
-		{ locale: 'en-GB', expected: 'Yoga booking' }
+		{ locale: 'de-DE', expected: 'Programm' },
+		{ locale: 'en-GB', expected: 'Programme' }
 	]) {
 		test(`follows the browser language ${locale}`, async ({ browser }) => {
 			const context = await browser.newContext({ locale });
 			const page = await context.newPage();
 			await page.goto('/');
 
-			await expect(page.getByTestId('app-name')).toHaveText(expected);
+			await expect(page.getByTestId('nav-program')).toHaveText(expected);
 			await context.close();
 		});
 	}
@@ -126,14 +131,18 @@ test.describe('app shell', () => {
 		const page = await context.newPage();
 
 		await page.goto('/');
-		await expect(page.getByTestId('app-name')).toHaveText('Yoga-Buchung');
+		await expect(page.getByTestId('nav-program')).toHaveText('Programm');
 
 		await page.getByTestId('language-en').click();
-		await expect(page.getByTestId('app-name')).toHaveText('Yoga booking');
+		await expect(page.getByTestId('nav-program')).toHaveText('Programme');
 
 		// An explicit choice must outrank the browser preference, not be reset by it.
 		await page.reload();
-		await expect(page.getByTestId('app-name')).toHaveText('Yoga booking');
+		await expect(page.getByTestId('nav-program')).toHaveText('Programme');
+
+		// And the name is a name: the same in both, which is why it is no longer the
+		// thing this test asks about.
+		await expect(page.getByTestId('app-name')).toContainText('Yogasūcī');
 
 		await context.close();
 	});

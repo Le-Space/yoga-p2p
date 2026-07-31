@@ -4,7 +4,7 @@
 	 *
 	 * It used to be the scaffold's status page — a list of milestones M1 to M5,
 	 * which is a developer's view of a repository and not an answer to the two
-	 * questions somebody arriving at yoga.le-space.de actually has: what is this,
+	 * questions somebody arriving at yogasuci.le-space.de actually has: what is this,
 	 * and where do I start. It went to a live domain that way, which is exactly the
 	 * sort of thing nobody notices from inside the project.
 	 *

@@ -469,6 +469,27 @@ Nach upstream noch nicht gemeldet — verwandt mit
 [orbitdb/orbitdb#1255](https://github.com/orbitdb/orbitdb/issues/1255), siehe
 Issue #13 in diesem Repo.
 
+### 1.10 Der Produktname ist umbenannt, die Bezeichner sind es nicht
+
+Sichtbar heißt die App **Yogasūcī (योगसूची)**, technisch `yogasuci`. Eine Reihe von
+Bezeichnern trägt aber weiterhin `yoga-p2p` bzw. `yoga-`, und das ist **Absicht**,
+kein vergessenes Vorkommen:
+
+| Bezeichner                                                                      | Warum er bleibt                                                                                                                  |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `yoga-tickets-<did>`, `yoga-acl-<did>`, `yoga-registry`, `yoga-bookings-<did>`  | **Datenbanknamen.** Die Adresse eines Ledgers wird aus dem Namen abgeleitet (§1.7) — ein anderer Name ist eine andere Datenbank. |
+| `yoga-p2p/blocks`, `yoga-p2p/data`                                              | IndexedDB-Stores. Umbenennen heißt: jedes Gerät startet leer.                                                                    |
+| `yoga-p2p.databases`, `.passkeyCredential`, `.iceMode`, `.installHintDismissed` | localStorage-Schlüssel. Umbenennen heißt: gemerkte Adressen weg, Identität scheinbar verloren.                                   |
+| `yoga-p2p/export/1`                                                             | Format-Kennung im Export. Ältere Sicherungen müssen lesbar bleiben.                                                              |
+| `window.__yoga`                                                                 | Diagnose-Oberfläche, an der die gesamte E2E-Suite hängt.                                                                         |
+
+Ein Umbenennen dieser Namen ist **keine Umbenennung, sondern eine Datenmigration**:
+alte Namen weiter öffnen, Inhalte übertragen, Adressen neu bekanntgeben. Für ein
+Projekt ohne Produktivdaten wäre das machbar; sobald ein Studio damit arbeitet,
+kostet es dessen Kassenbelege. Deshalb ist der Zeitpunkt dafür **jetzt oder nie** —
+und „nie" ist eine vertretbare Wahl, weil diese Namen niemand außer Entwicklern
+je sieht.
+
 ## 3. Gemessen und nicht gemessen
 
 Die Benchmark-Suite steht (`bench/`, `pnpm run bench`, Bericht in

@@ -4,7 +4,7 @@ title: Handbuch
 sidebar_position: 1
 ---
 
-# Yoga-P2P
+# Yogasūcī (योगसूची)
 
 Kursbuchung, Karten und Check-in für ein Yogastudio mit mehreren Standorten —
 ohne Server, ohne Konto, ohne monatliche Gebühr.
@@ -40,6 +40,28 @@ mit beiden Belegen. Mehr dazu unter [Was die App nicht
 kann](/what-it-cannot-do).
 
 ![Die Startseite](/img/screens/de/start.png)
+
+## Woher der Name kommt
+
+**Yogasūcī** ist Sanskrit, geschrieben योगसूची — zusammengesetzt aus _yoga_ und
+_sūcī_.
+
+सूची (sūcī) heißt zunächst **Nadel**, und daraus abgeleitet **Liste**,
+**Verzeichnis**, **Index**. Im heutigen Hindi ist सूची schlicht die Liste. Genau das
+ist diese App: ein Verzeichnis von Kursen, Karten und Besuchen — kein Konto, kein
+Portal, sondern ein geführtes Register.
+
+Die Doppelbedeutung passt besser, als sie es müsste. Eine Nadel zeigt auf etwas;
+eine Karte in dieser App zeigt auf jeden einzelnen Eintrag, aus dem ihr Guthaben
+gerechnet wird. Nichts ist gespeichert, alles ist nachgezählt.
+
+Die Striche über ū und ī sind keine Verzierung: Sie markieren lange Vokale in der
+üblichen wissenschaftlichen Umschrift (IAST). Gesprochen etwa _Yoga-ßuutschii_.
+
+In technischen Namen — Hostnamen, Verzeichnisse, Paketnamen — steht schlicht
+`yogasuci`, ohne Striche und ohne Devanagari. Nicht aus Bequemlichkeit: Ein Name,
+der in einer URL oder auf einer Kommandozeile diakritische Zeichen trägt, wird
+irgendwo falsch kodiert, und das an einer Stelle, an der niemand es sofort merkt.
 
 ## Was ihr seht, hängt vom Gerät ab
 

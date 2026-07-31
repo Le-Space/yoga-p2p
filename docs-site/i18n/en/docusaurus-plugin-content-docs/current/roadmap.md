@@ -10,6 +10,33 @@ considered — not promised. What the app can do **today** is in the chapters be
 it; what it cannot do is under [What the app cannot
 do](/what-it-cannot-do).
 
+## Invite links instead of carrying codes — next
+
+**The most important open item.** Today two devices are connected by somebody
+carrying a code: scan a QR, or copy text, paste it, carry the answer back. A field
+test showed where that falls apart — which text field, which role, which of two
+strings is the right one.
+
+The successor is an **invite link**. You create an invite, share it through the
+ordinary share sheet, and the other device simply opens it. The page verifies the
+invite and produces the reply by itself. No text field, no role, nothing to mix up.
+
+The part that matters for privacy, and the reason this is defensible at all: the
+data sits in the **fragment** of the address — everything after the `#`. Browsers
+do not send that to a server, as a rule. The link looks like it leads somewhere;
+the sensitive part still never leaves the device.
+
+The QR code stays: it then carries the link. It grows by roughly thirty characters
+and remains well below what a camera reads reliably.
+
+It also brings a correction a studio will feel: the connection used to give up
+after thirty seconds, although setting one up can take longer.
+
+Built in the example of
+[`libp2p-webrtc-qr` v0.2.0](https://github.com/NiKrause/libp2p-webrtc-qr/releases/tag/v0.2.0);
+what it means for this app is in
+[issue #23](https://github.com/Le-Space/yoga-p2p/issues/23).
+
 ## Backup on decentralised storage
 
 Today your backup lives wherever you put it: **Export** downloads a file, and where

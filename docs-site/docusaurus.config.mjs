@@ -12,7 +12,7 @@ import { themes } from 'prism-react-renderer';
 
 /** @type {import('@docusaurus/types').Config} */
 export default {
-	title: 'Yoga-P2P',
+	title: 'Yogasūcī (योगसूची)',
 	tagline: 'Kursbuchung ohne Server',
 	favicon: 'img/favicon.svg',
 
@@ -21,7 +21,7 @@ export default {
 	// therefore the one that works today. Both are set from the environment rather
 	// than hard-coded, because a Docusaurus site with the wrong baseUrl builds
 	// happily and then serves a page whose every asset 404s.
-	url: process.env.DOCS_URL ?? 'https://yoga.le-space.de',
+	url: process.env.DOCS_URL ?? 'https://yogasuci.le-space.de',
 	baseUrl: process.env.DOCS_BASE_URL ?? '/handbuch/',
 
 	organizationName: 'Le-Space',
@@ -61,8 +61,8 @@ export default {
 		image: 'img/social-card.png',
 		colorMode: { defaultMode: 'dark', respectPrefersColorScheme: true },
 		navbar: {
-			title: 'Yoga-P2P',
-			logo: { alt: 'Yoga-P2P', src: 'img/om.svg' },
+			title: 'Yogasūcī (योगसूची)',
+			logo: { alt: 'Yogasūcī', src: 'img/om.svg' },
 			items: [
 				{ type: 'docSidebar', sidebarId: 'handbook', position: 'left', label: 'Handbuch' },
 				{ type: 'localeDropdown', position: 'right' },
@@ -74,7 +74,7 @@ export default {
 			links: [
 				{
 					title: 'App',
-					items: [{ label: 'yoga.le-space.de', href: 'https://yoga.le-space.de' }]
+					items: [{ label: 'yogasuci.le-space.de', href: 'https://yogasuci.le-space.de' }]
 				},
 				{
 					title: 'Technik',

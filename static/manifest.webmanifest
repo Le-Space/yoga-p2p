@@ -1,6 +1,6 @@
 {
-	"name": "Yoga-Buchung",
-	"short_name": "Yoga",
+	"name": "Yogasūcī (योगसूची)",
+	"short_name": "Yogasūcī",
 	"description": "Local-first Kursbuchung für Yogastudios — ohne Server, ohne Konto.",
 	"start_url": "./",
 	"scope": "./",

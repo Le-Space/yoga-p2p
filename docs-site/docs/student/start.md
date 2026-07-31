@@ -10,7 +10,7 @@ Ihr braucht kein Konto und keine E-Mail-Adresse.
 ## App öffnen
 
 Die App läuft im Browser. Über den QR-Code im Studio oder direkt über
-[yoga.le-space.de](https://yoga.le-space.de). Auf dem Telefon lässt sie sich zum
+[yogasuci.le-space.de](https://yogasuci.le-space.de). Auf dem Telefon lässt sie sich zum
 Startbildschirm hinzufügen und verhält sich danach wie eine App.
 
 ## Passkey anlegen
