@@ -1,5 +1,17 @@
 # CLAUDE.md — yoga-p2p
 
+## Sprache
+
+**Issues und Commit-Nachrichten auf Englisch.** Sie richten sich an alle, die das
+Repository lesen, auch an Upstream-Projekte, in die etwas gemeldet wird.
+
+**Das Handbuch (`docs-site/`) immer zweisprachig**, Deutsch und Englisch
+gleichwertig. Eine Seite, die nur in einer Sprache existiert, ist nicht fertig —
+sie ist eine halbe Seite für die Hälfte der Leser.
+
+Die technischen Dokumente in `docs/` sind deutsch mit Übersetzungen in `docs/en/`;
+welche übersetzt sind und welche nicht, steht in `docs/en/README.md`.
+
 ## Projekt
 
 Local-first P2P-PWA für Yogastudio-Buchungen. Kein Relay, kein Server, kein
