@@ -12,7 +12,7 @@ import { themes } from 'prism-react-renderer';
 
 /** @type {import('@docusaurus/types').Config} */
 export default {
-	title: 'Yoga-P2P',
+	title: 'Yogasūcī (योगसूची)',
 	tagline: 'Kursbuchung ohne Server',
 	favicon: 'img/favicon.svg',
 
@@ -61,8 +61,8 @@ export default {
 		image: 'img/social-card.png',
 		colorMode: { defaultMode: 'dark', respectPrefersColorScheme: true },
 		navbar: {
-			title: 'Yoga-P2P',
-			logo: { alt: 'Yoga-P2P', src: 'img/om.svg' },
+			title: 'Yogasūcī (योगसूची)',
+			logo: { alt: 'Yogasūcī', src: 'img/om.svg' },
 			items: [
 				{ type: 'docSidebar', sidebarId: 'handbook', position: 'left', label: 'Handbuch' },
 				{ type: 'localeDropdown', position: 'right' },

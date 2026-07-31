@@ -9,6 +9,34 @@ Diese Seite ist absichtlich vorsichtig formuliert. Was hier steht, ist geplant o
 angedacht — nicht versprochen. Was die App **heute** kann, steht in den Kapiteln
 davor; was sie nicht kann, unter [Was die App nicht kann](/what-it-cannot-do).
 
+## Einladungslinks statt Code-Schieberei — als Nächstes
+
+**Der wichtigste offene Punkt.** Heute verbindet man zwei Geräte, indem jemand
+einen Code trägt: QR scannen, oder Text kopieren, einfügen, Antwort zurücktragen.
+Ein Feldtest hat gezeigt, woran das scheitert — welches Textfeld, welche Rolle,
+welche von zwei Zeichenketten die richtige ist.
+
+Der Nachfolger ist ein **Einladungslink**. Man erzeugt eine Einladung, teilt sie
+über das normale Teilen-Menü, und das andere Gerät öffnet sie einfach. Die Seite
+prüft die Einladung und erzeugt die Antwort von selbst. Kein Textfeld, keine Rolle,
+keine Verwechslung.
+
+Wichtig für die Privatsphäre, und der Grund, warum das überhaupt vertretbar ist:
+Die Daten stehen im **Fragment** der Adresse — dem Teil hinter dem `#`. Den
+schicken Browser grundsätzlich nicht an einen Server. Der Link sieht aus, als führe
+er irgendwohin; der empfindliche Teil verlässt das Gerät trotzdem nicht.
+
+Der QR-Code bleibt: Er enthält dann den Link. Er wird um knapp 30 Zeichen länger
+und liegt weiterhin deutlich unter dem, was eine Kamera zuverlässig liest.
+
+Mitgeliefert wird außerdem eine Korrektur, die im Studio spürbar ist: Die
+Verbindung gab nach 30 Sekunden auf, obwohl ihr Aufbau länger dauern kann.
+
+Umgesetzt ist das im Beispiel von
+[`libp2p-webrtc-qr` v0.2.0](https://github.com/NiKrause/libp2p-webrtc-qr/releases/tag/v0.2.0);
+was es für diese App bedeutet, steht in
+[Issue #23](https://github.com/Le-Space/yoga-p2p/issues/23).
+
 ## Sicherung auf dezentralem Speicher
 
 Heute liegt eure Sicherung dort, wo ihr sie hinlegt: Der **Export** lädt eine Datei

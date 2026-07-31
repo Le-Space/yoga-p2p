@@ -4,7 +4,7 @@ title: Handbook
 sidebar_position: 1
 ---
 
-# Yoga-P2P
+# Yogasūcī (योगसूची)
 
 Class booking, passes and check-in for a yoga studio with more than one location —
 no server, no account, no monthly fee.
@@ -37,6 +37,27 @@ the same time, a pass can be redeemed twice. The app does not prevent that — i
 [What the app cannot do](/what-it-cannot-do).
 
 ![The front page](/img/screens/en/start.png)
+
+## Where the name comes from
+
+**Yogasūcī** is Sanskrit, written योगसूची — _yoga_ and _sūcī_ joined.
+
+सूची (sūcī) means **needle** first, and from there **list**, **register**,
+**index**. In present-day Hindi सूची is simply a list. Which is what this app is: a
+register of classes, passes and visits — not an account, not a portal, but a set of
+books somebody keeps.
+
+The double meaning fits better than it had to. A needle points at something; a pass
+in this app points at every single entry its balance is counted from. Nothing is
+stored, everything is recounted.
+
+The marks over ū and ī are not decoration: they mark long vowels in the standard
+scholarly transliteration (IAST). Roughly _yoga-SOO-chee_.
+
+In technical names — hostnames, directories, package names — it is plain
+`yogasuci`, without the marks and without Devanagari. Not out of convenience: a name
+carrying diacritics through a URL or a command line gets mis-encoded somewhere, and
+in a place where nobody notices at once.
 
 ## What you see depends on the device
 

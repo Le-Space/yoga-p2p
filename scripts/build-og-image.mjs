@@ -78,7 +78,7 @@ const card = `
 			<circle cx="78" cy="62" r="7" fill="none" stroke="${TOKENS.link}" stroke-width="4.5"/>
 		</svg>
 		<div class="eyebrow">Local-first · Peer-to-Peer</div>
-		<h1>Yoga-Buchung</h1>
+		<h1>Yogasūcī (योगसूची)</h1>
 		<p>Kurse, Karten und Check-in laufen direkt zwischen den Geräten — ohne Server, ohne Konto.</p>
 		<div class="stack">
 			<span class="chip">WebRTC per QR</span>
