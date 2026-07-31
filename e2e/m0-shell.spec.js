@@ -20,6 +20,23 @@ test.describe('app shell', () => {
 		await expect(alice.getByTestId('start-handbook')).toHaveAttribute('href', /handbuch/);
 	});
 
+	test('the imprint and privacy statement are reachable without an identity', async ({ alice }) => {
+		// Before any passkey exists, and without ever creating one. A legal notice
+		// behind an identity gate is not a legal notice — and it has to be on every
+		// page, which is why the link is in the footer rather than the front page.
+		await alice.goto('/program/?ice=host');
+		await expect(alice.getByTestId('onboarding')).toBeVisible({ timeout: 90_000 });
+		await alice.getByTestId('nav-legal').click();
+
+		await expect(alice.getByTestId('legal-imprint')).toBeVisible();
+		await expect(alice.getByTestId('legal-privacy')).toBeVisible();
+
+		// The two claims this page exists to make, and the one it must not overstate.
+		const text = await alice.getByTestId('legal-privacy').textContent();
+		expect(text).toMatch(/IPFS/);
+		expect(text).toMatch(/STUN/);
+	});
+
 	// Language follows the device before anything else, so the locale is set on
 	// the context rather than assumed. Both directions are checked: a German
 	// browser must not land in English, and an English one must not land in
