@@ -34,12 +34,12 @@ Neither of these can be done from inside the repository.
 
 ### 1. The `ALEPH_PRIVATE_KEY` secret
 
-`Le-Space/yoga-p2p` needs the same Aleph key that publishes `simple-todo`. It
+`Le-Space/yogasuci` needs the same Aleph key that publishes `simple-todo`. It
 lives there as a repository secret, and a secret cannot be read back — so it has
 to be set again from the original source:
 
 ```bash
-gh secret set ALEPH_PRIVATE_KEY --repo Le-Space/yoga-p2p
+gh secret set ALEPH_PRIVATE_KEY --repo Le-Space/yogasuci
 ```
 
 Or as an organisation secret in `Le-Space`, released to this repository, so
@@ -107,7 +107,7 @@ check-in scanner does not.
 Once the secret and DNS are in place:
 
 ```bash
-gh workflow run "Build & Deploy to Aleph IPFS" --repo Le-Space/yoga-p2p --ref main
+gh workflow run "Build & Deploy to Aleph IPFS" --repo Le-Space/yogasuci --ref main
 ```
 
 Then check:

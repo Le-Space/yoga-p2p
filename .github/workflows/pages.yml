@@ -53,7 +53,7 @@ jobs:
         working-directory: docs-site
         env:
           DOCS_URL: https://le-space.github.io
-          DOCS_BASE_URL: /yoga-p2p/
+          DOCS_BASE_URL: /yogasuci/
 
       - uses: actions/configure-pages@v5
 

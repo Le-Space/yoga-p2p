@@ -30,7 +30,7 @@ none of those addresses is distributed. But that is a matter of distribution, no
 an enforced barrier.
 
 Spelled out in full in the
-[privacy analysis](https://github.com/Le-Space/yoga-p2p/blob/main/docs/PRIVACY.md).
+[privacy analysis](https://github.com/Le-Space/yogasuci/blob/main/docs/PRIVACY.md).
 
 ## Nothing on the device is encrypted
 

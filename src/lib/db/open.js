@@ -165,7 +165,7 @@ let askingAll = false;
  * Called when a new peer turns up, because that is the moment there is something
  * new to learn and the moment OrbitDB does the least about it. Two upstream
  * behaviours combine against the courier model this app is built on
- * (orbitdb/orbitdb#1255, and Le-Space/yoga-p2p#13):
+ * (orbitdb/orbitdb#1255, and Le-Space/yogasuci#13):
  *
  *   - a device only publishes entries it appended *itself*, so a student holding
  *     a redemption written at the other location never forwards it;

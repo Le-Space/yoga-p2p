@@ -30,13 +30,13 @@ Beides kann ich nicht selbst erledigen.
 
 ### 1. Secret `ALEPH_PRIVATE_KEY`
 
-Das Repository `Le-Space/yoga-p2p` braucht denselben Aleph-Schlüssel, mit dem
+Das Repository `Le-Space/yogasuci` braucht denselben Aleph-Schlüssel, mit dem
 auch `simple-todo` veröffentlicht. Er liegt dort als Repository-Secret; ein
 Secret ist nicht auslesbar, es muss also aus der ursprünglichen Quelle neu
 gesetzt werden:
 
 ```bash
-gh secret set ALEPH_PRIVATE_KEY --repo Le-Space/yoga-p2p
+gh secret set ALEPH_PRIVATE_KEY --repo Le-Space/yogasuci
 ```
 
 Alternativ als Organisations-Secret in `Le-Space` anlegen und für dieses
@@ -106,7 +106,7 @@ Startseite, nicht der Check-in-Scanner.
 Nach Secret und DNS:
 
 ```bash
-gh workflow run "Build & Deploy to Aleph IPFS" --repo Le-Space/yoga-p2p --ref main
+gh workflow run "Build & Deploy to Aleph IPFS" --repo Le-Space/yogasuci --ref main
 ```
 
 Danach kontrollieren:

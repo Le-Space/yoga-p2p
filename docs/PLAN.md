@@ -571,7 +571,7 @@ Meine Tickets (Guthaben, Gültigkeit, Sync-Status) · Verbindungs-Assistent.
 ## 10. Repo-Struktur
 
 ```
-yoga-p2p/
+yogasuci/
 ├── CLAUDE.md                  # Konventionen für Claude Code (s. Abschnitt 12)
 ├── docs/
 │   ├── PLAN.md                # dieses Dokument

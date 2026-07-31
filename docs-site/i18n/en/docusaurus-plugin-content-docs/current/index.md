@@ -81,4 +81,4 @@ same minute.
 | a student with a phone          | [Getting started](/student/start) |
 
 If you want to know what is underneath, that is in the
-[repository](https://github.com/Le-Space/yoga-p2p) — this handbook does without.
+[repository](https://github.com/Le-Space/yogasuci) — this handbook does without.

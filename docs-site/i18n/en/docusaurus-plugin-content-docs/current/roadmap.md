@@ -35,7 +35,36 @@ after thirty seconds, although setting one up can take longer.
 Built in the example of
 [`libp2p-webrtc-qr` v0.2.0](https://github.com/NiKrause/libp2p-webrtc-qr/releases/tag/v0.2.0);
 what it means for this app is in
-[issue #23](https://github.com/Le-Space/yoga-p2p/issues/23).
+[issue #23](https://github.com/Le-Space/yogasuci/issues/23).
+
+## A connection check before things jam
+
+Today, when a connection fails to come up, all you see is that it failed. What went
+wrong — browser, network, camera — has to be guessed, and guessed at the counter
+with people waiting.
+
+Planned is an overview that checks this beforehand and turns each line green, amber
+or red:
+
+- **Browser** — does it do WebRTC at all? Some browsers do not, and then no network
+  in the world will help.
+- **Network and STUN** — is a STUN server reachable? It is needed as soon as two
+  devices are not on the same Wi-Fi. Running the app deliberately without STUN via
+  `?ice=host` gives **amber** here, not an error: that is a setting, not a fault.
+- **TURN** — only when it becomes necessary. None is set up today, and on some
+  networks — corporate Wi-Fi, some mobile carriers — STUN is not enough. This line
+  should name that rather than keep quiet about it.
+- **Camera** — is it permitted, and does it deliver a picture? Without a camera,
+  QR scanning is out.
+
+**The microphone is deliberately not checked.** The app never asks for it; a red
+light for it would warn about something that cannot break anything.
+
+What such a check **cannot** do, and that belongs here too: a STUN server answering
+does not mean these two devices will find each other. The lights show whether the
+preconditions hold — not whether it will work.
+
+Details in [issue #26](https://github.com/Le-Space/yogasuci/issues/26).
 
 ## Backup on decentralised storage
 
@@ -95,5 +124,5 @@ does not have, and they need answering before it is built:
   open, and is not talked around.
 
 The full technical picture is in the
-[repository](https://github.com/Le-Space/yoga-p2p) — including everything too small
+[repository](https://github.com/Le-Space/yogasuci) — including everything too small
 for a chapter of its own here.
