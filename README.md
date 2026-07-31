@@ -77,7 +77,9 @@ has to be testable without a browser.
 ## Handbook
 
 The user-facing handbook — for owners, front-desk staff and students, in German
-and English — lives in [`docs-site/`](docs-site/) and is built with Docusaurus. It
+and English — lives in [`docs-site/`](docs-site/), published at
+[le-space.github.io/yoga-p2p](https://le-space.github.io/yoga-p2p/) and alongside the
+app at `/handbuch/`. It
 is deliberately separate from `docs/` below, which is the engineering record.
 
 ## Documents

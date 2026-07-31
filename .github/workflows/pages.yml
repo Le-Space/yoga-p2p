@@ -1,0 +1,69 @@
+name: Handbook to GitHub Pages
+
+# The user handbook, published on its own. Separate from the Aleph deploy on
+# purpose: that one carries the app and needs DNS, this one needs neither and is
+# therefore the URL that works today.
+#
+# Requires "Settings → Pages → Source: GitHub Actions" once, by hand. Until that is
+# set the workflow runs and the deploy step fails with a clear message — which is
+# better than silently doing nothing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs-site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and let a running one finish: a half-published handbook is
+# worse than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: docs-site/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: docs-site
+
+      - run: pnpm run build
+        working-directory: docs-site
+        env:
+          DOCS_URL: https://le-space.github.io
+          DOCS_BASE_URL: /yoga-p2p/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

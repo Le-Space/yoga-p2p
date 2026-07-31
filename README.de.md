@@ -78,7 +78,9 @@ muss ohne Browser testbar sein.
 ## Handbuch
 
 Die Anwenderdokumentation — für Inhaberinnen, Theke und Schüler, deutsch und
-englisch — liegt in [`docs-site/`](docs-site/) und wird mit Docusaurus gebaut. Sie
+englisch — liegt in [`docs-site/`](docs-site/), veröffentlicht unter
+[le-space.github.io/yoga-p2p](https://le-space.github.io/yoga-p2p/) und neben der
+App unter `/handbuch/`. Sie
 ist bewusst getrennt von `docs/` weiter unten, das die technische Aufzeichnung ist.
 
 ## Dokumente
