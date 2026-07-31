@@ -2,7 +2,7 @@
 // Every later milestone adds its own m*-spec; this one keeps the foundation
 // from rotting.
 
-import { test, expect, onboard } from './fixtures.js';
+import { test, expect, connectViaPaste, onboard } from './fixtures.js';
 
 test.describe('app shell', () => {
 	test('the front page names both ways in, and the handbook', async ({ alice }) => {
@@ -18,6 +18,39 @@ test.describe('app shell', () => {
 		// There is nobody to ring when something is unclear, so the way to the
 		// handbook belongs on the page before anyone needs it.
 		await expect(alice.getByTestId('start-handbook')).toHaveAttribute('href', /handbuch/);
+	});
+
+	test('nothing scrolls sideways on a phone, with or without the counter screens', async ({
+		alice,
+		bob
+	}) => {
+		test.setTimeout(600_000);
+
+		// The measurement that found this, kept as the guard. The header used to make
+		// the document 941 px wide on a 375 px phone — the whole page scrolled
+		// sideways, on every screen, and it was still overflowing at 768 px. A flex
+		// item does not shrink below its content, so eight navigation entries simply
+		// pushed the page apart.
+		//
+		// Checked for both kinds of device, because a counter has four entries more
+		// and gains them the moment it is approved — the width changes under the app,
+		// not just between installations.
+		await setUpStudioLightly(alice);
+		await connectViaPaste(alice, bob);
+		await expect(bob.getByTestId('join-status')).toHaveAttribute('data-state', 'joined', {
+			timeout: 90_000
+		});
+
+		for (const page of [alice, bob]) {
+			for (const width of [375, 768, 1024]) {
+				await page.setViewportSize({ width, height: 812 });
+				const size = await page.evaluate(() => ({
+					scroll: document.documentElement.scrollWidth,
+					client: document.documentElement.clientWidth
+				}));
+				expect(size.scroll, `${width}px viewport`).toBeLessThanOrEqual(size.client);
+			}
+		}
 	});
 
 	test('the app is installable, and the pieces that make it so are served', async ({ alice }) => {
@@ -175,3 +208,20 @@ test.describe('ticket balance', () => {
 	// fork alarm with T4.4. Rendering them from fixtures proved the component,
 	// not the app.
 });
+
+/**
+ * Just enough of a studio that the counter entries appear.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function setUpStudioLightly(page) {
+	await page.goto('/studio/?ice=host');
+	await onboard(page, 'alice');
+	await page.getByTestId('studio-name').fill('Yoga Eggenfelden');
+	await page.getByTestId('studio-save').click();
+	await page.getByTestId('location-id').fill('altstadt');
+	await page.getByTestId('location-name-de').fill('Studio Altstadt');
+	await page.getByTestId('location-name-en').fill('Old Town Studio');
+	await page.getByTestId('location-add').click();
+	await expect(page.locator('[data-location-id="location:altstadt"]')).toBeVisible();
+}

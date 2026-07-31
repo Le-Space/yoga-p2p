@@ -178,7 +178,13 @@
 	something to.
 -->
 <StudioGate>
-	<p class="mt-4 font-mono text-sm text-faint" data-testid="own-peer-id">
+	<!--
+		`break-all` on both of these, because a peer id is a fifty-character token with
+		nowhere to break. Without it the status line was 444 px wide on a 375 px phone
+		and took the whole document sideways with it — the header was the obvious
+		cause, this was the second one hiding behind it.
+	-->
+	<p class="mt-4 font-mono text-sm break-all text-faint" data-testid="own-peer-id">
 		{$peerIdStore ?? '…'}
 	</p>
 
@@ -195,7 +201,7 @@
 
 	<p class="mt-1 text-sm" data-testid="connection-status" data-step={step}>
 		{#if step === 'connected'}
-			<span class="text-success">
+			<span class="break-all text-success">
 				{m.connect_status_connected({ peer: $connectedPeersStore[0] ?? '' })}
 			</span>
 		{:else if step === 'failed'}
