@@ -4,9 +4,10 @@ name: Handbook to GitHub Pages
 # purpose: that one carries the app and needs DNS, this one needs neither and is
 # therefore the URL that works today.
 #
-# Requires "Settings → Pages → Source: GitHub Actions" once, by hand. Until that is
-# set the workflow runs and the deploy step fails with a clear message — which is
-# better than silently doing nothing.
+# Pages is already set to "GitHub Actions" as its source on this repository, so
+# nothing has to be switched on by hand. I claimed the opposite when writing this
+# and the API said otherwise; the note stays as the corrected version rather than
+# being deleted, because the next person will wonder the same thing.
 
 on:
   push:
@@ -33,9 +34,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # No `version:` here. `packageManager` in package.json already pins it, and
+      # naming it twice is an error rather than a preference — which is how this
+      # workflow failed twice before anybody looked: it is only triggered by
+      # changes under docs-site/, so its red runs were not in front of a PR.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
