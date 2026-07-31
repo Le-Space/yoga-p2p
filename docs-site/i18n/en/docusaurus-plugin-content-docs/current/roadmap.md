@@ -35,7 +35,7 @@ after thirty seconds, although setting one up can take longer.
 Built in the example of
 [`libp2p-webrtc-qr` v0.2.0](https://github.com/NiKrause/libp2p-webrtc-qr/releases/tag/v0.2.0);
 what it means for this app is in
-[issue #23](https://github.com/Le-Space/yoga-p2p/issues/23).
+[issue #23](https://github.com/Le-Space/yogasuci/issues/23).
 
 ## Backup on decentralised storage
 
@@ -95,5 +95,5 @@ does not have, and they need answering before it is built:
   open, and is not talked around.
 
 The full technical picture is in the
-[repository](https://github.com/Le-Space/yoga-p2p) — including everything too small
+[repository](https://github.com/Le-Space/yogasuci) — including everything too small
 for a chapter of its own here.

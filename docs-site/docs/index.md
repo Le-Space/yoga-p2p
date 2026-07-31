@@ -85,5 +85,5 @@ derselben Minute zu wechseln.
 | Schüler mit einem Telefon      | [Erste Schritte](/student/start)   |
 
 Wer wissen will, was technisch dahintersteckt, findet das im
-[Repository](https://github.com/Le-Space/yoga-p2p) — dieses Handbuch kommt ohne
+[Repository](https://github.com/Le-Space/yogasuci) — dieses Handbuch kommt ohne
 aus.

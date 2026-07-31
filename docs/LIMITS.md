@@ -471,7 +471,8 @@ Issue #13 in diesem Repo.
 
 ### 1.10 Der Produktname ist umbenannt, die Bezeichner sind es nicht
 
-Sichtbar heißt die App **Yogasūcī (योगसूची)**, technisch `yogasuci`. Eine Reihe von
+Sichtbar heißt die App **Yogasūcī (योगसूची)**, technisch `yogasuci`; seit dem
+2026-08-01 heißen auch die Domain und das GitHub-Repository so. Eine Reihe von
 Bezeichnern trägt aber weiterhin `yoga-p2p` bzw. `yoga-`, und das ist **Absicht**,
 kein vergessenes Vorkommen:
 
@@ -481,6 +482,7 @@ kein vergessenes Vorkommen:
 | `yoga-p2p/blocks`, `yoga-p2p/data`                                              | IndexedDB-Stores. Umbenennen heißt: jedes Gerät startet leer.                                                                    |
 | `yoga-p2p.databases`, `.passkeyCredential`, `.iceMode`, `.installHintDismissed` | localStorage-Schlüssel. Umbenennen heißt: gemerkte Adressen weg, Identität scheinbar verloren.                                   |
 | `yoga-p2p/export/1`                                                             | Format-Kennung im Export. Ältere Sicherungen müssen lesbar bleiben.                                                              |
+| `ALEPH_SITE_NAME: yoga-p2p` in `deploy.yml`                                     | Benennt die Site im Aleph-Aggregat. Ein anderer Name ist eine **neue** Site — die bestehende bliebe verwaist zurück.             |
 | `window.__yoga`                                                                 | Diagnose-Oberfläche, an der die gesamte E2E-Suite hängt.                                                                         |
 
 Ein Umbenennen dieser Namen ist **keine Umbenennung, sondern eine Datenmigration**:

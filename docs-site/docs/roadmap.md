@@ -35,7 +35,7 @@ Verbindung gab nach 30 Sekunden auf, obwohl ihr Aufbau länger dauern kann.
 Umgesetzt ist das im Beispiel von
 [`libp2p-webrtc-qr` v0.2.0](https://github.com/NiKrause/libp2p-webrtc-qr/releases/tag/v0.2.0);
 was es für diese App bedeutet, steht in
-[Issue #23](https://github.com/Le-Space/yoga-p2p/issues/23).
+[Issue #23](https://github.com/Le-Space/yogasuci/issues/23).
 
 ## Sicherung auf dezentralem Speicher
 
@@ -96,5 +96,5 @@ nicht hat, und sie sind vor der Umsetzung zu beantworten:
   bedeutet, ist offen und wird nicht schöngeredet.
 
 Der vollständige, technische Stand steht im
-[Projektarchiv](https://github.com/Le-Space/yoga-p2p) — dort auch alles, was hier
+[Projektarchiv](https://github.com/Le-Space/yogasuci) — dort auch alles, was hier
 zu klein für ein eigenes Kapitel ist.

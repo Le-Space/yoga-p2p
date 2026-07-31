@@ -30,7 +30,7 @@ Studios, und keine dieser Adressen wird verteilt. Aber es ist eine Frage der
 Verteilung, nicht eine erzwungene Schranke.
 
 Vollständig aufgeschlüsselt in der
-[Datenschutz-Analyse](https://github.com/Le-Space/yoga-p2p/blob/main/docs/PRIVACY.md).
+[Datenschutz-Analyse](https://github.com/Le-Space/yogasuci/blob/main/docs/PRIVACY.md).
 
 ## Auf dem Gerät ist nichts verschlüsselt
 

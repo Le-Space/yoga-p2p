@@ -102,7 +102,7 @@
 				studio screen somebody was on when they clicked.
 			-->
 			<a
-				href="https://github.com/Le-Space/yoga-p2p"
+				href="https://github.com/Le-Space/yogasuci"
 				target="_blank"
 				rel="noopener noreferrer"
 				data-testid="nav-source"

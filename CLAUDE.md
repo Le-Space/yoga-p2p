@@ -1,4 +1,4 @@
-# CLAUDE.md — yoga-p2p
+# CLAUDE.md — yogasuci
 
 ## Sprache
 

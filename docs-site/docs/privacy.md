@@ -57,6 +57,6 @@ Geräts. Im Studio nutzt den QR-Code — er verlässt den Raum nicht.
 
 Die vollständige Aufstellung — welche Felder personenbezogen sind, was
 Verschlüsselung daran ändern würde und was offen ist — steht in
-[`docs/PRIVACY.md`](https://github.com/Le-Space/yoga-p2p/blob/main/docs/PRIVACY.md).
+[`docs/PRIVACY.md`](https://github.com/Le-Space/yogasuci/blob/main/docs/PRIVACY.md).
 Sie ist als Vorarbeit für ein Verarbeitungsverzeichnis geschrieben und ersetzt
 keine Rechtsberatung.

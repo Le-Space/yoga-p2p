@@ -56,6 +56,6 @@ addresses. In the studio, use the QR code — it does not leave the room.
 
 The complete account — which fields are personal data, what encryption would
 change, and what is still open — is in
-[`docs/PRIVACY.md`](https://github.com/Le-Space/yoga-p2p/blob/main/docs/PRIVACY.md).
+[`docs/PRIVACY.md`](https://github.com/Le-Space/yogasuci/blob/main/docs/PRIVACY.md).
 It is written as groundwork for a record of processing activities and is not legal
 advice.

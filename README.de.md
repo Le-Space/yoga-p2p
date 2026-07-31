@@ -1,4 +1,4 @@
-# yoga-p2p
+# yogasuci
 
 Deutsch · **[English](README.md)**
 
@@ -79,7 +79,7 @@ muss ohne Browser testbar sein.
 
 Die Anwenderdokumentation — für Inhaberinnen, Theke und Schüler, deutsch und
 englisch — liegt in [`docs-site/`](docs-site/), veröffentlicht unter
-[le-space.github.io/yoga-p2p](https://le-space.github.io/yoga-p2p/) und neben der
+[le-space.github.io/yogasuci](https://le-space.github.io/yogasuci/) und neben der
 App unter `/handbuch/`. Sie
 ist bewusst getrennt von `docs/` weiter unten, das die technische Aufzeichnung ist.
 
