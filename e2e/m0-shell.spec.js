@@ -20,6 +20,39 @@ test.describe('app shell', () => {
 		await expect(alice.getByTestId('start-handbook')).toHaveAttribute('href', /handbuch/);
 	});
 
+	test('the app is installable, and the pieces that make it so are served', async ({ alice }) => {
+		// Installability breaks silently: a manifest that 404s or an icon that moved
+		// costs nothing at build time and quietly turns the app back into a web page.
+		// So the files are fetched rather than assumed.
+		await alice.goto('/?ice=host');
+
+		const manifestHref = await alice.getAttribute('link[rel="manifest"]', 'href');
+		expect(manifestHref).toBeTruthy();
+
+		const manifest = await alice.evaluate(async (href) => {
+			const response = await fetch(/** @type {string} */ (href));
+			return response.ok ? await response.json() : null;
+		}, manifestHref);
+
+		expect(manifest).not.toBeNull();
+		expect(manifest.display).toBe('standalone');
+		// Landscape matters here: an iPad at a front desk does not stand upright.
+		expect(manifest.orientation).toBe('any');
+
+		// A maskable icon is what stops Android drawing the logo in a white circle.
+		const purposes = manifest.icons.map((/** @type {any} */ icon) => icon.purpose ?? '');
+		expect(purposes).toContain('maskable');
+
+		// Every icon actually reachable, not merely listed.
+		for (const icon of manifest.icons) {
+			const ok = await alice.evaluate(
+				async (src) => (await fetch(src, { method: 'HEAD' })).ok,
+				new URL(icon.src, new URL(manifestHref ?? '/', alice.url())).pathname
+			);
+			expect(ok, `icon ${icon.src}`).toBe(true);
+		}
+	});
+
 	test('the imprint and privacy statement are reachable without an identity', async ({ alice }) => {
 		// Before any passkey exists, and without ever creating one. A legal notice
 		// behind an identity gate is not a legal notice — and it has to be on every
