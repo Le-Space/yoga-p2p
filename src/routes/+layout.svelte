@@ -48,7 +48,19 @@
 
 <div class="min-h-screen bg-bg text-text">
 	<header class="border-b border-border bg-surface">
-		<div class="mx-auto flex max-w-4xl items-center gap-4 px-4 py-3">
+		<!--
+			`flex-wrap`, and `min-w-0` on the nav below, because without them this header
+			made the whole page wider than the screen: measured at 941 px of document on
+			a 375 px phone, and still overflowing at 768 px. A flex item does not shrink
+			below its content by default, so eight navigation entries simply pushed the
+			document sideways and every screen scrolled horizontally.
+
+			Wrapping rather than a hamburger: the entries are the app, a counter device
+			gains four of them the moment it is approved, and hiding them behind a menu
+			would trade a visible problem for an invisible one. The header grows a row
+			instead of the page growing a scrollbar.
+		-->
+		<div class="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
 			<a
 				href={resolve('/')}
 				class="flex items-center gap-2 font-mono font-bold text-text no-underline"
@@ -58,7 +70,17 @@
 				{m.app_name()}
 			</a>
 
-			<nav class="flex flex-1 gap-1" aria-label={m.nav_program()}>
+			<!--
+				A row of its own below `sm`, sharing the line above it. Wrapping alone was
+				not enough: squeezed in beside the name and the controls the nav collapsed
+				to 46 px, so every entry took its own line and the header grew to 392 px on
+				a phone — taller than half the screen. Given the full width it wraps into
+				two or three sensible rows instead.
+			-->
+			<nav
+				class="flex w-full min-w-0 flex-wrap gap-1 sm:w-auto sm:flex-1"
+				aria-label={m.nav_program()}
+			>
 				{#each visible as item (item.path)}
 					<a
 						href={resolve(item.path)}
