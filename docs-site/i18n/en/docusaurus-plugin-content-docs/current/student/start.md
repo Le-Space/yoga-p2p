@@ -10,7 +10,7 @@ You need no account and no email address.
 ## Open the app
 
 It runs in the browser: through the QR code in the studio, or directly at
-[yoga.le-space.de](https://yoga.le-space.de). On a phone you can add it to the
+[yogasuci.le-space.de](https://yogasuci.le-space.de). On a phone you can add it to the
 home screen, after which it behaves like an app.
 
 ## Create a passkey

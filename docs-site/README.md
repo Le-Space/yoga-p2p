@@ -60,10 +60,10 @@ React 19. Neither mattered; both build fine once the module type is right.
 ## Publishing
 
 Not wired up yet, and it needs a decision rather than a script. The app is a
-single-page app at the root of `yoga.le-space.de` with a catch-all onto
+single-page app at the root of `yogasuci.le-space.de` with a catch-all onto
 `index.html` — a `/handbuch/` path underneath it would be swallowed by that
 catch-all before it ever reached these files.
 
-The clean answer is a subdomain of its own (`handbuch.yoga.le-space.de`) published
+The clean answer is a subdomain of its own (`handbuch.yogasuci.le-space.de`) published
 as a second Aleph site, which needs its own DNS records. Until that exists,
 `pnpm build` and a static host is all this needs.

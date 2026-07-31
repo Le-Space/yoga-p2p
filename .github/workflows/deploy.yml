@@ -10,8 +10,8 @@ on:
     inputs:
       domain:
         description: >-
-          Aleph custom domain to link (e.g. yoga.le-space.de). Leave empty to
-          use the default: a push to main always links yoga.le-space.de, a run
+          Aleph custom domain to link (e.g. yogasuci.le-space.de). Leave empty to
+          use the default: a push to main always links yogasuci.le-space.de, a run
           on any other ref publishes to IPFS without touching the domain.
         required: false
         default: ''
@@ -81,7 +81,7 @@ jobs:
     env:
       # A push to main is a production deploy and must relink the domain, or the
       # site would sit on the previous CID while the run still reports success.
-      DEFAULT_DOMAIN: ${{ github.ref == 'refs/heads/main' && 'yoga.le-space.de' || '' }}
+      DEFAULT_DOMAIN: ${{ github.ref == 'refs/heads/main' && 'yogasuci.le-space.de' || '' }}
     steps:
       - uses: actions/checkout@v4
 

@@ -21,7 +21,7 @@ export default {
 	// therefore the one that works today. Both are set from the environment rather
 	// than hard-coded, because a Docusaurus site with the wrong baseUrl builds
 	// happily and then serves a page whose every asset 404s.
-	url: process.env.DOCS_URL ?? 'https://yoga.le-space.de',
+	url: process.env.DOCS_URL ?? 'https://yogasuci.le-space.de',
 	baseUrl: process.env.DOCS_BASE_URL ?? '/handbuch/',
 
 	organizationName: 'Le-Space',
@@ -74,7 +74,7 @@ export default {
 			links: [
 				{
 					title: 'App',
-					items: [{ label: 'yoga.le-space.de', href: 'https://yoga.le-space.de' }]
+					items: [{ label: 'yogasuci.le-space.de', href: 'https://yogasuci.le-space.de' }]
 				},
 				{
 					title: 'Technik',
