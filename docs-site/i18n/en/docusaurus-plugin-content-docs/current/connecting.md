@@ -28,6 +28,8 @@ studio the QR code is the better way — it does not leave the room.
 
 </div>
 
+![Connecting](/img/screens/en/connect.png)
+
 ## When it does not work
 
 **The QR code will not scan.** Turn the display brightness up, hold it 20–30 cm

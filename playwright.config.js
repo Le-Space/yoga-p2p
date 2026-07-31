@@ -29,6 +29,10 @@ export default defineConfig({
 			// Chromium is the gate: the QR transport is not upstream-tested on
 			// Firefox or WebKit yet (docs/LIMITS.md). Those run nightly, non-blocking.
 			name: 'chromium',
+			// The screenshot run is not a test — it asserts almost nothing and writes
+			// files into the handbook. Excluded here so the gate stays a gate, and run
+			// on its own through `pnpm run screenshots`.
+			testIgnore: /screenshots\.spec\.js/,
 			use: {
 				...devices['Desktop Chrome'],
 				launchOptions: {
@@ -40,6 +44,31 @@ export default defineConfig({
 					]
 				}
 			}
-		}
+		},
+		// Only present when asked for, and that took a failing run to get right:
+		// `testIgnore` above keeps the file out of the *chromium* project, but
+		// `playwright test` with no `--project` runs every project there is — so the
+		// generator joined the gate, competed with it for machines and timed out after
+		// fifteen minutes. Existing conditionally is the only version of "excluded"
+		// that actually excludes.
+		...(process.env.SCREENSHOT_LOCALE
+			? [
+					{
+						// Same browser, same fixtures, different purpose: drive the app through
+						// the states the handbook describes and photograph them. A fixed
+						// viewport so the pictures line up with each other rather than with
+						// whoever ran them.
+						name: 'screenshots',
+						testMatch: /screenshots\.spec\.js/,
+						use: {
+							...devices['Desktop Chrome'],
+							viewport: { width: 1100, height: 800 },
+							launchOptions: {
+								args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream']
+							}
+						}
+					}
+				]
+			: [])
 	]
 });

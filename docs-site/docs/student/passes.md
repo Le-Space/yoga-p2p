@@ -12,6 +12,8 @@ Diese Zeile gehört zum Guthaben dazu. Sie sagt, wann euer Gerät zuletzt etwas
 Neues gesehen hat. Wart ihr seit drei Tagen in keinem Studio, ist die Zahl drei
 Tage alt — und die App behauptet nichts anderes.
 
+![Meine Karten](/img/screens/de/passes.png)
+
 ## Woher die Zahl kommt
 
 Sie ist nicht gespeichert, sondern wird aus den einzelnen Einträgen gerechnet:
@@ -28,6 +30,8 @@ Euer Telefon trägt eure Karte von Standort zu Standort. Wenn ihr in der Altstad
 eincheckt und danach nach West geht, weiß die dortige Theke davon, sobald ihr
 hereinkommt — weil **ihr** es mitgebracht habt, nicht weil irgendwo ein Server
 steht.
+
+![Ein Widerspruch auf einer Karte](/img/screens/de/fork-alarm.png)
 
 ## Sicherung
 

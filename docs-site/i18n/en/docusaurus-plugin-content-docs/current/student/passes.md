@@ -12,6 +12,8 @@ That line is part of the balance. It says when your device last saw anything new
 If you have not been in a studio for three days, the number is three days old —
 and the app claims nothing else.
 
+![Your passes](/img/screens/en/passes.png)
+
 ## Where the number comes from
 
 It is not stored, it is calculated from the individual entries: the purchase, then
@@ -27,6 +29,8 @@ Whoever took the payment keeps the books.
 Your phone carries your pass from location to location. Check in at the old town
 and walk over to West, and that desk knows about it as soon as you come in —
 because **you** brought it, not because there is a server somewhere.
+
+![A contradiction on a pass](/img/screens/en/fork-alarm.png)
 
 ## Backup
 

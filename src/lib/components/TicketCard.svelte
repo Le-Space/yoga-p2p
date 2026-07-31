@@ -7,8 +7,28 @@
 	 * how fresh this view is. "Stand vom …" is not decoration — without a
 	 * server there is no other honest way to say how current a balance is.
 	 */
+	import { localized } from '$lib/db/program.js';
+	import { locationsStore } from '$lib/db/registry.js';
 	import * as m from '$lib/paraglide/messages.js';
 	import { getLocale } from '$lib/paraglide/runtime.js';
+
+	/**
+	 * The counter's name rather than its id, on the one line where somebody has to
+	 * act on what they read.
+	 *
+	 * The fork evidence is forensic — position, date, device, signature — and the
+	 * location was the only part still written as `location:west`. The signature is
+	 * what makes the entry provable; the place is what makes it *understandable*, so
+	 * it gets the words. Falls back to the id, which is also what a device that has
+	 * not replicated the registry can honestly say.
+	 *
+	 * @param {string} locationId
+	 */
+	function locationName(locationId) {
+		if (!locationId) return '—';
+		const location = $locationsStore.find((entry) => entry._id === locationId);
+		return location ? localized(location.name, getLocale()) : locationId;
+	}
 
 	/** @type {{ state: import('$lib/ledger').TicketState, title?: string }} */
 	let { state, title = '' } = $props();
@@ -77,13 +97,20 @@
 		</p>
 	{/if}
 
+	<!--
+		Labels of their own, which they did not have. The status label was
+		`ticket_status_active()` — the same word used as the *value* — so an active
+		pass read "Gültig: Gültig", and the date label was a sentence template called
+		with an empty parameter. Both showed up the moment the card was photographed
+		for the handbook; on screen, in passing, neither looked like anything.
+	-->
 	<dl class="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
 		<div>
-			<dt class="text-faint">{m.ticket_status_active()}</dt>
+			<dt class="text-faint">{m.ticket_label_status()}</dt>
 			<dd data-testid="ticket-status">{STATUS_LABEL[state.status]()}</dd>
 		</div>
 		<div>
-			<dt class="text-faint">{m.ticket_valid_until({ date: '' })}</dt>
+			<dt class="text-faint">{m.ticket_label_valid_until()}</dt>
 			<dd data-testid="ticket-valid-until">{formatDate(state.validUntil)}</dd>
 		</div>
 	</dl>
@@ -114,7 +141,7 @@
 				{#each state.forks as fork (fork.seq)}
 					{#each fork.events as event (event._id)}
 						<li data-testid="fork-proof">
-							#{fork.seq} · {event.date} · {event.redeemedBy.locationId || '—'} · {event.redeemedBy.deviceDid.slice(
+							#{fork.seq} · {event.date} · {locationName(event.redeemedBy.locationId)} · {event.redeemedBy.deviceDid.slice(
 								-12
 							)} · {event.sig.slice(0, 16)}…
 						</li>

@@ -36,11 +36,15 @@ the same time, a pass can be redeemed twice. The app does not prevent that — i
 **shows** it, with both records, as soon as the devices meet again. More under
 [What the app cannot do](/what-it-cannot-do).
 
+![The front page](/img/screens/en/start.png)
+
 ## What you see depends on the device
 
 One app, not two. A studio device additionally shows **Till**, **Check-in**,
 **Registry** and **Reconcile** — a student's device does not, because those
 screens would do nothing there.
+
+![A student device has four entries fewer](/img/screens/en/student-programme.png)
 
 So the screens are separated, not the applications: the owner books classes
 herself, and her own bookings sit beside the incoming ones on one screen. Two
