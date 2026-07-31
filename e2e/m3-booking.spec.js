@@ -136,9 +136,17 @@ test.describe('bookings', () => {
 		await bob.getByTestId('nav-program').click();
 		await expect(bob.locator('[data-course-id="course:vinyasa-mi-18"]')).toBeVisible(REPLICATED);
 
-		// Cutting the network is what a student walking out of the studio does.
-		await bob.context().setOffline(true);
+		// Walking out of the studio, modelled by ending the connection rather than by
+		// `setOffline`. That was what this test used, and it does not do what it looks
+		// like it does: an established WebRTC data channel over loopback survives the
+		// browser's network emulation, so the booking still reached Alice and this
+		// assertion passed on timing alone. Measured while chasing an unrelated fork
+		// test; the same mistake is called out in e2e/m5-report.spec.js.
+		await bob.getByTestId('nav-connect').click();
+		await bob.getByTestId('hang-up').click();
+		await expect(bob.getByTestId('hang-up')).toHaveCount(0);
 
+		await bob.getByTestId('nav-program').click();
 		await bob.locator('[data-course-id="course:vinyasa-mi-18"]').getByTestId('course-book').click();
 		await bob.getByTestId('nav-bookings').click();
 
@@ -153,8 +161,6 @@ test.describe('bookings', () => {
 		// And it is genuinely local — the studio has not seen it.
 		await alice.getByTestId('nav-bookings').click();
 		await expect(alice.getByTestId('incoming-booking')).toHaveCount(0);
-
-		await bob.context().setOffline(false);
 	});
 
 	test('Bob never sees Carol’s booking', async ({ alice, bob, carol }) => {
