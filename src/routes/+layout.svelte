@@ -105,4 +105,16 @@
 	<main class="mx-auto max-w-4xl px-4 py-8">
 		{@render children?.()}
 	</main>
+
+	<!--
+		In the footer rather than the navigation, and outside StudioGate: a legal
+		notice has to be reachable before anybody creates a passkey, and by somebody
+		who never will. It is also required to be reachable from every page, which a
+		footer does and a start-page link does not.
+	-->
+	<footer class="border-t border-border">
+		<div class="mx-auto max-w-4xl px-4 py-6 text-sm text-muted">
+			<a href={resolve('/legal')} data-testid="nav-legal" class="underline">{m.nav_legal()}</a>
+		</div>
+	</footer>
 </div>

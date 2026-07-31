@@ -230,5 +230,9 @@
 	"start_student_action": "Connect to a studio",
 	"start_handbook": "Handbook",
 	"start_handbook_hint": "How this is meant to work, and what it cannot do.",
-	"nav_source": "Source code on GitHub"
+	"nav_source": "Source code on GitHub",
+	"legal_title": "Legal",
+	"legal_imprint": "Imprint",
+	"legal_privacy": "Privacy statement",
+	"nav_legal": "Imprint & privacy"
 }
