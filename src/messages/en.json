@@ -230,5 +230,7 @@
 	"start_student_action": "Connect to a studio",
 	"start_handbook": "Handbook",
 	"start_handbook_hint": "How this is meant to work, and what it cannot do.",
-	"nav_source": "Source code on GitHub"
+	"nav_source": "Source code on GitHub",
+	"ticket_label_status": "Status",
+	"ticket_label_valid_until": "Valid until"
 }

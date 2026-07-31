@@ -293,9 +293,15 @@ test.describe('check-in and the courier roundtrip', () => {
 		// Both locations, without pinning which comes first: the reducer orders a
 		// fork's events by a stable comparison of its own, and a test that fixed that
 		// order would be asserting an implementation detail rather than the evidence.
-		const text = (await proofs.allTextContents()).join(' ');
-		expect(text).toContain('location:altstadt');
-		expect(text).toContain('location:west');
+		// Named places, not keys: the evidence line is what somebody at a counter acts
+		// on. Asserted without naming either one, because the studio has a German and
+		// an English name for the same location and this suite must not assume a
+		// language (docs/TESTING.md). What has to hold is that no raw id leaks through
+		// and that the two halves name *different* counters — which is the whole point
+		// of the evidence.
+		const lines = await proofs.allTextContents();
+		expect(lines.join(' ')).not.toContain('location:');
+		expect(lines[0]).not.toBe(lines[1]);
 
 		// Nine, not eight: a fork costs exactly one unit. An ambiguous log must
 		// never hand out credit, and must never charge twice for one contradiction
