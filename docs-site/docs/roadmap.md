@@ -37,6 +37,36 @@ Umgesetzt ist das im Beispiel von
 was es für diese App bedeutet, steht in
 [Issue #23](https://github.com/Le-Space/yogasuci/issues/23).
 
+## Ein Verbindungs-Check, bevor es klemmt
+
+Wenn eine Verbindung nicht zustande kommt, sieht man heute nur, dass sie nicht
+zustande kommt. Woran es liegt — Browser, Netz, Kamera — muss man raten, und zwar
+an der Theke, mit wartenden Leuten.
+
+Geplant ist eine Übersicht, die das vorher prüft und jede Zeile grün, orange oder
+rot schaltet:
+
+- **Browser** — kann er WebRTC überhaupt? Es gibt Browser, die es nicht können,
+  und dann hilft kein Netz der Welt.
+- **Netz und STUN** — ist ein STUN-Server erreichbar? Er wird gebraucht, sobald
+  zwei Geräte nicht im selben WLAN hängen. Wer die App bewusst mit `?ice=host`
+  ohne STUN betreibt, bekommt hier **orange**, keine Fehlermeldung: Das ist eine
+  Einstellung, keine Störung.
+- **TURN** — nur, wenn es nötig wird. Heute ist keiner eingerichtet, und in
+  manchen Netzen — Firmen-WLAN, mancher Mobilfunk — reicht STUN nicht. Die Zeile
+  soll das benennen statt es zu verschweigen.
+- **Kamera** — freigegeben und liefert sie ein Bild? Ohne Kamera fällt das
+  QR-Scannen aus.
+
+**Das Mikrofon wird bewusst nicht geprüft.** Die App fordert es nie an; ein rotes
+Licht dafür würde vor etwas warnen, das nichts kaputtmachen kann.
+
+Was so ein Check **nicht** kann, und das gehört dazu: Dass ein STUN-Server
+antwortet, heißt nicht, dass sich diese zwei Geräte finden. Die Ampel zeigt, ob die
+Voraussetzungen stimmen — nicht, ob es klappt.
+
+Einzelheiten in [Issue #26](https://github.com/Le-Space/yogasuci/issues/26).
+
 ## Sicherung auf dezentralem Speicher
 
 Heute liegt eure Sicherung dort, wo ihr sie hinlegt: Der **Export** lädt eine Datei
