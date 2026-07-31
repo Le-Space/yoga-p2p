@@ -16,8 +16,13 @@ export default {
 	tagline: 'Kursbuchung ohne Server',
 	favicon: 'img/favicon.svg',
 
-	url: 'https://yoga.le-space.de',
-	baseUrl: '/handbuch/',
+	// Two homes, one build. Alongside the app on Aleph at /handbuch/, and on GitHub
+	// Pages at /yoga-p2p/ — the second exists because Pages does not need DNS and is
+	// therefore the one that works today. Both are set from the environment rather
+	// than hard-coded, because a Docusaurus site with the wrong baseUrl builds
+	// happily and then serves a page whose every asset 404s.
+	url: process.env.DOCS_URL ?? 'https://yoga.le-space.de',
+	baseUrl: process.env.DOCS_BASE_URL ?? '/handbuch/',
 
 	organizationName: 'Le-Space',
 	projectName: 'yoga-p2p',
