@@ -33,6 +33,7 @@ import { get } from 'svelte/store';
 import { OrbitDBAccessController } from '@orbitdb/core';
 
 import { orbitdbStore } from '../p2p/node.js';
+import { deferCanAppend } from './defer-can-append.js';
 import { openDatabases } from './open.js';
 
 /**
@@ -62,13 +63,50 @@ export function studioAccessController(ownerDid) {
 	const factory = OrbitDBAccessController({ write: [ownerDid] });
 
 	/** @param {any} params */
-	const controller = async (params) =>
-		factory({ ...params, address: undefined, name: studioAclName(ownerDid) });
+	const controller = async (params) => {
+		const access = await factory({
+			...params,
+			address: undefined,
+			name: studioAclName(ownerDid)
+		});
+
+		// A refusal waits once for the rules, instead of dropping an entry that was
+		// merely early (docs/LIMITS.md §1.8). Wrapped rather than reimplemented: the
+		// upstream controller keeps deciding *what* is allowed, and this only changes
+		// *when* it is asked. `access.events` are the access-control database's own,
+		// which is exactly the log whose arrival is being waited for.
+		return {
+			...access,
+			canAppend: deferCanAppend({
+				canAppend: (/** @type {any} */ entry) => access.canAppend(entry),
+				events: access.events,
+				peerCount: countAclPeers
+			})
+		};
+	};
 
 	// OrbitDB reads the type off the factory to write it into the manifest.
 	controller.type = OrbitDBAccessController.type;
 
 	return controller;
+}
+
+/**
+ * How many peers could still send this studio's access rules.
+ *
+ * Read off any open ledger, because within a studio they all share one controller
+ * and therefore one set of peers — and a device belongs to one studio at a time, so
+ * there is nothing to disambiguate. Zero means waiting is pointless: nothing is
+ * coming.
+ */
+function countAclPeers() {
+	for (const { key, db } of openDatabases.values()) {
+		if (key === 'tickets' || key.startsWith('tickets:')) {
+			const peers = [...(db.sync?.peers ?? [])];
+			if (peers.length > 0) return peers.length;
+		}
+	}
+	return 0;
 }
 
 /**

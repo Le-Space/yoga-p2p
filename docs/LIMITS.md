@@ -418,7 +418,27 @@ offenen Datenbanken erneut nach Heads (`src/lib/p2p/node.js`, 1,5 s nach
 `connection:open`, damit die Subscriptions ausgetauscht sind). Begrenzt und
 idempotent: eine Runde pro Auslöser, überlappende Auslöser fallen zusammen.
 
-**Umsetzung heute.** `pullHistory` in `src/lib/db/open.js` fragt nach dem Öffnen
+**An der Ursache behandelt, seit Task #17.** `deferCanAppend`
+(`src/lib/db/defer-can-append.js`) umhüllt das `canAppend` des
+Studio-Controllers: Auf eine Ablehnung wartet es **einmal** kurz darauf, dass das
+Access-Control-Log ein Lebenszeichen gibt, und fragt dann dieselbe Frage erneut.
+Idee und Schutzmaßnahmen stammen aus
+`Le-Space/orbitdb-relay-pinner` (`src/access/deferred-orbitdb-access-controller.ts`).
+
+Drei Schranken, jede mit Grund: allein im Netz gibt es nichts zu erwarten; sobald
+das Log einmal gesprochen hat, ist eine Ablehnung eine echte Ablehnung; und die
+Wartezeit ist begrenzt, damit ein stummer Peer nicht den Check-in-Schirm blockiert.
+Ohne diese Schranken würde jeder gefälschte Eintrag — ein Schüler, der in sein
+eigenes Ledger schreibt — die Theke fünf Sekunden anhalten.
+
+Die Entscheidungslogik liegt in einem eigenen Modul und ist ohne OrbitDB
+unit-getestet (`defer-can-append.spec.ts`). Der Test fand dabei einen Fehler im
+ersten Entwurf: Trifft das erwartete Ereignis genau zwischen der ersten Prüfung und
+dem Aufspannen der Wartezeit ein, hätte die Antwort genau in dem Moment verworfen
+werden können, in dem sie ankam. „Bereits gesehen" heißt jetzt _nicht warten_, nicht
+_ablehnen_.
+
+**Umsetzung davor, weiterhin als Absicherung.** `pullHistory` in `src/lib/db/open.js` fragt nach dem Öffnen
 erneut nach, solange das Log leer ist und Sync-Peers vorhanden sind — begrenzt
 auf fünf Versuche im Abstand von 2 s, ausschließlich über die öffentliche API.
 Bewusst konservativ: Es rettet nur die totale Stille und füllt nie ein Log auf,
