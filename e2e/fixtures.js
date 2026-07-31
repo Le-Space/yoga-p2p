@@ -41,7 +41,14 @@ export const test = base.extend({
 
 /** @param {import('@playwright/test').Browser} browser */
 async function newActor(browser) {
-	const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
+	const context = await browser.newContext({
+		permissions: ['clipboard-read', 'clipboard-write'],
+		// Normally unset, so the app follows the runner the way it follows a device.
+		// The screenshot run sets it, because a handbook in two languages needs its
+		// pictures in two languages — and a German page showing an English screen is
+		// the sort of thing a reader trusts less than plain text.
+		...(process.env.SCREENSHOT_LOCALE ? { locale: process.env.SCREENSHOT_LOCALE } : {})
+	});
 	const page = await context.newPage();
 	// Kept on the page so a test can model "same person, new device": the passkey
 	// lives in the authenticator, so carrying it is the only honest way to do that.

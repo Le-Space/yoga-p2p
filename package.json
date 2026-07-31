@@ -20,7 +20,8 @@
 		"test:e2e": "playwright test",
 		"test": "pnpm run test:unit && pnpm run test:e2e",
 		"bench": "vite-node bench/run.js",
-		"build:handbook": "pnpm --dir docs-site install && pnpm --dir docs-site build && rm -rf build/handbuch && cp -r docs-site/build build/handbuch"
+		"build:handbook": "pnpm --dir docs-site install && pnpm --dir docs-site build && rm -rf build/handbuch && cp -r docs-site/build build/handbuch",
+		"screenshots": "SCREENSHOT_LOCALE=de-DE playwright test --project=screenshots && SCREENSHOT_LOCALE=en-GB playwright test --project=screenshots"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.12.1",

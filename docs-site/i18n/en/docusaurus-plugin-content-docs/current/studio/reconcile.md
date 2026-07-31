@@ -32,6 +32,8 @@ and misleading, so they are listed separately.
 
 A transfer to a new identifier counts as a sale but **not** as cash. Nobody paid.
 
+![Cash report](/img/screens/en/report.png)
+
 ## What the report cannot do
 
 It only sees what has arrived on **this** device. For a complete day's total the

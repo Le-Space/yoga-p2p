@@ -234,5 +234,7 @@
 	"legal_title": "Legal",
 	"legal_imprint": "Imprint",
 	"legal_privacy": "Privacy statement",
-	"nav_legal": "Imprint & privacy"
+	"nav_legal": "Imprint & privacy",
+	"ticket_label_status": "Status",
+	"ticket_label_valid_until": "Valid until"
 }

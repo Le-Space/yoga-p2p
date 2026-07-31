@@ -39,11 +39,15 @@ verhindert das nicht — sie **zeigt** es, sobald die Geräte sich wieder begegn
 mit beiden Belegen. Mehr dazu unter [Was die App nicht
 kann](/what-it-cannot-do).
 
+![Die Startseite](/img/screens/de/start.png)
+
 ## Was ihr seht, hängt vom Gerät ab
 
 Es ist eine App, keine zwei. Ein Studio-Gerät zeigt zusätzlich **Kasse**,
 **Check-in**, **Studio** und **Abgleich** — ein Schülergerät nicht, weil diese
 Schirme dort nichts täten.
+
+![Ein Schülergerät sieht vier Punkte weniger](/img/screens/de/student-programme.png)
 
 Getrennt sind also die Schirme, nicht die Apps: Die Inhaberin bucht selbst
 Stunden, und ihre eigenen Buchungen stehen neben den eingehenden auf einem

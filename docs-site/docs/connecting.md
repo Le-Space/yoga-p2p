@@ -30,6 +30,8 @@ Raum nicht.
 
 </div>
 
+![Verbinden](/img/screens/de/connect.png)
+
 ## Wenn es nicht klappt
 
 **Der QR-Code lässt sich nicht scannen.** Displayhelligkeit hochdrehen, Abstand

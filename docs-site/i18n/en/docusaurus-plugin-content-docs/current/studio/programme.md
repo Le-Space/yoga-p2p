@@ -22,6 +22,8 @@ from the one you sold.
 Please keep teachers' names **out of course titles**. Titles are distributed to
 every device, including students'.
 
+![Courses and passes](/img/screens/en/programme.png)
+
 ## Passes
 
 | Kind           | Meaning                                 |

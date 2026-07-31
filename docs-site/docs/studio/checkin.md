@@ -16,6 +16,8 @@ Neues gesehen hat**. Diese zweite Angabe ist wichtig: Sie sagt nicht „der Stan
 ist aktuell", sondern „mehr weiß ich nicht". Ohne Server kann kein Gerät das
 Erste behaupten.
 
+![Check-in](/img/screens/de/checkin.png)
+
 ## Warum die Reihenfolge zählt
 
 Sobald das Telefon des Schülers verbunden ist, bringt es alles mit, was seit dem
@@ -38,6 +40,8 @@ sprechen.
 Wenn zwei Theken ohne Verbindung dieselbe Stunde entwerten, zeigt die App auf der
 Kartenansicht einen **Widerspruch** — mit beiden Einträgen, jeweils mit Datum,
 Standort, Gerät und Unterschrift.
+
+![Ein Widerspruch, wie ihn der Schüler sieht](/img/screens/de/fork-alarm.png)
 
 Das ist kein Fehler der App, sondern ihr Zweck. Verhindern lässt sich so etwas
 ohne Server nicht; **sichtbar machen** schon. Das Guthaben wird dabei genau einmal

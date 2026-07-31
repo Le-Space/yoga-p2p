@@ -23,6 +23,8 @@ eine andere Reihe als die verkaufte.
 Kurstitel bitte **ohne Namen von Lehrerinnen**. Der Titel wird an alle Geräte
 verteilt, auch an die der Schüler.
 
+![Kurse und Karten](/img/screens/de/programme.png)
+
 ## Karten
 
 | Art             | Bedeutung                                    |

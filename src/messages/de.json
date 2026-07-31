@@ -234,5 +234,7 @@
 	"legal_title": "Rechtliches",
 	"legal_imprint": "Impressum",
 	"legal_privacy": "Datenschutzerklärung",
-	"nav_legal": "Impressum & Datenschutz"
+	"nav_legal": "Impressum & Datenschutz",
+	"ticket_label_status": "Status",
+	"ticket_label_valid_until": "Gültig bis"
 }
