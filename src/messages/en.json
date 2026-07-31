@@ -236,5 +236,10 @@
 	"legal_privacy": "Privacy statement",
 	"nav_legal": "Imprint & privacy",
 	"ticket_label_status": "Status",
-	"ticket_label_valid_until": "Valid until"
+	"ticket_label_valid_until": "Valid until",
+	"install_title": "Add to the home screen",
+	"install_body": "Installed, the app opens without browser chrome and works without the internet — on a front-desk tablet that is the difference between an app and a web page.",
+	"install_action": "Install",
+	"install_ios": "In Safari: tap the Share icon, then “Add to Home Screen”.",
+	"install_dismiss": "Not now"
 }

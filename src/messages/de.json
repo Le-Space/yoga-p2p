@@ -236,5 +236,10 @@
 	"legal_privacy": "Datenschutzerklärung",
 	"nav_legal": "Impressum & Datenschutz",
 	"ticket_label_status": "Status",
-	"ticket_label_valid_until": "Gültig bis"
+	"ticket_label_valid_until": "Gültig bis",
+	"install_title": "Auf den Startbildschirm legen",
+	"install_body": "Installiert öffnet sich die App ohne Browserleiste und funktioniert auch ohne Internet — auf einem Theken-Tablet ist das der Unterschied zwischen einer App und einer Webseite.",
+	"install_action": "Installieren",
+	"install_ios": "In Safari: Teilen-Symbol antippen, dann „Zum Home-Bildschirm\".",
+	"install_dismiss": "Nicht jetzt"
 }

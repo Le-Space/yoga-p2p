@@ -14,6 +14,7 @@
 	 * of being left to be discovered.
 	 */
 	import { base, resolve } from '$app/paths';
+	import InstallHint from '$lib/components/InstallHint.svelte';
 	import * as m from '$lib/paraglide/messages.js';
 
 	const PATHS = /** @type {const} */ ([
@@ -53,6 +54,8 @@
 		</section>
 	{/each}
 </div>
+
+<InstallHint />
 
 <!--
 	Not a footnote. Without a server there is nobody to ring when something is

@@ -5,18 +5,45 @@
 	"start_url": "./",
 	"scope": "./",
 	"display": "standalone",
-	"orientation": "portrait",
+	"orientation": "any",
 	"background_color": "#0B0E15",
 	"theme_color": "#0B0E15",
 	"icons": [
-		{ "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-		{ "src": "./android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
-		{ "src": "./android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" },
+		{
+			"src": "./favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "./android-chrome-192x192.png",
+			"sizes": "192x192",
+			"type": "image/png"
+		},
+		{
+			"src": "./android-chrome-512x512.png",
+			"sizes": "512x512",
+			"type": "image/png"
+		},
 		{
 			"src": "./maskable-512x512.png",
 			"sizes": "512x512",
 			"type": "image/png",
 			"purpose": "maskable"
+		}
+	],
+	"screenshots": [
+		{
+			"src": "./screens/start.png",
+			"sizes": "1100x800",
+			"type": "image/png",
+			"form_factor": "wide"
+		},
+		{
+			"src": "./screens/passes.png",
+			"sizes": "1100x800",
+			"type": "image/png",
+			"form_factor": "wide"
 		}
 	]
 }
