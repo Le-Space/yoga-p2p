@@ -23,6 +23,7 @@ export default {
 		},
 		'connecting',
 		'what-it-cannot-do',
-		'privacy'
+		'privacy',
+		'roadmap'
 	]
 };
