@@ -14,6 +14,8 @@ they are not in the list.
 
 That is all. There is no second step and no confirmation from anywhere.
 
+![The till](/img/screens/en/till.png)
+
 ## What happens
 
 The sale is written into the student's pass account as an entry, **signed by this

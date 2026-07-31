@@ -18,6 +18,8 @@ Ihr gebt eine Kennung und einen Anzeigenamen an. **Nehmt nicht eure private
 E-Mail-Adresse**, wenn es nicht sein muss. „rezeption-altstadt" reicht völlig und
 verrät weniger.
 
+![Passkey anlegen](/img/screens/de/onboarding.png)
+
 ## 2. Studio benennen
 
 Der Name des Studios, so wie er euren Schülern angezeigt wird.
@@ -31,6 +33,8 @@ Schirmen.
 Standorte werden nie gelöscht, nur deaktiviert. Ein Standort, der einmal auf
 einem Ticket steht, muss lesbar bleiben — sonst lässt sich eine alte Entwertung
 nicht mehr zuordnen.
+
+![Studio und Standorte](/img/screens/de/studio.png)
 
 ## 4. Zweitgerät verbinden — nicht überspringen
 

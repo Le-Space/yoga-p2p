@@ -17,6 +17,8 @@ fingerprint, face or PIN.
 You give an identifier and a display name. **Do not use your private email
 address** unless you have to. "frontdesk-oldtown" is plenty and gives away less.
 
+![Creating a passkey](/img/screens/en/onboarding.png)
+
 ## 2. Name the studio
 
 The name your students will see.
@@ -28,6 +30,8 @@ The id shows up in reports, the name on screen.
 
 Locations are never deleted, only deactivated. A location that once appeared on a
 ticket has to stay readable, or an old redemption can no longer be placed.
+
+![Studio and locations](/img/screens/en/studio.png)
 
 ## 4. Connect a second device — do not skip this
 

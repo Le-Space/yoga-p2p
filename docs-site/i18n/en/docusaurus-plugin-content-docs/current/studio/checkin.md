@@ -15,6 +15,8 @@ The app shows the balance and, next to it, **when this device last saw anything
 new**. That second line matters: it does not say "this is up to date", it says
 "this is all I know". With no server, no device can honestly claim the first.
 
+![Check-in](/img/screens/en/checkin.png)
+
 ## Why the order matters
 
 As soon as the student's phone is connected it brings along everything that has
@@ -37,6 +39,8 @@ talking to each other.
 When two counters redeem the same class without a connection, the app shows a
 **contradiction** on the pass — with both entries, each with date, location,
 device and signature.
+
+![A contradiction as the student sees it](/img/screens/en/fork-alarm.png)
 
 That is not a failure of the app, it is its purpose. Preventing it without a
 server is not possible; **showing** it is. The balance is charged exactly once,

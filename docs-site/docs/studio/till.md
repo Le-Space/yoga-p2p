@@ -14,6 +14,8 @@ sonst steht er nicht in der Liste.
 
 Das war es. Es gibt keinen zweiten Schritt und keine Bestätigung von irgendwo.
 
+![Die Kasse](/img/screens/de/till.png)
+
 ## Was dabei passiert
 
 Der Verkauf wird als Eintrag in das Kartenkonto des Schülers geschrieben,

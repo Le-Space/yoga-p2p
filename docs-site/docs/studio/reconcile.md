@@ -34,6 +34,8 @@ gewesen, deshalb stehen sie hier getrennt.
 Eine Übertragung auf eine neue Kennung zählt als Verkauf, aber **nicht** als
 Bareinnahme. Es hat ja niemand gezahlt.
 
+![Kassenbericht](/img/screens/de/report.png)
+
 ## Was der Bericht nicht kann
 
 Er sieht nur, was auf **diesem** Gerät angekommen ist. Für einen vollständigen
