@@ -162,3 +162,79 @@ test.describe('share flow', () => {
 		expect(decodeURIComponent(new URL(clipboard).hash.slice('#i='.length))).toBe(payload);
 	});
 });
+
+test.describe('a reply that arrives in a new tab', () => {
+	test('hands the reply to the tab that made the invitation, and says so', async ({
+		alice,
+		bob
+	}) => {
+		// The messenger scenario, end to end. Alice invites, Bob answers, Alice
+		// taps the reply link in a chat — which opens a *new* tab. That tab holds
+		// no offer, so without a handoff it fails and Alice's first tab waits for
+		// an answer that already arrived.
+		test.setTimeout(240_000);
+
+		await openConnect(alice, 'alice');
+		const invite = /** @type {string} */ (
+			await alice.getByTestId('qr-image').getAttribute('data-link')
+		);
+
+		await openConnect(bob, 'bob');
+		await bob.goto(invite);
+		await expect(bob.getByTestId('connection-status')).toHaveAttribute('data-step', 'replying', {
+			timeout: 90_000
+		});
+
+		const reply = /** @type {string} */ (
+			await bob.getByTestId('qr-image').getAttribute('data-link')
+		);
+
+		// The tap in the messenger: a second tab in Alice's browser, same context,
+		// so it shares the origin and the BroadcastChannel with the first.
+		const secondTab = await alice.context().newPage();
+		await secondTab.goto(reply);
+
+		await expect(secondTab.getByTestId('handed-over')).toBeVisible({ timeout: 90_000 });
+
+		// The point of the whole exercise: the tab that owned the offer connected.
+		await expect(alice.getByTestId('connection-status')).toHaveAttribute('data-step', 'connected', {
+			timeout: 90_000
+		});
+
+		await secondTab.close();
+	});
+
+	test('explains an orphaned reply instead of quoting the internals', async ({ alice, bob }) => {
+		// Same link, but no tab anywhere owns that invitation — Alice reopened the
+		// app, or tapped a reply meant for another device. The message has to tell
+		// her what to do, not report a session id mismatch.
+		test.setTimeout(240_000);
+
+		await openConnect(alice, 'alice');
+		const invite = /** @type {string} */ (
+			await alice.getByTestId('qr-image').getAttribute('data-link')
+		);
+
+		await openConnect(bob, 'bob');
+		await bob.goto(invite);
+		await expect(bob.getByTestId('connection-status')).toHaveAttribute('data-step', 'replying', {
+			timeout: 90_000
+		});
+		const reply = /** @type {string} */ (
+			await bob.getByTestId('qr-image').getAttribute('data-link')
+		);
+
+		// A second tab in Bob's browser: it shares the channel with Bob's tab, but
+		// no tab here owns the invitation this reply answers — Bob made the reply,
+		// he did not make the offer.
+		const stranger = await bob.context().newPage();
+		await stranger.goto(reply);
+
+		await expect(stranger.getByTestId('connection-status')).toHaveAttribute('data-step', 'failed', {
+			timeout: 90_000
+		});
+		await expect(stranger.getByTestId('connection-status')).toContainText(/Einladung|invitation/i);
+
+		await stranger.close();
+	});
+});

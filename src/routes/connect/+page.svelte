@@ -28,6 +28,7 @@
 	import { connectedPeersStore, hangUp, peerIdStore, signallingStore } from '$lib/p2p/node.js';
 	import { fitsInQrCode, renderQrCode, scanWithCamera, sharePayload } from '$lib/p2p/qr.js';
 	import { buildLink, readLink } from '$lib/p2p/invite.js';
+	import { createHandoff } from '$lib/p2p/handoff.js';
 	import { introduceToPeer, joinStore, joinStudioFromPeer } from '$lib/db/join.js';
 	import { studioStore } from '$lib/db/registry.js';
 	import * as m from '$lib/paraglide/messages.js';
@@ -42,7 +43,10 @@
 	 */
 	const INVITE_FRESH_MS = 4 * 60 * 1000;
 
-	/** @type {'preparing' | 'inviting' | 'replying' | 'connecting' | 'connected' | 'failed'} */
+	/**
+	 * @type {'preparing' | 'inviting' | 'replying' | 'connecting' | 'connected'
+	 *   | 'handed-over' | 'failed'}
+	 */
 	let step = $state('preparing');
 	let payload = $state('');
 	/** What the QR encodes and the share sheet sends — the payload wrapped in a URL. */
@@ -64,8 +68,28 @@
 	/** @type {ReturnType<typeof setInterval> | null} */
 	let refreshTimer = null;
 	let unsubscribeSignalling = () => {};
+	/** @type {ReturnType<typeof createHandoff> | null} */
+	let handoff = null;
 
 	onMount(() => {
+		// A reply that arrives through a messenger opens a new tab, and the offer
+		// it answers lives in this one. Take it if it is ours.
+		handoff = createHandoff();
+		handoff.onReply(async (text) => {
+			if (step !== 'inviting') return false;
+			try {
+				const remotePeerId = await $signallingStore.acceptAnswer(text);
+				await makeInvitation({ announce: false });
+				step = 'connected';
+				await greetAndMaybeJoin(remotePeerId);
+				return true;
+			} catch {
+				// Not our offer. Staying silent is the point: claiming it would tell
+				// the other tab to close over a handshake nobody completed.
+				return false;
+			}
+		});
+
 		// The node is started by StudioGate and arrives asynchronously, so wait for
 		// it rather than racing it. Once it is here, either answer the invitation
 		// that brought us to this URL, or put our own on screen.
@@ -86,6 +110,7 @@
 	onDestroy(() => {
 		scanAbort?.abort();
 		unsubscribeSignalling();
+		handoff?.close();
 		if (refreshTimer) clearInterval(refreshTimer);
 	});
 
@@ -99,6 +124,16 @@
 			// in the browser history.
 			history.replaceState(null, '', location.pathname + location.search);
 			fromLink = true;
+
+			// A reply answers an offer, and an offer is an RTCPeerConnection living
+			// in the tab that made it. Clicking a link in a messenger opens a *new*
+			// tab, so the tab that can finish this is usually another one — offer it
+			// there first, and only handle it here if nobody takes it.
+			if (incoming.kind === 'reply' && (await handoff?.offerReply(incoming.payload))) {
+				step = 'handed-over';
+				return;
+			}
+
 			await handleInbound(incoming.payload);
 			return;
 		}
@@ -226,7 +261,13 @@
 			step = 'connected';
 			await greetAndMaybeJoin(remotePeerId);
 		} catch (/** @type {any} */ error) {
-			failure = error?.message ?? String(error);
+			// The one failure a person can actually act on: a reply whose invitation
+			// was made somewhere else. Say what to do instead of quoting the
+			// internals at them.
+			failure =
+				fromLink && /different connection attempt/i.test(error?.message ?? '')
+					? m.connect_reply_orphan()
+					: (error?.message ?? String(error));
 			step = 'failed';
 		}
 	}
@@ -299,6 +340,8 @@
 			<span class="text-danger">{m.connect_status_failed({ reason: failure })}</span>
 		{:else if step === 'connecting'}
 			<span class="text-muted">{m.connect_status_connecting()}</span>
+		{:else if step === 'handed-over'}
+			<span class="text-success">{m.connect_handed_over_title()}</span>
 		{:else if fromLink && step === 'preparing'}
 			<span class="text-muted">{m.connect_from_link()}</span>
 		{:else if step === 'preparing'}
@@ -320,7 +363,17 @@
 		</p>
 	{/if}
 
-	{#if payload}
+	{#if step === 'handed-over'}
+		<section
+			class="mt-6 max-w-md rounded-card border border-border bg-surface p-6"
+			data-testid="handed-over"
+		>
+			<h2 class="text-lg font-medium">{m.connect_handed_over_title()}</h2>
+			<p class="mt-1 text-sm text-muted">{m.connect_handed_over_hint()}</p>
+		</section>
+	{/if}
+
+	{#if payload && step !== 'handed-over'}
 		<section class="mt-6 max-w-md rounded-card border border-border bg-surface p-6">
 			<div class="flex flex-wrap items-start justify-between gap-3">
 				<div class="min-w-0">
