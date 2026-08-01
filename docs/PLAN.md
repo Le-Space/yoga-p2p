@@ -1,6 +1,6 @@
-# Yoga-Buchung — Local-First P2P PWA (Plan v2)
+# Yoga-Buchung — P2P-PWA (Plan v2)
 
-Relay-freie, local-first Peer-to-Peer-PWA für Yogastudios mit **mehreren Locations**.
+Relay-freie Peer-to-Peer-PWA für Yogastudios mit **mehreren Locations**.
 Signalisierung ausschließlich über `@le-space/libp2p-webrtc-qr` (QR-Scan) mit
 Copy-&-Paste-Fallback. Kein Relay, kein Signaling-Server, kein Backend.
 Zahlungsmittel v1: **nur Barzahlung**. Zweisprachig **DE/EN**. Dark & Bright Mode

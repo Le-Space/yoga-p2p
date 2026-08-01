@@ -2,7 +2,7 @@
 
 Deutsch · **[English](README.md)**
 
-Local-first Kursbuchung für Yogastudios mit mehreren Standorten. Programm,
+Peer-to-Peer-Kursbuchung für Yogastudios mit mehreren Standorten. Programm,
 Karten und Check-in laufen direkt zwischen den Geräten — **kein Server, kein
 Relay, kein Konto**.
 
