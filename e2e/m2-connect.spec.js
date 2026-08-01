@@ -7,6 +7,7 @@ import {
 	expect,
 	connectViaCamera,
 	connectViaPaste,
+	openAdvanced,
 	openConnect,
 	readPayload
 } from './fixtures.js';
@@ -37,28 +38,64 @@ test.describe('QR handshake', () => {
 		}
 	});
 
-	test('renders the offer as a scannable QR code', async ({ alice }) => {
+	test('shows an invitation on its own, without being asked', async ({ alice }) => {
+		// The whole point of the screen: no button was pressed here.
 		await openConnect(alice, 'alice');
-		await alice.getByTestId('create-offer').click();
 
-		const payload = await readPayload(alice);
+		await expect(alice.getByTestId('qr-image')).toBeVisible();
+	});
 
-		// Either a code was rendered, or the app said plainly that the payload is
-		// too large for one — never a silently unscannable image.
-		const hasImage = await alice.getByTestId('qr-image').isVisible();
-		if (hasImage) {
-			const src = await alice.getByTestId('qr-image').getAttribute('src');
-			expect(src).toMatch(/^data:image\/png;base64,/);
+	test('renders the offer as a scannable QR code carrying the invite link', async ({ alice }) => {
+		await openConnect(alice, 'alice');
+
+		const image = alice.getByTestId('qr-image');
+
+		// Either a code was rendered, or the app said plainly that it is too large
+		// for one — never a silently unscannable image.
+		if (await image.isVisible()) {
+			expect(await image.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
+
+			// What the code encodes has to be the link, not the bare payload: a
+			// camera that reads this must land on the app, not on a string.
+			const link = /** @type {string} */ (await image.getAttribute('data-link'));
+			const url = new URL(link);
+			expect(url.pathname.endsWith('/connect')).toBe(true);
+			expect(url.hash.startsWith('#i=')).toBe(true);
+
+			// The budget applies to the link, since the link is what is encoded.
+			expect(link.length).toBeLessThanOrEqual(2200);
 		} else {
 			await expect(alice.getByTestId('qr-too-large')).toBeVisible();
-			expect(payload.length).toBeGreaterThan(2200);
+			expect((await readPayload(alice)).length).toBeGreaterThan(2000);
 		}
+	});
+
+	test('answers an invitation carried in the address, with nothing to press', async ({
+		alice,
+		bob
+	}) => {
+		// The receiving half of the link flow, and the reason it is worth building:
+		// bob opens a URL and produces a reply without touching a control.
+		await openConnect(alice, 'alice');
+		const link = /** @type {string} */ (
+			await alice.getByTestId('qr-image').getAttribute('data-link')
+		);
+
+		await openConnect(bob, 'bob');
+		await bob.goto(link);
+
+		await expect(bob.getByTestId('connection-status')).toHaveAttribute('data-step', 'replying', {
+			timeout: 90_000
+		});
+
+		// And the handshake must not be left lying in the address bar afterwards.
+		expect(await bob.evaluate(() => location.hash)).toBe('');
 	});
 
 	test('refuses an offer created by the same device', async ({ alice }) => {
 		await openConnect(alice, 'alice');
-		await alice.getByTestId('create-offer').click();
 
+		await openAdvanced(alice);
 		const ownOffer = await readPayload(alice);
 		await alice.getByTestId('inbound-payload').fill(ownOffer);
 		await alice.getByTestId('submit-inbound').click();
@@ -70,7 +107,8 @@ test.describe('QR handshake', () => {
 		await openConnect(alice, 'alice');
 		await openConnect(bob, 'bob');
 
-		await alice.getByTestId('create-offer').click();
+		await openAdvanced(alice);
+		await openAdvanced(bob);
 		const offer = await readPayload(alice);
 
 		// Flip a character in the middle: the signature covers the payload, so a
@@ -98,23 +136,29 @@ test.describe('share flow', () => {
 		});
 
 		await openConnect(alice, 'alice');
-		await alice.getByTestId('create-offer').click();
+		await openAdvanced(alice);
 		const payload = await readPayload(alice);
 
 		await alice.getByTestId('share-payload').click();
 
+		// The share sheet gets the link, not the raw payload — that is the whole
+		// upgrade. The payload still has to be inside it, or the link is useless.
 		const shared = await alice.evaluate(() => /** @type {any} */ (window).__shared);
-		expect(shared.text).toBe(payload);
+		expect(shared.text).toMatch(/^https?:\/\/.+#i=/);
+		expect(decodeURIComponent(new URL(shared.text).hash.slice('#i='.length))).toBe(payload);
 	});
 
 	test('falls back to the clipboard where there is no share sheet', async ({ alice }) => {
 		await openConnect(alice, 'alice');
-		await alice.getByTestId('create-offer').click();
+		await openAdvanced(alice);
 		const payload = await readPayload(alice);
 
 		await alice.getByTestId('share-payload').click();
 
+		// The clipboard gets the same link the share sheet would have sent, so a
+		// device without one loses the convenience and nothing else.
 		const clipboard = await alice.evaluate(() => navigator.clipboard.readText());
-		expect(clipboard).toBe(payload);
+		expect(clipboard).toMatch(/^https?:\/\/.+#i=/);
+		expect(decodeURIComponent(new URL(clipboard).hash.slice('#i='.length))).toBe(payload);
 	});
 });

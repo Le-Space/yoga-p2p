@@ -2,29 +2,58 @@
 	/**
 	 * Connection assistant — the only way two devices ever meet.
 	 *
-	 * Three carriers for the same signed payload: QR (the studio path), copy &
-	 * paste (the universal fallback) and share (messengers, for remote setup).
-	 * The wizard is deliberately explicit about which step the user is on,
-	 * because a failed handshake has no server-side retry to fall back on and a
-	 * vague error would leave people stuck.
+	 * The invitation is already there when the screen opens. That is the whole
+	 * design: at a counter with somebody waiting, every tap is friction, and
+	 * "create an invitation" is a step that means nothing to the person doing it.
+	 * They do not want to create anything, they want to connect.
+	 *
+	 * One payload, three carriers, in the order they are actually reached for:
+	 *
+	 *   1. QR      — the other device is here. Hold it up, done.
+	 *   2. Link    — the other device is elsewhere. Share sheet, messenger.
+	 *   3. Paste   — no camera, no share sheet. Hidden under "advanced".
+	 *
+	 * The link and the QR are the *same invitation*, not two options: the QR
+	 * encodes the link. Presenting them as a choice was the thing to avoid.
+	 *
+	 * What a link cannot remove is the second leg. WebRTC needs an answer, so the
+	 * device that opens an invitation produces a reply that has to travel back —
+	 * and this screen then shows that reply exactly the way it showed the
+	 * invitation. Nobody has to know which string is which; opening a link is the
+	 * entire interaction on the receiving side.
 	 */
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import StudioGate from '$lib/components/StudioGate.svelte';
 	import { connectedPeersStore, hangUp, peerIdStore, signallingStore } from '$lib/p2p/node.js';
 	import { fitsInQrCode, renderQrCode, scanWithCamera, sharePayload } from '$lib/p2p/qr.js';
+	import { buildLink, readLink } from '$lib/p2p/invite.js';
 	import { introduceToPeer, joinStore, joinStudioFromPeer } from '$lib/db/join.js';
 	import { studioStore } from '$lib/db/registry.js';
 	import * as m from '$lib/paraglide/messages.js';
 
-	/** @type {'idle' | 'offering' | 'answering' | 'connecting' | 'connected' | 'failed'} */
-	let step = $state('idle');
+	/**
+	 * An offer carries ICE candidates, and those go stale — a network changes, a
+	 * laptop moves between access points. A QR that is instantly visible but dead
+	 * is worse than a button, so the invitation renews itself.
+	 *
+	 * Generous on purpose: every renewal invalidates the link already shared, so
+	 * refreshing eagerly would break the very hand-off it is meant to protect.
+	 */
+	const INVITE_FRESH_MS = 4 * 60 * 1000;
+
+	/** @type {'preparing' | 'inviting' | 'replying' | 'connecting' | 'connected' | 'failed'} */
+	let step = $state('preparing');
 	let payload = $state('');
+	/** What the QR encodes and the share sheet sends — the payload wrapped in a URL. */
+	let link = $state('');
 	let qrDataUrl = $state('');
 	let qrError = $state('');
 	let inbound = $state('');
 	let failure = $state('');
 	let copied = $state(false);
 	let scanning = $state(false);
+	let fromLink = $state(false);
 
 	/** @type {HTMLVideoElement | undefined} */
 	let video = $state();
@@ -32,14 +61,50 @@
 	let canvas = $state();
 	/** @type {AbortController | null} */
 	let scanAbort = null;
+	/** @type {ReturnType<typeof setInterval> | null} */
+	let refreshTimer = null;
+	let unsubscribeSignalling = () => {};
 
-	// The node belongs to the session, not to this page. Starting and stopping it
-	// here was the bug behind "the registry is not open": leaving the page tore
-	// down the databases the studio screens were still holding. StudioGate owns
-	// the lifecycle now; this page only cancels its own scanner.
+	onMount(() => {
+		// The node is started by StudioGate and arrives asynchronously, so wait for
+		// it rather than racing it. Once it is here, either answer the invitation
+		// that brought us to this URL, or put our own on screen.
+		unsubscribeSignalling = signallingStore.subscribe((signalling) => {
+			if (!signalling || step !== 'preparing') return;
+			void begin();
+		});
+
+		// Only while somebody is looking. A screen left open in a drawer has no
+		// reason to keep building peer connections.
+		refreshTimer = setInterval(() => {
+			if (document.visibilityState !== 'visible') return;
+			if (step !== 'inviting') return;
+			void refreshInvite();
+		}, INVITE_FRESH_MS);
+	});
+
 	onDestroy(() => {
 		scanAbort?.abort();
+		unsubscribeSignalling();
+		if (refreshTimer) clearInterval(refreshTimer);
 	});
+
+	/** Answer an invitation we were opened with, or offer one of our own. */
+	async function begin() {
+		const incoming = readLink(location.hash);
+
+		if (incoming) {
+			// Take it out of the address bar immediately: a reload must not replay a
+			// handshake, and a payload has no business sitting in a shared screen or
+			// in the browser history.
+			history.replaceState(null, '', location.pathname + location.search);
+			fromLink = true;
+			await handleInbound(incoming.payload);
+			return;
+		}
+
+		await refreshInvite();
+	}
 
 	/**
 	 * Ask the other device which studio it belongs to, and open it here.
@@ -67,38 +132,47 @@
 		}
 	}
 
-	async function showPayload(/** @type {string} */ text) {
+	/**
+	 * Put a payload on screen as a link, a QR code and copyable text.
+	 *
+	 * @param {string} text
+	 * @param {'invite' | 'reply'} kind
+	 */
+	async function showPayload(text, kind) {
 		payload = text;
+		link = buildLink({ payload: text, kind, origin: location.origin, base });
 		qrError = '';
 		qrDataUrl = '';
 
-		if (!fitsInQrCode(text)) {
-			// Do not render a code no camera can resolve — say so and let the user
-			// take the paste path instead.
-			qrError = m.connect_paste();
+		// The QR carries the link, so the link is what has to fit — checking the
+		// bare payload would pass and then produce a code no camera can read.
+		if (!fitsInQrCode(link)) {
+			qrError = m.connect_advanced_hint();
 			return;
 		}
 
 		try {
-			qrDataUrl = await renderQrCode(text);
+			qrDataUrl = await renderQrCode(link);
 		} catch (/** @type {any} */ error) {
 			qrError = error?.message ?? String(error);
 		}
 	}
 
-	async function createOffer() {
+	async function refreshInvite() {
 		failure = '';
 		try {
-			const offer = await $signallingStore.createOffer();
-			await showPayload(offer);
-			step = 'offering';
+			// Close the previous unanswered offer first, or every renewal would
+			// strand a peer connection for the lifetime of the page.
+			$signallingStore.discardUnusedOffers();
+			await showPayload(await $signallingStore.createOffer(), 'invite');
+			step = 'inviting';
 		} catch (/** @type {any} */ error) {
 			failure = error?.message ?? String(error);
 			step = 'failed';
 		}
 	}
 
-	/** Handle a payload that arrived by scan, paste or share — same code path. */
+	/** Handle a payload that arrived by link, scan or paste — same code path. */
 	async function handleInbound(/** @type {string} */ text) {
 		const trimmed = text.trim();
 		if (!trimmed) return;
@@ -108,9 +182,11 @@
 			const kind = await $signallingStore.classify(trimmed);
 
 			if (kind === 'offer') {
-				step = 'answering';
 				const { answer, remotePeerId, connected } = await $signallingStore.acceptOffer(trimmed);
-				await showPayload(answer);
+				// Show the reply straight away: it is what the other device is
+				// waiting for, and it is ready long before the link comes up.
+				await showPayload(answer, 'reply');
+				step = 'replying';
 				connected
 					.then(async () => {
 						step = 'connected';
@@ -142,7 +218,10 @@
 
 		try {
 			const text = await scanWithCamera({ video, canvas, signal: scanAbort.signal });
-			await handleInbound(text);
+			// A scanned code now holds a link, but a code from an older version
+			// holds the bare payload — accept both rather than reject a device
+			// that has not updated yet.
+			await handleInbound(readLink(new URL(text, location.origin).hash)?.payload ?? text);
 		} catch (/** @type {any} */ error) {
 			if (error?.name !== 'AbortError') {
 				failure = error?.message ?? String(error);
@@ -162,7 +241,7 @@
 
 	async function share() {
 		try {
-			await sharePayload({ title: m.connect_title(), text: payload });
+			await sharePayload({ title: m.connect_title(), text: link });
 		} catch (/** @type {any} */ error) {
 			if (error?.name !== 'AbortError') failure = error?.message ?? String(error);
 		}
@@ -178,38 +257,32 @@
 	something to.
 -->
 <StudioGate>
-	<!--
-		`break-all` on both of these, because a peer id is a fifty-character token with
-		nowhere to break. Without it the status line was 444 px wide on a 375 px phone
-		and took the whole document sideways with it — the header was the obvious
-		cause, this was the second one hiding behind it.
-	-->
-	<p class="mt-4 font-mono text-sm break-all text-faint" data-testid="own-peer-id">
-		{$peerIdStore ?? '…'}
-	</p>
-
 	{#if $connectedPeersStore.length > 0}
 		<button
 			type="button"
 			data-testid="hang-up"
 			onclick={() => hangUp()}
-			class="mt-2 rounded-control border border-border px-3 py-1 text-sm"
+			class="mt-4 rounded-control border border-border px-3 py-1 text-sm"
 		>
 			{m.connect_hang_up()}
 		</button>
 	{/if}
 
-	<p class="mt-1 text-sm" data-testid="connection-status" data-step={step}>
+	<p class="mt-2 text-sm" data-testid="connection-status" data-step={step}>
 		{#if step === 'connected'}
 			<span class="break-all text-success">
 				{m.connect_status_connected({ peer: $connectedPeersStore[0] ?? '' })}
 			</span>
 		{:else if step === 'failed'}
 			<span class="text-danger">{m.connect_status_failed({ reason: failure })}</span>
-		{:else if step === 'connecting' || step === 'answering'}
+		{:else if step === 'connecting'}
 			<span class="text-muted">{m.connect_status_connecting()}</span>
+		{:else if fromLink && step === 'preparing'}
+			<span class="text-muted">{m.connect_from_link()}</span>
+		{:else if step === 'preparing'}
+			<span class="text-muted">{m.connect_preparing()}</span>
 		{:else}
-			<span class="text-muted">{m.connect_status_idle()}</span>
+			<span class="text-muted">{m.connect_waiting_other()}</span>
 		{/if}
 	</p>
 
@@ -225,17 +298,47 @@
 		</p>
 	{/if}
 
-	<div class="mt-6 flex flex-wrap gap-3">
-		<button
-			type="button"
-			data-testid="create-offer"
-			disabled={!$signallingStore}
-			onclick={createOffer}
-			class="rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast disabled:opacity-50"
-		>
-			{m.connect_create_offer()}
-		</button>
+	{#if step !== 'connected' && payload}
+		<section class="mt-6 max-w-md rounded-card border border-border bg-surface p-6">
+			<div class="flex flex-wrap items-start justify-between gap-3">
+				<div class="min-w-0">
+					<h2 class="text-lg font-medium">
+						{step === 'replying' ? m.connect_reply_title() : m.connect_ready_title()}
+					</h2>
+					<p class="mt-1 text-sm text-muted">
+						{step === 'replying' ? m.connect_reply_hint() : m.connect_ready_hint()}
+					</p>
+				</div>
+				<button
+					type="button"
+					data-testid="share-payload"
+					onclick={share}
+					class="shrink-0 rounded-control bg-accent px-4 py-2 font-medium text-accent-contrast"
+				>
+					{step === 'replying' ? m.connect_share_reply() : m.connect_share_invite()}
+				</button>
+			</div>
 
+			{#if qrDataUrl}
+				<!-- The QR field keeps a light ground in both themes; see tokens.css. -->
+				<div class="qr-field mt-4 inline-block">
+					<!-- data-link is what the code actually encodes, so a test photographs
+					     the same string a camera would read. -->
+					<img
+						src={qrDataUrl}
+						alt={m.connect_scan()}
+						data-testid="qr-image"
+						data-link={link}
+						width="280"
+					/>
+				</div>
+			{:else if qrError}
+				<p class="mt-4 text-sm text-warning" data-testid="qr-too-large">{qrError}</p>
+			{/if}
+		</section>
+	{/if}
+
+	<div class="mt-6 flex flex-wrap gap-3">
 		<button
 			type="button"
 			data-testid="scan-qr"
@@ -247,17 +350,23 @@
 		</button>
 	</div>
 
-	{#if payload}
-		<section class="mt-6 rounded-card border border-border bg-surface p-6">
-			{#if qrDataUrl}
-				<!-- The QR field keeps a light ground in both themes; see tokens.css. -->
-				<div class="qr-field inline-block">
-					<img src={qrDataUrl} alt={m.connect_scan()} data-testid="qr-image" width="280" />
-				</div>
-			{:else if qrError}
-				<p class="text-sm text-warning" data-testid="qr-too-large">{qrError}</p>
-			{/if}
+	<!--
+		Everything below is the fallback for a device with no camera and no share
+		sheet. Closed by default: reintroducing "which of these strings do I use"
+		as a visible choice is exactly what this screen exists to avoid.
+	-->
+	<details class="mt-6 max-w-md rounded-card border border-border bg-surface p-6">
+		<summary class="cursor-pointer text-sm font-medium" data-testid="advanced-toggle">
+			{m.connect_advanced()}
+		</summary>
 
+		<p class="mt-3 text-sm text-muted">{m.connect_advanced_hint()}</p>
+
+		<p class="mt-3 font-mono text-xs break-all text-faint" data-testid="own-peer-id">
+			{$peerIdStore ?? '…'}
+		</p>
+
+		{#if payload}
 			<label class="mt-4 block text-sm text-muted" for="payload">{m.connect_copy()}</label>
 			<textarea
 				id="payload"
@@ -267,7 +376,7 @@
 				class="mt-1 w-full rounded-control border p-2 font-mono text-xs"
 				value={payload}></textarea>
 
-			<div class="mt-3 flex gap-3">
+			<div class="mt-3 flex flex-wrap gap-3">
 				<button
 					type="button"
 					data-testid="copy-payload"
@@ -276,22 +385,20 @@
 				>
 					{copied ? m.connect_copied() : m.connect_copy()}
 				</button>
-				<button
-					type="button"
-					data-testid="share-payload"
-					onclick={share}
-					class="rounded-control border border-border px-3 py-1.5 text-sm"
-				>
-					{m.connect_share()}
-				</button>
+				{#if step !== 'replying'}
+					<button
+						type="button"
+						data-testid="refresh-invite"
+						onclick={refreshInvite}
+						class="rounded-control border border-border px-3 py-1.5 text-sm"
+					>
+						{m.connect_refresh()}
+					</button>
+				{/if}
 			</div>
-		</section>
-	{/if}
+		{/if}
 
-	<section class="mt-6 rounded-card border border-border bg-surface p-6">
-		<label class="block text-sm text-muted" for="inbound">
-			{step === 'offering' ? m.connect_waiting_answer() : m.connect_paste()}
-		</label>
+		<label class="mt-6 block text-sm text-muted" for="inbound">{m.connect_paste()}</label>
 		<textarea
 			id="inbound"
 			data-testid="inbound-payload"
@@ -307,7 +414,7 @@
 		>
 			{m.connect_paste()}
 		</button>
-	</section>
+	</details>
 
 	<!-- Kept mounted so the scanner can start without a layout shift; hidden until used. -->
 	<div class:hidden={!scanning} class="mt-6">

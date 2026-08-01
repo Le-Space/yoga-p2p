@@ -263,6 +263,27 @@ export function createSignalling(node) {
 		return parsed.type === QR_TYPE_OFFER ? 'offer' : 'answer';
 	}
 
+	/**
+	 * Close offers nobody ever answered, keeping the newest.
+	 *
+	 * The connect screen keeps its invitation fresh by making a new offer every
+	 * few minutes, and without this each refresh would strand an RTCPeerConnection
+	 * that stays open for the lifetime of the page. pruneClosedSessions cannot do
+	 * it: those sessions are neither closed nor failed, they are simply unwanted.
+	 *
+	 * Sessions that have been answered are left alone — that is a front desk
+	 * pairing with one student after another, which must keep working.
+	 *
+	 * Called before making the replacement, so there is nothing to keep.
+	 */
+	function discardUnusedOffers() {
+		for (const [id, session] of offerSessions) {
+			if (session.remotePeerId !== null) continue;
+			session.peerConnection.close();
+			offerSessions.delete(id);
+		}
+	}
+
 	function close() {
 		for (const session of offerSessions.values()) session.peerConnection.close();
 		offerSessions.clear();
@@ -270,7 +291,15 @@ export function createSignalling(node) {
 		inboundConnections.clear();
 	}
 
-	return { createOffer, acceptOffer, acceptAnswer, classify, close, getOutboundSession };
+	return {
+		createOffer,
+		acceptOffer,
+		acceptAnswer,
+		classify,
+		close,
+		discardUnusedOffers,
+		getOutboundSession
+	};
 }
 
 /** @param {number} ms */
