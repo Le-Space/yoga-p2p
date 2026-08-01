@@ -27,7 +27,20 @@ import {
 import { rtcConfiguration } from './libp2p-config.js';
 
 const ICE_GATHERING_TIMEOUT_MS = 15_000;
-const CONNECTION_TIMEOUT_MS = 30_000;
+
+// How long a connection may take to come up. Generous on purpose: a mobile
+// network behind carrier NAT can need minutes of ICE before it succeeds, and
+// the old 30 s cut those off mid-setup — which at a counter looks like "it just
+// does not work here". Nothing is lost by waiting, because a connection that
+// genuinely fails does not wait for this: waitForConnected rejects on the
+// 'failed' and 'closed' events as soon as they arrive.
+const CONNECTION_TIMEOUT_MS = 360_000;
+
+// The libp2p upgrade and dial happen *after* the WebRTC connection is already
+// up, so they are local work and must stay short. The dial in particular runs
+// inside a retry loop: a long signal here would let one hung attempt eat the
+// whole budget and turn DIAL_ATTEMPTS retries into a single one.
+const UPGRADE_TIMEOUT_MS = 30_000;
 /** How long the answering side keeps retrying while the offerer attaches its muxer. */
 const DIAL_ATTEMPTS = 15;
 const DIAL_RETRY_MS = 300;
@@ -164,7 +177,7 @@ export function createSignalling(node) {
 					skipProtection: true,
 					remotePeer: peerIdFromString(offer.peerId),
 					muxerFactory: upgradeContext.muxerFactory,
-					signal: AbortSignal.timeout(CONNECTION_TIMEOUT_MS)
+					signal: AbortSignal.timeout(UPGRADE_TIMEOUT_MS)
 				})
 			)
 			.catch((/** @type {Error} */ error) => {
@@ -224,7 +237,7 @@ export function createSignalling(node) {
 		for (let attempt = 0; attempt < DIAL_ATTEMPTS; attempt++) {
 			try {
 				const connection = await node.dial(addr, {
-					signal: AbortSignal.timeout(CONNECTION_TIMEOUT_MS)
+					signal: AbortSignal.timeout(UPGRADE_TIMEOUT_MS)
 				});
 				await delay(200);
 				if (connection.status === 'open') return answer.peerId;
@@ -293,8 +306,17 @@ function waitForIceGathering(peerConnection) {
 	});
 }
 
-/** @param {RTCPeerConnection} peerConnection */
-function waitForConnected(peerConnection) {
+/**
+ * Resolve when the connection is up; reject as soon as it is known to be dead.
+ *
+ * Exported for its test rather than for callers: CONNECTION_TIMEOUT_MS is six
+ * minutes, which is only defensible because a real failure rejects here on the
+ * event and never reaches the timeout. If that regressed, a counter would sit
+ * and wait six minutes on a connection that was already gone.
+ *
+ * @param {RTCPeerConnection} peerConnection
+ */
+export function waitForConnected(peerConnection) {
 	if (peerConnection.connectionState === 'connected') return Promise.resolve();
 
 	return new Promise((resolve, reject) => {
