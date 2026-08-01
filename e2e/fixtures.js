@@ -105,7 +105,37 @@ export async function openConnect(page, who) {
 		await onboard(page, who);
 	}
 
-	await expect(page.getByTestId('create-offer')).toBeEnabled({ timeout: 90_000 });
+	// The invitation is made by the screen itself now, so "ready" is no longer a
+	// button being enabled — it is the screen having got past 'preparing'.
+	//
+	// Deliberately "anything but preparing" rather than "inviting": a page that
+	// is already connected reopens on 'connected' and never goes back to
+	// offering. Waiting for 'inviting' there waits for something that will not
+	// happen, which is what it did until CI ran the booking scenarios.
+	await expect
+		.poll(() => page.getByTestId('connection-status').getAttribute('data-step'), {
+			timeout: 90_000
+		})
+		.not.toBe('preparing');
+}
+
+/**
+ * Open the "advanced" disclosure that holds the copy & paste fallback.
+ *
+ * It is closed by default on purpose (see the connect screen), so every test
+ * that drives the paste path has to open it first. Idempotent: a <details> that
+ * is already open stays open.
+ *
+ * @param {Page} page
+ */
+export async function openAdvanced(page) {
+	const toggle = page.getByTestId('advanced-toggle');
+	const inbound = page.getByTestId('inbound-payload');
+
+	if (await inbound.isVisible()) return;
+
+	await toggle.click();
+	await expect(inbound).toBeVisible();
 }
 
 /**
@@ -124,13 +154,16 @@ export async function connectViaPaste(offerer, answerer) {
 	await openConnect(offerer, 'offerer');
 	await openConnect(answerer, 'answerer');
 
+	await openAdvanced(offerer);
+	await openAdvanced(answerer);
+
 	// Capture what each field holds before acting, so the reads below can wait
 	// for a *new* value rather than any value.
-	const previousOffer = await currentPayload(offerer);
 	const previousAnswer = await currentPayload(answerer);
 
-	await offerer.getByTestId('create-offer').click();
-	const offer = await readPayload(offerer, { changedFrom: previousOffer });
+	// No "create offer" step any more: openConnect already waited for the screen
+	// to stand one up by itself. Read it rather than ask for it.
+	const offer = await readPayload(offerer);
 
 	await answerer.getByTestId('inbound-payload').fill(offer);
 	await answerer.getByTestId('submit-inbound').click();
@@ -209,16 +242,18 @@ export { expect };
  * @returns {Promise<{ answerer: Page, close: () => Promise<void> }>}
  */
 export async function connectViaCamera(offerer, who = 'scanner') {
-	const previousOffer = await currentPayload(offerer);
-	await offerer.getByTestId('create-offer').click();
-	const offer = await readPayload(offerer, { changedFrom: previousOffer });
-
 	// A payload too large for one code is a real limit, not a test problem
 	// (docs/LIMITS.md §1.6) — say so rather than fail somewhere in the decoder.
+	const image = offerer.getByTestId('qr-image');
 	await expect(
-		offerer.getByTestId('qr-image'),
+		image,
 		'the offer must fit in a scannable QR code for the camera path'
 	).toBeVisible();
+
+	// Photograph what the code actually encodes — the invite link — rather than
+	// the bare payload sitting in the advanced panel. Encoding the wrong one
+	// would make this path pass while a real camera read something else.
+	const offer = /** @type {string} */ (await image.getAttribute('data-link'));
 
 	const directory = mkdtempSync(join(tmpdir(), 'yoga-qr-'));
 	const video = join(directory, 'offer.y4m');
@@ -242,11 +277,20 @@ export async function connectViaCamera(offerer, who = 'scanner') {
 	await onboard(answerer, who);
 	await expect(answerer.getByTestId('scan-qr')).toBeEnabled({ timeout: 90_000 });
 
+	// The answering device now shows an invitation of its own from the moment it
+	// opens, so "the payload on screen" is ambiguous until the scan replaces it.
+	// Capture it first and wait for a *different* one, or this reads back the
+	// answerer's own offer and the two sides talk past each other.
+	await openAdvanced(answerer);
+	const previousAnswer = await currentPayload(answerer);
+
 	// Scanning replaces the paste step entirely: the decoded offer runs through
 	// the same handler a pasted one would.
 	await answerer.getByTestId('scan-qr').click();
 
-	const answer = await readPayload(answerer);
+	const answer = await readPayload(answerer, { changedFrom: previousAnswer });
+
+	await openAdvanced(offerer);
 	await offerer.getByTestId('inbound-payload').fill(answer);
 	await offerer.getByTestId('submit-inbound').click();
 
