@@ -104,7 +104,7 @@ test('the screens the handbook talks about', async ({ alice, bob, carol }) => {
 	// --- Connecting ---------------------------------------------------------
 	await bob.goto('/connect/?ice=host');
 	await onboard(bob, 'bob');
-	await expect(bob.getByTestId('create-offer')).toBeVisible(READY);
+	await expect(bob.getByTestId('qr-image')).toBeVisible(READY);
 	await shoot(bob, 'connect');
 
 	await connectViaPaste(alice, bob);
