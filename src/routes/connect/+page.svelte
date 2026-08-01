@@ -78,7 +78,7 @@
 		// reason to keep building peer connections.
 		refreshTimer = setInterval(() => {
 			if (document.visibilityState !== 'visible') return;
-			if (step !== 'inviting') return;
+			if (step !== 'inviting' && step !== 'connected') return;
 			void refreshInvite();
 		}, INVITE_FRESH_MS);
 	});
@@ -158,14 +158,26 @@
 		}
 	}
 
+	/**
+	 * Put a fresh invitation on screen.
+	 *
+	 * @param {object} [options]
+	 * @param {boolean} [options.announce] move to 'inviting'; false keeps the
+	 *   current step, which is how a just-made connection stays reported while
+	 *   the screen is already armed for the next one.
+	 */
+	async function makeInvitation({ announce = true } = {}) {
+		// Close the previous unanswered offer first, or every renewal would
+		// strand a peer connection for the lifetime of the page.
+		$signallingStore.discardUnusedOffers();
+		await showPayload(await $signallingStore.createOffer(), 'invite');
+		if (announce) step = 'inviting';
+	}
+
 	async function refreshInvite() {
 		failure = '';
 		try {
-			// Close the previous unanswered offer first, or every renewal would
-			// strand a peer connection for the lifetime of the page.
-			$signallingStore.discardUnusedOffers();
-			await showPayload(await $signallingStore.createOffer(), 'invite');
-			step = 'inviting';
+			await makeInvitation();
 		} catch (/** @type {any} */ error) {
 			failure = error?.message ?? String(error);
 			step = 'failed';
@@ -189,6 +201,9 @@
 				step = 'replying';
 				connected
 					.then(async () => {
+						// The reply has done its job. Arm the screen for the next person
+						// before saying "connected", so the two are never out of step.
+						await makeInvitation({ announce: false });
 						step = 'connected';
 						await greetAndMaybeJoin(remotePeerId);
 					})
@@ -201,6 +216,13 @@
 
 			step = 'connecting';
 			const remotePeerId = await $signallingStore.acceptAnswer(trimmed);
+
+			// An invitation can only be used once, and this one just was. Without
+			// this the front desk would keep showing a spent code to the next
+			// student — the screen is only remounted by a full page load, so
+			// walking back to it does not refresh anything.
+			await makeInvitation({ announce: false });
+
 			step = 'connected';
 			await greetAndMaybeJoin(remotePeerId);
 		} catch (/** @type {any} */ error) {
@@ -298,7 +320,7 @@
 		</p>
 	{/if}
 
-	{#if step !== 'connected' && payload}
+	{#if payload}
 		<section class="mt-6 max-w-md rounded-card border border-border bg-surface p-6">
 			<div class="flex flex-wrap items-start justify-between gap-3">
 				<div class="min-w-0">

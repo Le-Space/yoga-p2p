@@ -106,11 +106,17 @@ export async function openConnect(page, who) {
 	}
 
 	// The invitation is made by the screen itself now, so "ready" is no longer a
-	// button being enabled — it is the offer actually standing. Waiting on the
-	// step attribute also covers the ICE gathering that precedes it.
-	await expect(page.getByTestId('connection-status')).toHaveAttribute('data-step', 'inviting', {
-		timeout: 90_000
-	});
+	// button being enabled — it is the screen having got past 'preparing'.
+	//
+	// Deliberately "anything but preparing" rather than "inviting": a page that
+	// is already connected reopens on 'connected' and never goes back to
+	// offering. Waiting for 'inviting' there waits for something that will not
+	// happen, which is what it did until CI ran the booking scenarios.
+	await expect
+		.poll(() => page.getByTestId('connection-status').getAttribute('data-step'), {
+			timeout: 90_000
+		})
+		.not.toBe('preparing');
 }
 
 /**
