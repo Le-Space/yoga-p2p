@@ -14,9 +14,26 @@ welche übersetzt sind und welche nicht, steht in `docs/en/README.md`.
 
 ## Projekt
 
-Local-first P2P-PWA für Yogastudio-Buchungen. Kein Relay, kein Server, kein
+P2P-PWA für Yogastudio-Buchungen. Kein Relay, kein Server, kein
 Backend: Signalisierung nur über `@le-space/libp2p-webrtc-qr` (QR) und
 Copy-&-Paste-SDP. Architektur und Tasks: `docs/PLAN.md` (verbindlich).
+
+## Benennung
+
+**Diese App ist eine P2P-PWA, nicht „local-first".** Das ist keine Geschmacksfrage:
+Local-first beschreibt Software, deren Daten lokal liegen und die _zusätzlich_ mit
+einem Server abgleicht — der Abgleich ist dort die Zutat, die man weglassen könnte.
+Hier ist die Peer-Verbindung die **einzige** Übertragung, die es überhaupt gibt. Es
+existiert kein Server, zu dem später synchronisiert würde, und keiner, den ein
+Studio irgendwann doch mieten müsste. „Local-first" verspricht an dieser Stelle
+weniger, als die App tut, und lenkt zugleich von dem ab, was sie ausmacht.
+
+Auch nicht „local-first Peer-to-Peer" — das stand an zwei Stellen und war doppelt
+gemoppelt.
+
+Produktname überall sichtbar **Yogasūcī (योगसूची)**, technisch `yogasuci`. Welche
+Bezeichner bewusst weiterhin `yoga-p2p` heißen und warum, steht in
+`docs/LIMITS.md` §1.10.
 
 ## Harte Regeln
 

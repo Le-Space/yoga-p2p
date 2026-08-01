@@ -77,7 +77,7 @@ const card = `
 			<circle cx="71" cy="24" r="9" fill="none" stroke="${TOKENS.link}" stroke-width="5"/>
 			<circle cx="78" cy="62" r="7" fill="none" stroke="${TOKENS.link}" stroke-width="4.5"/>
 		</svg>
-		<div class="eyebrow">Local-first · Peer-to-Peer</div>
+		<div class="eyebrow">Peer-to-Peer · ohne Server</div>
 		<h1>Yogasūcī (योगसूची)</h1>
 		<p>Kurse, Karten und Check-in laufen direkt zwischen den Geräten — ohne Server, ohne Konto.</p>
 		<div class="stack">

@@ -2,7 +2,7 @@
 
 **[Deutsch](README.de.md)** · English
 
-Local-first class booking for yoga studios with more than one location. The
+Peer-to-peer class booking for yoga studios with more than one location. The
 programme, the passes and the check-in run directly between devices — **no
 server, no relay, no account**.
 
