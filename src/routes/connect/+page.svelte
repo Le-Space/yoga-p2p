@@ -26,7 +26,7 @@
 	import { base } from '$app/paths';
 	import StudioGate from '$lib/components/StudioGate.svelte';
 	import { connectedPeersStore, hangUp, peerIdStore, signallingStore } from '$lib/p2p/node.js';
-	import { scanWithCamera, sharePayload } from '$lib/p2p/qr.js';
+	import { sharePayload } from '$lib/p2p/qr.js';
 	import { buildLink, readLink } from '$lib/p2p/invite.js';
 	import { createHandoff } from '$lib/p2p/handoff.js';
 	import { introduceToPeer, joinStore, joinStudioFromPeer } from '$lib/db/join.js';
@@ -59,11 +59,9 @@
 	let fromLink = $state(false);
 
 	/** @type {HTMLVideoElement | undefined} */
-	let video = $state();
+	let scanner = $state();
 	/** @type {HTMLCanvasElement | undefined} */
-	let canvas = $state();
 	/** @type {AbortController | null} */
-	let scanAbort = null;
 	/** @type {ReturnType<typeof setInterval> | null} */
 	let refreshTimer = null;
 	let unsubscribeSignalling = () => {};
@@ -111,7 +109,9 @@
 	});
 
 	onDestroy(() => {
-		scanAbort?.abort();
+		// The element releases the camera when it leaves the document, so this only
+		// has to close the dialog if the page is left with it open.
+		scanner?.close();
 		unsubscribeSignalling();
 		handoff?.close();
 		if (refreshTimer) clearInterval(refreshTimer);
@@ -266,27 +266,32 @@
 		}
 	}
 
-	async function scan() {
-		if (!video || !canvas) return;
-
-		scanAbort = new AbortController();
-		scanning = true;
+	function scan() {
 		failure = '';
+		scanning = true;
+
+		// The element owns the camera and the decode loop, including the frame by
+		// frame reassembly of an animated code - which is what lets this screen
+		// stop enforcing a character budget on the other side of the exchange.
+		scanner?.open().catch((/** @type {any} */ error) => {
+			scanning = false;
+			failure = error?.message ?? String(error);
+			step = 'failed';
+		});
+	}
+
+	/** @param {string} text */
+	async function onScanned(text) {
+		scanning = false;
 
 		try {
-			const text = await scanWithCamera({ video, canvas, signal: scanAbort.signal });
 			// A scanned code now holds a link, but a code from an older version
 			// holds the bare payload — accept both rather than reject a device
 			// that has not updated yet.
 			await handleInbound(readLink(new URL(text, location.origin).hash)?.payload ?? text);
 		} catch (/** @type {any} */ error) {
-			if (error?.name !== 'AbortError') {
-				failure = error?.message ?? String(error);
-				step = 'failed';
-			}
-		} finally {
-			scanning = false;
-			scanAbort = null;
+			failure = error?.message ?? String(error);
+			step = 'failed';
 		}
 	}
 
@@ -484,18 +489,14 @@
 		</button>
 	</details>
 
-	<!-- Kept mounted so the scanner can start without a layout shift; hidden until used. -->
-	<div class:hidden={!scanning} class="mt-6">
-		<video bind:this={video} data-testid="scanner-video" class="w-full max-w-sm rounded-card"
-		></video>
-		<canvas bind:this={canvas} class="hidden"></canvas>
-		<button
-			type="button"
-			data-testid="cancel-scan"
-			onclick={() => scanAbort?.abort()}
-			class="mt-2 rounded-control border border-border px-3 py-1.5 text-sm"
-		>
-			{m.connect_status_idle()}
-		</button>
-	</div>
+	<!-- A modal of its own, so nothing here has to make room for a camera that is
+	     not running. It releases the camera on every way out, including this page
+	     being navigated away from. -->
+	<qr-scanner
+		bind:this={scanner}
+		label={m.connect_scan()}
+		data-testid="scanner"
+		onscan={(/** @type {any} */ event) => onScanned(event.detail.text)}
+		onclose={() => (scanning = false)}
+	></qr-scanner>
 </StudioGate>
