@@ -28,6 +28,7 @@
 	import { connectedPeersStore, hangUp, peerIdStore, signallingStore } from '$lib/p2p/node.js';
 	import { sharePayload } from '$lib/p2p/qr.js';
 	import { buildLink, readLink } from '$lib/p2p/invite.js';
+	import { iceMode, rtcConfiguration } from '$lib/p2p/libp2p-config.js';
 	import { createHandoff } from '$lib/p2p/handoff.js';
 	import { introduceToPeer, joinStore, joinStudioFromPeer } from '$lib/db/join.js';
 	import { studioStore } from '$lib/db/registry.js';
@@ -60,6 +61,12 @@
 
 	/** @type {HTMLVideoElement | undefined} */
 	let scanner = $state();
+	let status = $state();
+
+	// STUN turned off is a setting somebody chose, not a fault to report. The
+	// panel would paint it red, so it is not shown at all in that mode - #26 is
+	// explicit that reporting a choice as a failure is worse than saying nothing.
+	const stunConfigured = typeof window !== 'undefined' && iceMode() !== 'host';
 	/** @type {HTMLCanvasElement | undefined} */
 	/** @type {AbortController | null} */
 	/** @type {ReturnType<typeof setInterval> | null} */
@@ -71,7 +78,14 @@
 	onMount(() => {
 		// Loaded in the browser only: this page renders on the server first, where
 		// `customElements` does not exist.
-		import('@le-space/libp2p-webrtc-qr/elements');
+		import('@le-space/libp2p-webrtc-qr/elements').then(() => {
+			if (!stunConfigured || !status) return;
+
+			// The same servers the handshake will use, so the reading is about this
+			// configuration rather than about a default somebody else picked.
+			status.rtcConfiguration = rtcConfiguration();
+			status.probe().catch(() => {});
+		});
 
 		// A reply that arrives through a messenger opens a new tab, and the offer
 		// it answers lives in this one. Take it if it is ours.
@@ -370,6 +384,19 @@
 			<h2 class="text-lg font-medium">{m.connect_handed_over_title()}</h2>
 			<p class="mt-1 text-sm text-muted">{m.connect_handed_over_hint()}</p>
 		</section>
+	{/if}
+
+	{#if stunConfigured}
+		<!-- What this network will allow, before anyone holds up a code. It says
+		     whether the preconditions hold, not whether the connection will
+		     succeed - two devices behind symmetric NAT is exactly the case STUN
+		     cannot solve. -->
+		<qr-status
+			bind:this={status}
+			data-testid="network-status"
+			class="mt-6 block max-w-md"
+			style="--qr-status-chip-background: transparent; --qr-status-chip-color: inherit; --qr-status-verdict-color: inherit;"
+		></qr-status>
 	{/if}
 
 	{#if payload && step !== 'handed-over'}

@@ -70,6 +70,17 @@ test.describe('QR handshake', () => {
 		// used to check for `qr-too-large` is gone.
 	});
 
+	test('says nothing about the network when STUN was deliberately turned off', async ({
+		alice
+	}) => {
+		// The suite runs with ?ice=host, which is a setting somebody chose. A
+		// readiness panel that painted that red would report a fault where there
+		// is a decision - worse than saying nothing, which is what it does.
+		await openConnect(alice, 'alice');
+
+		await expect(alice.getByTestId('network-status')).toHaveCount(0);
+	});
+
 	test('answers an invitation carried in the address, with nothing to press', async ({
 		alice,
 		bob
