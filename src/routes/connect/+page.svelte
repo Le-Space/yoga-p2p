@@ -26,7 +26,7 @@
 	import { base } from '$app/paths';
 	import StudioGate from '$lib/components/StudioGate.svelte';
 	import { connectedPeersStore, hangUp, peerIdStore, signallingStore } from '$lib/p2p/node.js';
-	import { fitsInQrCode, renderQrCode, scanWithCamera, sharePayload } from '$lib/p2p/qr.js';
+	import { scanWithCamera, sharePayload } from '$lib/p2p/qr.js';
 	import { buildLink, readLink } from '$lib/p2p/invite.js';
 	import { createHandoff } from '$lib/p2p/handoff.js';
 	import { introduceToPeer, joinStore, joinStudioFromPeer } from '$lib/db/join.js';
@@ -51,7 +51,6 @@
 	let payload = $state('');
 	/** What the QR encodes and the share sheet sends — the payload wrapped in a URL. */
 	let link = $state('');
-	let qrDataUrl = $state('');
 	let qrError = $state('');
 	let inbound = $state('');
 	let failure = $state('');
@@ -72,6 +71,10 @@
 	let handoff = null;
 
 	onMount(() => {
+		// Loaded in the browser only: this page renders on the server first, where
+		// `customElements` does not exist.
+		import('@le-space/libp2p-webrtc-qr/elements');
+
 		// A reply that arrives through a messenger opens a new tab, and the offer
 		// it answers lives in this one. Take it if it is ours.
 		handoff = createHandoff();
@@ -177,20 +180,11 @@
 		payload = text;
 		link = buildLink({ payload: text, kind, origin: location.origin, base });
 		qrError = '';
-		qrDataUrl = '';
 
-		// The QR carries the link, so the link is what has to fit — checking the
-		// bare payload would pass and then produce a code no camera can read.
-		if (!fitsInQrCode(link)) {
-			qrError = m.connect_advanced_hint();
-			return;
-		}
-
-		try {
-			qrDataUrl = await renderQrCode(link);
-		} catch (/** @type {any} */ error) {
-			qrError = error?.message ?? String(error);
-		}
+		// No budget check any more: <qr-invite> splits a link that will not fit
+		// one code into an animated sequence rather than refusing it. The 2200
+		// character limit this used to enforce was a documented limitation
+		// (docs/LIMITS.md §1.6) and is now simply not one.
 	}
 
 	/**
@@ -394,18 +388,17 @@
 				</button>
 			</div>
 
-			{#if qrDataUrl}
-				<!-- The QR field keeps a light ground in both themes; see tokens.css. -->
+			{#if link}
+				<!-- The QR field keeps a light ground in both themes; see tokens.css.
+				     data-link is what the code encodes, so a test photographs the same
+				     string a camera would read. -->
 				<div class="qr-field mt-4 inline-block">
-					<!-- data-link is what the code actually encodes, so a test photographs
-					     the same string a camera would read. -->
-					<img
-						src={qrDataUrl}
-						alt={m.connect_scan()}
+					<qr-invite
+						value={link}
 						data-testid="qr-image"
 						data-link={link}
-						width="280"
-					/>
+						style="--qr-invite-max-width: 280px; --qr-invite-caption-color: inherit;"
+					></qr-invite>
 				</div>
 			{:else if qrError}
 				<p class="mt-4 text-sm text-warning" data-testid="qr-too-large">{qrError}</p>
