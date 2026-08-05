@@ -226,7 +226,7 @@
 					data-testid="location-id"
 					bind:value={location.id}
 					required
-					pattern="[a-z0-9-]+"
+					pattern="[a-z0-9\-]+"
 					class="rounded-control border p-2"
 				/>
 			</label>

@@ -156,6 +156,33 @@ test.describe('registry and programme', () => {
 		await expect(alice.getByTestId('studio-error')).toHaveCount(0);
 	});
 
+	test('the id fields actually refuse an id they cannot accept', async ({ alice }) => {
+		test.setTimeout(180_000);
+
+		// Written against `validity`, not against a red outline, because the way
+		// this broke is invisible from the outside: browsers now compile the
+		// `pattern` attribute with the `v` flag, where a bare `-` inside a
+		// character class is a syntax error. A pattern that does not compile is
+		// *ignored* - the field then accepts everything and looks entirely normal,
+		// while the console carries one line nobody reads.
+		//
+		// So the assertion is that an invalid value is genuinely rejected. Against
+		// an uncompilable pattern, patternMismatch is false for every input, and
+		// this fails.
+		await onboard(alice);
+
+		const field = alice.getByTestId('location-id');
+		const mismatch = () => field.evaluate((/** @type {any} */ el) => el.validity.patternMismatch);
+
+		await field.fill('Studio West');
+		expect(await mismatch()).toBe(true);
+
+		// ...and still accepts the ids the app actually uses, hyphen included -
+		// escaping the wrong character would trade one silent failure for another.
+		await field.fill('studio-west');
+		expect(await mismatch()).toBe(false);
+	});
+
 	test('a deactivated location stays in the registry', async ({ alice }) => {
 		test.setTimeout(180_000);
 
