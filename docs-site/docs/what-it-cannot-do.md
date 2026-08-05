@@ -47,6 +47,10 @@ Manche Internetanschlüsse lassen zwei Geräte nicht direkt zueinander. Es gäbe
 Hilfsserver dafür; die App benutzt bewusst keine, weil sie den Datenverkehr
 sähen. Im Studio, im selben Netz, tritt der Fall nicht auf.
 
+Der Verbindungsbildschirm sagt vorher, was dieser Anschluss zulässt — aber auch
+das nur als Voraussetzung. Dass eine Adressfamilie nutzbar ist, heißt nicht,
+dass sich diese zwei Geräte finden.
+
 ## Kein Löschen im eigentlichen Sinn
 
 Einträge werden angehängt, nie überschrieben — daher stimmen die Zahlen. Eine

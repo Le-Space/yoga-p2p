@@ -67,10 +67,16 @@
 	let scanner = $state(null);
 	let status = $state();
 
-	// STUN turned off is a setting somebody chose, not a fault to report. The
-	// panel would paint it red, so it is not shown at all in that mode - #26 is
+	// STUN turned off is a setting somebody chose, not a fault to report - #26 is
 	// explicit that reporting a choice as a failure is worse than saying nothing.
+	// So the two address families and the summary they feed drop out in that mode.
+	//
+	// What does not drop out is the browser and the camera. A browser that cannot
+	// do WebRTC and a camera nobody granted break the check-in desk just as badly
+	// with STUN off as with it on, and hiding the whole panel there - which is
+	// what this page did - hid the two rows that were still true.
 	const stunConfigured = typeof window !== 'undefined' && iceMode() !== 'host';
+	const statusRows = stunConfigured ? 'browser ipv4 ipv6 camera overall' : 'browser camera';
 	/** @type {HTMLCanvasElement | undefined} */
 	/** @type {AbortController | null} */
 	/** @type {ReturnType<typeof setInterval> | null} */
@@ -83,7 +89,7 @@
 		// Loaded in the browser only: this page renders on the server first, where
 		// `customElements` does not exist.
 		import('@le-space/libp2p-webrtc-qr/elements').then(() => {
-			if (!stunConfigured || !status) return;
+			if (!status) return;
 
 			// The same servers the handshake will use, so the reading is about this
 			// configuration rather than about a default somebody else picked.
@@ -413,18 +419,17 @@
 		</section>
 	{/if}
 
-	{#if stunConfigured}
-		<!-- What this network will allow, before anyone holds up a code. It says
-		     whether the preconditions hold, not whether the connection will
-		     succeed - two devices behind symmetric NAT is exactly the case STUN
-		     cannot solve. -->
-		<qr-status
-			bind:this={status}
-			data-testid="network-status"
-			class="mt-6 block max-w-md"
-			style="--qr-status-chip-background: transparent; --qr-status-chip-color: inherit; --qr-status-verdict-color: inherit;"
-		></qr-status>
-	{/if}
+	<!-- What has to hold before anyone holds up a code. It reports the
+	     preconditions, not the outcome - two devices behind symmetric NAT is
+	     exactly the case STUN cannot solve, and no green light here promises
+	     otherwise. Which rows appear depends on the ICE mode; see statusRows. -->
+	<qr-status
+		bind:this={status}
+		rows={statusRows}
+		data-testid="network-status"
+		class="mt-6 block max-w-md"
+		style="--qr-status-chip-background: transparent; --qr-status-chip-color: inherit; --qr-status-verdict-color: inherit;"
+	></qr-status>
 
 	{#if payload && step !== 'handed-over'}
 		<section class="mt-6 max-w-md rounded-card border border-border bg-surface p-6">

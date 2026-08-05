@@ -7,6 +7,7 @@ import {
 	expect,
 	connectViaCamera,
 	connectViaPaste,
+	onboard,
 	openAdvanced,
 	openConnect,
 	readPayload
@@ -74,11 +75,43 @@ test.describe('QR handshake', () => {
 		alice
 	}) => {
 		// The suite runs with ?ice=host, which is a setting somebody chose. A
-		// readiness panel that painted that red would report a fault where there
-		// is a decision - worse than saying nothing, which is what it does.
+		// readiness panel that painted that red would report a fault where there is
+		// a decision - so no address family and no summary appear in that mode.
+		//
+		// What does appear is the browser and the camera. Those two break the desk
+		// just as badly with STUN off, and the panel used to hide them along with
+		// the rows that had become meaningless.
 		await openConnect(alice, 'alice');
 
-		await expect(alice.getByTestId('network-status')).toHaveCount(0);
+		const panel = alice.getByTestId('network-status');
+
+		await expect(panel).toBeVisible();
+		await expect(panel.locator('.line')).toHaveCount(2);
+		await expect(panel.locator('.line button span:first-child')).toHaveText(['Browser', 'Camera']);
+	});
+
+	test('shows all five readiness rows when STUN is in play', async ({ alice }) => {
+		// The rest of the suite runs with ?ice=host, so without this the five-row
+		// configuration - the whole of #26 - would never render in a test.
+		//
+		// Only the rows are asserted, never their colours. A verdict depends on a
+		// STUN server being reachable from wherever this runs, and a test that
+		// fails when Google's STUN is having a bad afternoon tells nobody anything
+		// about this application. The labels appear when the element builds,
+		// before any probe resolves.
+		await alice.goto('/connect/');
+		await onboard(alice, 'alice');
+
+		const panel = alice.getByTestId('network-status');
+
+		await expect(panel).toBeVisible();
+		await expect(panel.locator('.line button span:first-child')).toHaveText([
+			'Browser',
+			'IPv4',
+			'IPv6',
+			'Camera',
+			'Result'
+		]);
 	});
 
 	test('answers an invitation carried in the address, with nothing to press', async ({
