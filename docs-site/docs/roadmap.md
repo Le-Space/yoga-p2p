@@ -37,35 +37,46 @@ Umgesetzt ist das im Beispiel von
 was es für diese App bedeutet, steht in
 [Issue #23](https://github.com/Le-Space/yogasuci/issues/23).
 
-## Ein Verbindungs-Check, bevor es klemmt
+## Ein Verbindungs-Check, bevor es klemmt — da
 
-Wenn eine Verbindung nicht zustande kommt, sieht man heute nur, dass sie nicht
-zustande kommt. Woran es liegt — Browser, Netz, Kamera — muss man raten, und zwar
-an der Theke, mit wartenden Leuten.
-
-Geplant ist eine Übersicht, die das vorher prüft und jede Zeile grün, orange oder
-rot schaltet:
+Wenn eine Verbindung nicht zustande kam, sah man nur, dass sie nicht zustande
+kam. Woran es lag — Browser, Netz, Kamera — musste man raten, an der Theke, mit
+wartenden Leuten. Auf dem Verbindungsbildschirm steht das jetzt vorher, jede
+Zeile grün, orange oder rot:
 
 - **Browser** — kann er WebRTC überhaupt? Es gibt Browser, die es nicht können,
   und dann hilft kein Netz der Welt.
-- **Netz und STUN** — ist ein STUN-Server erreichbar? Er wird gebraucht, sobald
-  zwei Geräte nicht im selben WLAN hängen. Wer die App bewusst mit `?ice=host`
-  ohne STUN betreibt, bekommt hier **orange**, keine Fehlermeldung: Das ist eine
-  Einstellung, keine Störung.
-- **TURN** — nur, wenn es nötig wird. Heute ist keiner eingerichtet, und in
-  manchen Netzen — Firmen-WLAN, mancher Mobilfunk — reicht STUN nicht. Die Zeile
-  soll das benennen statt es zu verschweigen.
-- **Kamera** — freigegeben und liefert sie ein Bild? Ohne Kamera fällt das
-  QR-Scannen aus.
+- **IPv4** und **IPv6** — getrennt, weil es das auch ist. Eine der beiden reicht,
+  und über IPv6 gelingt manches, woran IPv4 hinter dem Netz des Anbieters
+  scheitert.
+- **Kamera** — ist sie freigegeben? Ohne sie fällt das QR-Scannen aus.
+- **Ergebnis** — grün, sobald eine der beiden Adressfamilien es ist.
 
-**Das Mikrofon wird bewusst nicht geprüft.** Die App fordert es nie an; ein rotes
-Licht dafür würde vor etwas warnen, das nichts kaputtmachen kann.
+Wer die App bewusst mit `?ice=host` betreibt, bekommt keine roten Zeilen,
+sondern gar keine Netz-Zeilen: Das ist eine Einstellung, keine Störung, und eine
+Einstellung als Fehler zu melden ist schlimmer als zu schweigen. Browser und
+Kamera bleiben auch dort stehen — die beiden gehen an der Theke genauso kaputt,
+ob STUN nun eingeschaltet ist oder nicht.
 
-Was so ein Check **nicht** kann, und das gehört dazu: Dass ein STUN-Server
-antwortet, heißt nicht, dass sich diese zwei Geräte finden. Die Ampel zeigt, ob die
-Voraussetzungen stimmen — nicht, ob es klappt.
+**Die Kamera wird gefragt, nicht ausprobiert.** Der Check liest den
+Berechtigungsstatus und schaltet die Kamera nie ein — sonst stünde beim Öffnen
+der Seite genau die Abfrage auf dem Schirm, über die er berichten soll. Wo ein
+Browser diesen Status nicht herausgibt (Safari, Stand heute), steht **orange**
+und dabei, dass es sich erst beim Versuch zeigt. Das ist ehrliches Nichtwissen,
+keine Warnung.
 
-Einzelheiten in [Issue #26](https://github.com/Le-Space/yogasuci/issues/26).
+**Eine TURN-Zeile gibt es nicht**, und sie ist auch nicht vergessen worden. Ein
+TURN-Server ist eine zentrale Stelle, durch die der Verkehr zweier Geräte läuft
+— das Gegenteil dessen, wofür diese App gebaut ist. Was ohne ihn nicht geht,
+steht unter [Was die App nicht kann](/what-it-cannot-do) und wird dort nicht
+schöngeredet.
+
+**Das Mikrofon wird ebenfalls bewusst nicht geprüft.** Die App fordert es nie an;
+ein rotes Licht dafür würde vor etwas warnen, das nichts kaputtmachen kann.
+
+Was der Check **nicht** kann, und das gehört dazu: Dass eine Adressfamilie
+nutzbar ist, heißt nicht, dass sich diese zwei Geräte finden. Die Ampel zeigt, ob
+die Voraussetzungen stimmen — nicht, ob es klappt.
 
 ## Sicherung auf dezentralem Speicher
 
