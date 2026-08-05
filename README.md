@@ -32,6 +32,46 @@ pnpm lint        # prettier + eslint
 pnpm bench       # scaling scenarios, writes bench/report.md
 ```
 
+### Watching a single use case
+
+Every end-to-end file is one use case, and any of them can be run alone with a
+visible browser. Useful when a step is behaving oddly and the trace does not say
+why — you see the two devices side by side, doing what a person would do:
+
+```bash
+npx playwright test e2e/m4-tickets.spec.js --headed
+```
+
+`-g` narrows it to one test within the file, matching on the test name:
+
+```bash
+npx playwright test e2e/m2-connect.spec.js -g "through the camera" --headed
+```
+
+| File                         | Use case                                           |
+| ---------------------------- | -------------------------------------------------- |
+| `e2e/m0-shell.spec.js`       | App shell, navigation, theme, language             |
+| `e2e/m1-program.spec.js`     | Studio setup, locations, programme, packages       |
+| `e2e/m2-connect.spec.js`     | The QR handshake itself: code, link, camera, paste |
+| `e2e/m2-devices.spec.js`     | Approving a front-desk device, and revoking it     |
+| `e2e/m2-identity.spec.js`    | Passkey identity and the DID behind it             |
+| `e2e/m2-studio-join.spec.js` | A device joining somebody else's studio            |
+| `e2e/m3-booking.spec.js`     | Booking and cancelling classes                     |
+| `e2e/m4-tickets.spec.js`     | Selling a pass, check-in, the courier roundtrip    |
+| `e2e/m5-recovery.spec.js`    | Export, restore, and a lost passkey                |
+| `e2e/m5-report.spec.js`      | Cash report and reconciliation                     |
+| `e2e/m5-sync-status.spec.js` | Replication status, and who sees which screens     |
+| `e2e/a11y.spec.js`           | Accessibility                                      |
+
+Two of these are slower than they look: `m4-tickets` and `m5-report` each run
+three devices through a full libp2p, Helia and OrbitDB stack, so a single test
+can take a minute or two before anything appears to happen.
+
+The suite runs with `?ice=host` — host candidates only, no STUN lookup — so a
+run never depends on a STUN server being reachable. That is also why the
+readiness panel shows no network rows during tests: with STUN deliberately off,
+a red network light would report a setting as a fault.
+
 ## How it works
 
 **The ticket ledger is the core.** Every pass is an append-only log of `issue`,
