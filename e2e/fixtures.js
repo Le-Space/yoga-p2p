@@ -263,7 +263,14 @@ export async function connectViaCamera(offerer, who = 'scanner') {
 		args: [
 			'--use-fake-ui-for-media-stream',
 			'--use-fake-device-for-media-stream',
-			`--use-file-for-fake-video-capture=${video}`
+			`--use-file-for-fake-video-capture=${video}`,
+			// Same reason as in playwright.config.js: headless Chromium backgrounds
+			// a page nobody is looking at and throttles the timers the handshake
+			// waits on. This browser is launched by hand, so it does not inherit
+			// the project's arguments and needs its own copy.
+			'--disable-background-timer-throttling',
+			'--disable-backgrounding-occluded-windows',
+			'--disable-renderer-backgrounding'
 		]
 	});
 
