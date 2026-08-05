@@ -31,8 +31,9 @@ export default defineConfig({
 			name: 'chromium',
 			// The screenshot run is not a test — it asserts almost nothing and writes
 			// files into the handbook. Excluded here so the gate stays a gate, and run
-			// on its own through `pnpm run screenshots`.
-			testIgnore: /screenshots\.spec\.js/,
+			// on its own through `pnpm run screenshots`. The remote scenario is
+			// excluded for a different reason: it brings its own browsers.
+			testIgnore: [/screenshots\.spec\.js/, /remote\//],
 			use: {
 				...devices['Desktop Chrome'],
 				launchOptions: {
@@ -60,6 +61,22 @@ export default defineConfig({
 		// generator joined the gate, competed with it for machines and timed out after
 		// fifteen minutes. Existing conditionally is the only version of "excluded"
 		// that actually excludes.
+		// Same reasoning as the screenshots project below: conditional existence is
+		// the only exclusion that actually excludes, since `playwright test` with
+		// no --project runs every project there is. This one would otherwise start
+		// its own browsers alongside the gate and compete with it for machines.
+		...(process.env.REMOTE_SCENARIO
+			? [
+					{
+						// Deliberately no `use.launchOptions`: this project never launches a
+						// browser. Both devices are connected to, so anything set here would
+						// be quietly ignored — see e2e/remote/providers.mjs.
+						name: 'remote',
+						testMatch: /remote-scenario\.spec\.js/,
+						use: { ...devices['Desktop Chrome'] }
+					}
+				]
+			: []),
 		...(process.env.SCREENSHOT_LOCALE
 			? [
 					{

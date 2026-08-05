@@ -72,6 +72,23 @@ run never depends on a STUN server being reachable. That is also why the
 readiness panel shows no network rows during tests: with STUN deliberately off,
 a red network light would report a setting as a fault.
 
+### The one run that does use STUN
+
+```bash
+REMOTE_SCENARIO=1 npx playwright test --project=remote
+```
+
+Two devices in two separate browsers, each reached over a websocket rather than
+launched, connected only by a pasted code — and no `?ice=host`, so ICE runs for
+real. It is the only test that touches the claim the whole app rests on: two
+devices find each other directly, with no server and no relay in between.
+
+The project does not exist unless `REMOTE_SCENARIO` is set, so it never joins
+the gate and competes with it for machines. Point `REMOTE_WS_ENDPOINT` (and
+`REMOTE_SECRET`) at a remote Playwright server and the second device moves to
+another network without the test changing —
+[#38](https://github.com/Le-Space/yogasuci/issues/38) is where that goes next.
+
 ## How it works
 
 **The ticket ledger is the core.** Every pass is an append-only log of `issue`,
