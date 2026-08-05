@@ -342,7 +342,7 @@
 						data-testid="course-id"
 						bind:value={course.id}
 						required
-						pattern="[a-z0-9-]+"
+						pattern="[a-z0-9\-]+"
 						class="rounded-control border p-2"
 					/>
 				</label>
@@ -578,7 +578,7 @@
 						data-testid="package-id"
 						bind:value={pkg.id}
 						required
-						pattern="[a-z0-9-]+"
+						pattern="[a-z0-9\-]+"
 						class="rounded-control border p-2"
 					/>
 				</label>
