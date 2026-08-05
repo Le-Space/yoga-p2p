@@ -45,29 +45,40 @@ test.describe('QR handshake', () => {
 		await expect(alice.getByTestId('qr-image')).toBeVisible();
 	});
 
-	test('renders the offer as a scannable QR code carrying the invite link', async ({ alice }) => {
+	test('renders the offer as a scannable code carrying the invite link', async ({ alice }) => {
 		await openConnect(alice, 'alice');
 
 		const image = alice.getByTestId('qr-image');
 
-		// Either a code was rendered, or the app said plainly that it is too large
-		// for one — never a silently unscannable image.
-		if (await image.isVisible()) {
-			expect(await image.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
+		await expect(image).toBeVisible();
 
-			// What the code encodes has to be the link, not the bare payload: a
-			// camera that reads this must land on the app, not on a string.
-			const link = /** @type {string} */ (await image.getAttribute('data-link'));
-			const url = new URL(link);
-			expect(url.pathname.endsWith('/connect')).toBe(true);
-			expect(url.hash.startsWith('#i=')).toBe(true);
+		// The code lives inside <qr-invite>'s shadow root. Playwright pierces it,
+		// which is what lets a test see the same pixels a camera would.
+		await expect(image.locator('img')).toHaveAttribute('src', /^data:image\/png;base64,/, {
+			timeout: 30_000
+		});
 
-			// The budget applies to the link, since the link is what is encoded.
-			expect(link.length).toBeLessThanOrEqual(2200);
-		} else {
-			await expect(alice.getByTestId('qr-too-large')).toBeVisible();
-			expect((await readPayload(alice)).length).toBeGreaterThan(2000);
-		}
+		// What the code encodes has to be the link, not the bare payload: a camera
+		// that reads this must land on the app, not on a string.
+		const link = /** @type {string} */ (await image.getAttribute('data-link'));
+		const url = new URL(link);
+		expect(url.pathname.endsWith('/connect')).toBe(true);
+		expect(url.hash.startsWith('#i=')).toBe(true);
+
+		// No character budget any more. A link too long for one code becomes an
+		// animated sequence rather than an apology - which is why the branch that
+		// used to check for `qr-too-large` is gone.
+	});
+
+	test('says nothing about the network when STUN was deliberately turned off', async ({
+		alice
+	}) => {
+		// The suite runs with ?ice=host, which is a setting somebody chose. A
+		// readiness panel that painted that red would report a fault where there
+		// is a decision - worse than saying nothing, which is what it does.
+		await openConnect(alice, 'alice');
+
+		await expect(alice.getByTestId('network-status')).toHaveCount(0);
 	});
 
 	test('answers an invitation carried in the address, with nothing to press', async ({

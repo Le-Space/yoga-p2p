@@ -40,7 +40,16 @@ export default defineConfig({
 						// Camera path in CI: a fake device, so the real decoder runs
 						// against a real MediaStream instead of a mocked one.
 						'--use-fake-ui-for-media-stream',
-						'--use-fake-device-for-media-stream'
+						'--use-fake-device-for-media-stream',
+						// Headless Chromium treats a page nothing is looking at as
+						// backgrounded and throttles its timers and animation frames.
+						// The offering device spends the handshake waiting on exactly
+						// those, so it would sit at 'replying' while the answer was
+						// already there - which is why the camera test passed with
+						// --headed and failed without it.
+						'--disable-background-timer-throttling',
+						'--disable-backgrounding-occluded-windows',
+						'--disable-renderer-backgrounding'
 					]
 				}
 			}

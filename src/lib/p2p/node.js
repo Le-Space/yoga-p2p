@@ -40,7 +40,7 @@ export const nodeStatusStore = writable(
 	})
 );
 
-/** @type {{ libp2p: any, helia: any, orbitdb: any, blockstore: any, datastore: any } | null} */
+/** @type {{ libp2p: any, helia: any, orbitdb: any, blockstore: any, datastore: any, signalling: any } | null} */
 let running = null;
 
 /**
@@ -87,7 +87,7 @@ export async function startNode({ passkeyCredential = null } = {}) {
 
 		const orbitdb = await createOrbitDBInstance(helia, passkeyCredential);
 
-		running = { libp2p, helia, orbitdb, blockstore, datastore };
+		running = { libp2p, helia, orbitdb, blockstore, datastore, signalling };
 
 		libp2pStore.set(libp2p);
 		orbitdbStore.set(orbitdb);
@@ -242,6 +242,31 @@ function installDiagnostics() {
 				...(running?.libp2p?.services?.pubsub?.mesh?.get?.(topic) ?? [])
 			],
 			protocols: () => running?.libp2p?.getProtocols?.() ?? [],
+			/**
+			 * What WebRTC itself thinks, which is invisible from the libp2p side.
+			 *
+			 * A handshake that stalls does so underneath libp2p: the connection is
+			 * gathering, or connecting, or has failed, and the only symptom above is
+			 * a screen that never changes. Without this, diagnosing it means
+			 * guessing.
+			 */
+			webrtc: () => {
+				const session = running?.signalling;
+				const describe = (/** @type {any} */ pc) => ({
+					connection: pc?.connectionState ?? null,
+					ice: pc?.iceConnectionState ?? null,
+					gathering: pc?.iceGatheringState ?? null,
+					signaling: pc?.signalingState ?? null
+				});
+
+				return {
+					offers: [...(session?.offers?.values?.() ?? [])].map((/** @type {any} */ offer) => ({
+						remotePeerId: offer.remotePeerId,
+						...describe(offer.peerConnection)
+					})),
+					inbound: [...(session?.inbound?.values?.() ?? [])].map(describe)
+				};
+			},
 			/** Failures OrbitDB's sync reported and then carried on from. */
 			replicationErrors: () => replicationErrors,
 			introductions: () => introductionLog,

@@ -48,7 +48,7 @@ const ICE_MODE_KEY = 'yoga-p2p.iceMode';
  *
  * @returns {string | null}
  */
-function iceMode() {
+export function iceMode() {
 	if (typeof location === 'undefined') return null;
 
 	const fromUrl = new URLSearchParams(location.search).get('ice');

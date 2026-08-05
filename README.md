@@ -54,6 +54,16 @@ exists; the student can read their passes and cannot write to them.
 visible fork at the next sync, with both signed events as evidence. An ambiguous
 log can cost a unit; it can never hand one out.
 
+**The code is what authenticates.** Two devices that met by QR skip libp2p's
+Noise handshake — not because the connection is unencrypted (DTLS encrypts
+either way) but because signing the SDP already proved who is on the other end:
+the SDP carries the DTLS fingerprint, so a valid signature binds that WebRTC
+session to a Peer ID. Same binding `certhash` gives WebRTC-Direct, carried by a
+signature instead of a multiaddr. The long version, including when this stops
+being safe, is
+[`connection-security.md`](https://github.com/NiKrause/libp2p-webrtc-qr/blob/main/docs/connection-security.md)
+in the transport package.
+
 Full limits — including what happens behind symmetric NATs without TURN, and what
 OrbitDB's whole-database replication means for privacy — in
 [`docs/LIMITS.md`](docs/LIMITS.md).
@@ -97,6 +107,10 @@ Code comments reference the German paths, which is why those stay where they are
 | [`docs/TESTING.md`](docs/TESTING.md) | Test strategy, real-device checklist                          |
 | [`docs/DEPLOY.md`](docs/DEPLOY.md)   | Publishing to Aleph IPFS, DNS, SEO                            |
 | [`CLAUDE.md`](CLAUDE.md)             | Conventions for working with Claude Code                      |
+
+The security model of the QR connection itself lives with the transport:
+[`connection-security.md`](https://github.com/NiKrause/libp2p-webrtc-qr/blob/main/docs/connection-security.md)
+— why `skipEncryption` is sound with a signed SDP, and when it is not.
 
 ## Licence
 

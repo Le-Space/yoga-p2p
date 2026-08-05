@@ -26,8 +26,9 @@
 	import { base } from '$app/paths';
 	import StudioGate from '$lib/components/StudioGate.svelte';
 	import { connectedPeersStore, hangUp, peerIdStore, signallingStore } from '$lib/p2p/node.js';
-	import { fitsInQrCode, renderQrCode, scanWithCamera, sharePayload } from '$lib/p2p/qr.js';
+	import { sharePayload } from '$lib/p2p/qr.js';
 	import { buildLink, readLink } from '$lib/p2p/invite.js';
+	import { iceMode, rtcConfiguration } from '$lib/p2p/libp2p-config.js';
 	import { createHandoff } from '$lib/p2p/handoff.js';
 	import { introduceToPeer, joinStore, joinStudioFromPeer } from '$lib/db/join.js';
 	import { studioStore } from '$lib/db/registry.js';
@@ -51,7 +52,6 @@
 	let payload = $state('');
 	/** What the QR encodes and the share sheet sends — the payload wrapped in a URL. */
 	let link = $state('');
-	let qrDataUrl = $state('');
 	let qrError = $state('');
 	let inbound = $state('');
 	let failure = $state('');
@@ -60,11 +60,19 @@
 	let fromLink = $state(false);
 
 	/** @type {HTMLVideoElement | undefined} */
-	let video = $state();
+	// Typed loosely on purpose: svelte-check has no element interface for
+	// <qr-scanner> and falls back to HTMLVideoElement, which has neither open()
+	// nor close().
+	/** @type {any} */
+	let scanner = $state(null);
+	let status = $state();
+
+	// STUN turned off is a setting somebody chose, not a fault to report. The
+	// panel would paint it red, so it is not shown at all in that mode - #26 is
+	// explicit that reporting a choice as a failure is worse than saying nothing.
+	const stunConfigured = typeof window !== 'undefined' && iceMode() !== 'host';
 	/** @type {HTMLCanvasElement | undefined} */
-	let canvas = $state();
 	/** @type {AbortController | null} */
-	let scanAbort = null;
 	/** @type {ReturnType<typeof setInterval> | null} */
 	let refreshTimer = null;
 	let unsubscribeSignalling = () => {};
@@ -72,22 +80,56 @@
 	let handoff = null;
 
 	onMount(() => {
+		// Loaded in the browser only: this page renders on the server first, where
+		// `customElements` does not exist.
+		import('@le-space/libp2p-webrtc-qr/elements').then(() => {
+			if (!stunConfigured || !status) return;
+
+			// The same servers the handshake will use, so the reading is about this
+			// configuration rather than about a default somebody else picked.
+			status.rtcConfiguration = rtcConfiguration();
+			status.probe().catch(() => {});
+		});
+
 		// A reply that arrives through a messenger opens a new tab, and the offer
 		// it answers lives in this one. Take it if it is ours.
 		handoff = createHandoff();
 		handoff.onReply(async (text) => {
 			if (step !== 'inviting') return false;
+
+			// Answer the *ownership* question and nothing else. `{ dial: false }`
+			// stops after the signature check and the session match - local work,
+			// milliseconds - so the claim goes out well inside the other tab's
+			// window. Connecting from here first would miss it: since the dial moved
+			// into acceptAnswer, finishing the handshake takes seconds, and the tab
+			// holding the reply would already have told the user nobody wanted it
+			// while this tab connected anyway.
+			/** @type {string} */
+			let remotePeerId;
+
 			try {
-				const remotePeerId = await $signallingStore.acceptAnswer(text);
-				await makeInvitation({ announce: false });
-				step = 'connected';
-				await greetAndMaybeJoin(remotePeerId);
-				return true;
+				remotePeerId = await $signallingStore.acceptAnswer(text, { dial: false });
 			} catch {
 				// Not our offer. Staying silent is the point: claiming it would tell
 				// the other tab to close over a handshake nobody completed.
 				return false;
 			}
+
+			// Ours. The rest runs after the claim, not before it - the reply cannot
+			// go anywhere else now, and a failure here is this tab's to show.
+			void (async () => {
+				try {
+					await $signallingStore.connect(remotePeerId);
+					await makeInvitation({ announce: false });
+					step = 'connected';
+					await greetAndMaybeJoin(remotePeerId);
+				} catch (/** @type {any} */ error) {
+					failure = error?.message ?? String(error);
+					step = 'failed';
+				}
+			})();
+
+			return true;
 		});
 
 		// The node is started by StudioGate and arrives asynchronously, so wait for
@@ -108,7 +150,9 @@
 	});
 
 	onDestroy(() => {
-		scanAbort?.abort();
+		// The element releases the camera when it leaves the document, so this only
+		// has to close the dialog if the page is left with it open.
+		scanner?.close();
 		unsubscribeSignalling();
 		handoff?.close();
 		if (refreshTimer) clearInterval(refreshTimer);
@@ -177,20 +221,11 @@
 		payload = text;
 		link = buildLink({ payload: text, kind, origin: location.origin, base });
 		qrError = '';
-		qrDataUrl = '';
 
-		// The QR carries the link, so the link is what has to fit — checking the
-		// bare payload would pass and then produce a code no camera can read.
-		if (!fitsInQrCode(link)) {
-			qrError = m.connect_advanced_hint();
-			return;
-		}
-
-		try {
-			qrDataUrl = await renderQrCode(link);
-		} catch (/** @type {any} */ error) {
-			qrError = error?.message ?? String(error);
-		}
+		// No budget check any more: <qr-invite> splits a link that will not fit
+		// one code into an animated sequence rather than refusing it. The 2200
+		// character limit this used to enforce was a documented limitation
+		// (docs/LIMITS.md §1.6) and is now simply not one.
 	}
 
 	/**
@@ -272,27 +307,32 @@
 		}
 	}
 
-	async function scan() {
-		if (!video || !canvas) return;
-
-		scanAbort = new AbortController();
-		scanning = true;
+	function scan() {
 		failure = '';
+		scanning = true;
+
+		// The element owns the camera and the decode loop, including the frame by
+		// frame reassembly of an animated code - which is what lets this screen
+		// stop enforcing a character budget on the other side of the exchange.
+		scanner?.open().catch((/** @type {any} */ error) => {
+			scanning = false;
+			failure = error?.message ?? String(error);
+			step = 'failed';
+		});
+	}
+
+	/** @param {string} text */
+	async function onScanned(text) {
+		scanning = false;
 
 		try {
-			const text = await scanWithCamera({ video, canvas, signal: scanAbort.signal });
 			// A scanned code now holds a link, but a code from an older version
 			// holds the bare payload — accept both rather than reject a device
 			// that has not updated yet.
 			await handleInbound(readLink(new URL(text, location.origin).hash)?.payload ?? text);
 		} catch (/** @type {any} */ error) {
-			if (error?.name !== 'AbortError') {
-				failure = error?.message ?? String(error);
-				step = 'failed';
-			}
-		} finally {
-			scanning = false;
-			scanAbort = null;
+			failure = error?.message ?? String(error);
+			step = 'failed';
 		}
 	}
 
@@ -373,6 +413,19 @@
 		</section>
 	{/if}
 
+	{#if stunConfigured}
+		<!-- What this network will allow, before anyone holds up a code. It says
+		     whether the preconditions hold, not whether the connection will
+		     succeed - two devices behind symmetric NAT is exactly the case STUN
+		     cannot solve. -->
+		<qr-status
+			bind:this={status}
+			data-testid="network-status"
+			class="mt-6 block max-w-md"
+			style="--qr-status-chip-background: transparent; --qr-status-chip-color: inherit; --qr-status-verdict-color: inherit;"
+		></qr-status>
+	{/if}
+
 	{#if payload && step !== 'handed-over'}
 		<section class="mt-6 max-w-md rounded-card border border-border bg-surface p-6">
 			<div class="flex flex-wrap items-start justify-between gap-3">
@@ -394,18 +447,17 @@
 				</button>
 			</div>
 
-			{#if qrDataUrl}
-				<!-- The QR field keeps a light ground in both themes; see tokens.css. -->
+			{#if link}
+				<!-- The QR field keeps a light ground in both themes; see tokens.css.
+				     data-link is what the code encodes, so a test photographs the same
+				     string a camera would read. -->
 				<div class="qr-field mt-4 inline-block">
-					<!-- data-link is what the code actually encodes, so a test photographs
-					     the same string a camera would read. -->
-					<img
-						src={qrDataUrl}
-						alt={m.connect_scan()}
+					<qr-invite
+						value={link}
 						data-testid="qr-image"
 						data-link={link}
-						width="280"
-					/>
+						style="--qr-invite-max-width: 280px; --qr-invite-caption-color: inherit;"
+					></qr-invite>
 				</div>
 			{:else if qrError}
 				<p class="mt-4 text-sm text-warning" data-testid="qr-too-large">{qrError}</p>
@@ -491,18 +543,14 @@
 		</button>
 	</details>
 
-	<!-- Kept mounted so the scanner can start without a layout shift; hidden until used. -->
-	<div class:hidden={!scanning} class="mt-6">
-		<video bind:this={video} data-testid="scanner-video" class="w-full max-w-sm rounded-card"
-		></video>
-		<canvas bind:this={canvas} class="hidden"></canvas>
-		<button
-			type="button"
-			data-testid="cancel-scan"
-			onclick={() => scanAbort?.abort()}
-			class="mt-2 rounded-control border border-border px-3 py-1.5 text-sm"
-		>
-			{m.connect_status_idle()}
-		</button>
-	</div>
+	<!-- A modal of its own, so nothing here has to make room for a camera that is
+	     not running. It releases the camera on every way out, including this page
+	     being navigated away from. -->
+	<qr-scanner
+		bind:this={scanner}
+		label={m.connect_scan()}
+		data-testid="scanner"
+		onscan={(/** @type {any} */ event) => onScanned(event.detail.text)}
+		onclose={() => (scanning = false)}
+	></qr-scanner>
 </StudioGate>
