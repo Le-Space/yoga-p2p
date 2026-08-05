@@ -76,22 +76,29 @@ vernichten.
 
 ### 1.6 QR-Payload-Größe
 
-Ein signiertes, deflate-komprimiertes Offer liegt nahe an dem, was ein
-Telefon von einem Bildschirm noch zuverlässig liest. Über
-`QR_CHARACTER_BUDGET` (2200 Zeichen) rendert die App **keinen** Code, sondern
-verweist auf Copy & Paste. Multi-Frame-QR (BC-UR) ist bewusst auf v2 verschoben.
+Ein signiertes, deflate-komprimiertes Offer liegt nahe an dem, was ein Telefon
+von einem Bildschirm noch zuverlässig liest. Das ist kein Wall mehr: `<qr-invite>`
+entscheidet selbst und zerlegt einen zu dichten Payload in eine animierte
+BC-UR-Sequenz — fountain-codiert, Frames sind in beliebiger Reihenfolge lesbar,
+ein verpasster kostet nichts. `QR_CHARACTER_BUDGET` (2200 Zeichen) ist damit
+kein Schalter mehr, sondern nur noch die Grenze, unterhalb derer ein *einzelner*
+statischer Code reicht; der Invite-Test hält die Link-Länge darunter, damit der
+häufige Fall ohne Animation auskommt.
+
+Was bleibt: eine Sequenz braucht eine ruhige Hand und ein paar Sekunden mehr,
+und sie will einen Bildschirm, der nicht in Standby geht.
 
 ## 2. Upstream-Fragen
 
 ### 2.1 `@le-space/libp2p-webrtc-qr`
 
-- **Kein Replay-Window.** Payloads tragen eine `sessionId`, aber keinen
-  Zeitstempel, laufen also nicht von selbst ab (dokumentiert im README des
-  Pakets). Für Tickets ist das folgenlos — eine Entwertung ist nie
-  token-basiert, sondern immer ein verifizierter Ledger-Write. Für die
-  Verbindung selbst wäre ein Zeitfenster trotzdem richtig.
-- **Kleinerer Payload** (QWBP-Richtung) würde den Copy-&-Paste-Fallback aus
-  1.6 seltener nötig machen.
+- **Kleinerer Payload** (QWBP-Richtung) würde die animierten Sequenzen aus 1.6
+  seltener nötig machen — mit einer Einschränkung, die dabei nicht verloren
+  gehen darf: `canonicalPayload` signiert `sdp` als Ganzes, weshalb der
+  DTLS-Fingerprint per Konstruktion in den signierten Bytes liegt. Genau das
+  trägt `skipEncryption`. Ein kompakteres Format, das das SDP rekonstruiert
+  statt es zu übertragen, müsste den Fingerprint explizit mitsignieren
+  ([`docs/connection-security.md`](https://github.com/NiKrause/libp2p-webrtc-qr/blob/main/docs/connection-security.md)).
 - **Vendored `@libp2p/webrtc`-Internals**: das Paket kopiert Interna, die
   upstream nicht exportiert sind. Ein `exports`-Eintrag bei `@libp2p/webrtc`
   würde die Kopie überflüssig machen.
