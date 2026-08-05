@@ -60,7 +60,11 @@
 	let fromLink = $state(false);
 
 	/** @type {HTMLVideoElement | undefined} */
-	let scanner = $state();
+	// Typed loosely on purpose: svelte-check has no element interface for
+	// <qr-scanner> and falls back to HTMLVideoElement, which has neither open()
+	// nor close().
+	/** @type {any} */
+	let scanner = $state(null);
 	let status = $state();
 
 	// STUN turned off is a setting somebody chose, not a fault to report. The
@@ -92,17 +96,40 @@
 		handoff = createHandoff();
 		handoff.onReply(async (text) => {
 			if (step !== 'inviting') return false;
+
+			// Answer the *ownership* question and nothing else. `{ dial: false }`
+			// stops after the signature check and the session match - local work,
+			// milliseconds - so the claim goes out well inside the other tab's
+			// window. Connecting from here first would miss it: since the dial moved
+			// into acceptAnswer, finishing the handshake takes seconds, and the tab
+			// holding the reply would already have told the user nobody wanted it
+			// while this tab connected anyway.
+			/** @type {string} */
+			let remotePeerId;
+
 			try {
-				const remotePeerId = await $signallingStore.acceptAnswer(text);
-				await makeInvitation({ announce: false });
-				step = 'connected';
-				await greetAndMaybeJoin(remotePeerId);
-				return true;
+				remotePeerId = await $signallingStore.acceptAnswer(text, { dial: false });
 			} catch {
 				// Not our offer. Staying silent is the point: claiming it would tell
 				// the other tab to close over a handshake nobody completed.
 				return false;
 			}
+
+			// Ours. The rest runs after the claim, not before it - the reply cannot
+			// go anywhere else now, and a failure here is this tab's to show.
+			void (async () => {
+				try {
+					await $signallingStore.connect(remotePeerId);
+					await makeInvitation({ announce: false });
+					step = 'connected';
+					await greetAndMaybeJoin(remotePeerId);
+				} catch (/** @type {any} */ error) {
+					failure = error?.message ?? String(error);
+					step = 'failed';
+				}
+			})();
+
+			return true;
 		});
 
 		// The node is started by StudioGate and arrives asynchronously, so wait for

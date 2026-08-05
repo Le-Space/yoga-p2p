@@ -17,7 +17,6 @@
 // Kept free of Svelte and OrbitDB so the flow can be unit tested and so the
 // stores in ./node.js stay a thin layer on top.
 
-
 import { QRSession, parsePayload, QR_TYPE_OFFER } from '@le-space/libp2p-webrtc-qr';
 
 import { rtcConfiguration } from './libp2p-config.js';
@@ -32,15 +31,17 @@ const ICE_GATHERING_TIMEOUT_MS = 15_000;
 // 'failed' and 'closed' events as soon as they arrive.
 const CONNECTION_TIMEOUT_MS = 360_000;
 
-// The libp2p upgrade and dial happen *after* the WebRTC connection is already
-// up, so they are local work and must stay short. The dial in particular runs
-// inside a retry loop: a long signal here would let one hung attempt eat the
-// whole budget and turn DIAL_ATTEMPTS retries into a single one.
-const UPGRADE_TIMEOUT_MS = 30_000;
+// The dial runs inside a retry loop, so each attempt has to stay short: one hung
+// attempt with a long signal would eat the whole budget and turn the retries
+// into a single try. The package owns that timeout now - see connectionTimeout
+// below for why it cannot be shortened to match.
 /** How long the answering side keeps retrying while the offerer attaches its muxer. */
 const DIAL_ATTEMPTS = 15;
 const DIAL_RETRY_MS = 300;
 
+/**
+ * @param {any} node - a started libp2p node; QRSession attaches its transport to it
+ */
 export function createSignalling(node) {
 	const session = new QRSession(node, {
 		rtcConfiguration,
@@ -116,12 +117,19 @@ export function createSignalling(node) {
 	/**
 	 * Step 3 (offering device): verify the answer and open the connection.
 	 *
+	 * `{ dial: false }` stops after the verify: signature, session match and the
+	 * remote description, all of it local work that finishes in milliseconds. It
+	 * exists for the one caller that has to answer "is this reply mine?" before
+	 * it is allowed to take the time to act on it - see the handoff in
+	 * `routes/connect`. Dial afterwards with `connect`.
+	 *
 	 * @param {string} text
+	 * @param {{ dial?: boolean }} [options]
 	 * @returns {Promise<string>} the remote peer id
 	 */
-	async function acceptAnswer(text) {
+	async function acceptAnswer(text, options = {}) {
 		try {
-			const { peerId } = await session.acceptAnswer(text);
+			const { peerId } = await session.acceptAnswer(text, options);
 
 			return peerId;
 		} catch (/** @type {any} */ error) {
@@ -170,6 +178,13 @@ export function createSignalling(node) {
 		createOffer,
 		acceptOffer,
 		acceptAnswer,
+		/**
+		 * Open the libp2p connection to a peer whose answer has been accepted with
+		 * `{ dial: false }`. Retries internally, so this is the slow half.
+		 *
+		 * @param {string} peerId
+		 */
+		connect: (peerId) => session.dial(peerId),
 		classify,
 		// The peer connections themselves, so diagnostics can report what WebRTC
 		// thinks. A stalled handshake stalls underneath libp2p, where the only

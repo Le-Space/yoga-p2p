@@ -116,6 +116,43 @@ nicht hat, und sie sind vor der Umsetzung zu beantworten:
   Frage nach einem Auftragsverarbeitungsvertrag, die es derzeit ausdrücklich nicht
   gibt. Auch das gehört geklärt, bevor der Schalter existiert.
 
+## Eine Seite für die Fragen davor
+
+Das Handbuch erklärt, wie man die App bedient. Was fehlt, sind die Fragen, die
+davor kommen — und die stellt jede Person, der man diese App zum ersten Mal
+zeigt: _Wo ist mein Passwort? Wo liegen meine Daten? Was, wenn ich das Telefon
+verliere?_
+
+Ohne Antworten darauf liest sich „kein Server, kein Account" wie ein Mangel
+statt wie die Eigenschaft, die es ist. Geplant ist deshalb eine FAQ, die sieben
+Dinge beantwortet: was ein Passkey ist und worin er sich von einem Passwort
+unterscheidet; warum es keine Accounts gibt und wo der Passkey stattdessen
+liegt; wie das ohne Server überhaupt gehen kann; ob man einen Passkey verlieren
+kann; warum die Privatsphäre hier anders geschützt ist; wo genau die Daten
+liegen; und wo verschlüsselt wird.
+
+Drei dieser Antworten haben eine unangenehme Stelle, und die tragen sie:
+
+- **Einen Passkey kann man verlieren.** Ohne Server gibt es niemanden, der
+  „Passwort vergessen" beantwortet. Heute schützt davor der Export — und ein
+  Passkey in einem synchronisierenden Passwortmanager übersteht den
+  Geräteverlust, einer im Sicherheitschip des Geräts nicht. Daran wird
+  gearbeitet: [p2pass](https://github.com/asabya/p2pass) soll eine
+  Wiederherstellung möglich machen, ohne dafür eine zentrale Stelle
+  einzuführen.
+- **Auf dem Gerät wird heute nicht verschlüsselt.** Unterwegs immer — jede
+  Verbindung ist verschlüsselt und die Gegenstelle signiert nachweisbar. Aber
+  die Datenbanken liegen unverschlüsselt im Browserspeicher. Wer ein
+  entsperrtes Gerät in die Hand bekommt, liest mit; Sperrbildschirm und
+  Geräteverschlüsselung leisten hier mehr, als die App könnte.
+- **Buchungen werden heute an Mitschüler repliziert.** Die eine Stelle, an der
+  die App fremde personenbezogene Daten verteilt. Der Weg dahin ist bekannt —
+  eine Buchungsdatenbank pro Schüler statt einer gemeinsamen — und solange er
+  offen ist, gehört er in die FAQ und nicht nur ins technische Dokument.
+
+Einzelheiten in
+[Issue #33](https://github.com/Le-Space/yogasuci/issues/33).
+
 ## Was sonst noch offen ist
 
 - **Reihen-Tickets für einzelne Termine.** Eine Reihe lässt sich buchen; eine

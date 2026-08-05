@@ -40,7 +40,7 @@ export const nodeStatusStore = writable(
 	})
 );
 
-/** @type {{ libp2p: any, helia: any, orbitdb: any, blockstore: any, datastore: any } | null} */
+/** @type {{ libp2p: any, helia: any, orbitdb: any, blockstore: any, datastore: any, signalling: any } | null} */
 let running = null;
 
 /**

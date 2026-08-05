@@ -81,7 +81,7 @@ von einem Bildschirm noch zuverlässig liest. Das ist kein Wall mehr: `<qr-invit
 entscheidet selbst und zerlegt einen zu dichten Payload in eine animierte
 BC-UR-Sequenz — fountain-codiert, Frames sind in beliebiger Reihenfolge lesbar,
 ein verpasster kostet nichts. `QR_CHARACTER_BUDGET` (2200 Zeichen) ist damit
-kein Schalter mehr, sondern nur noch die Grenze, unterhalb derer ein *einzelner*
+kein Schalter mehr, sondern nur noch die Grenze, unterhalb derer ein _einzelner_
 statischer Code reicht; der Invite-Test hält die Link-Länge darunter, damit der
 häufige Fall ohne Animation auskommt.
 

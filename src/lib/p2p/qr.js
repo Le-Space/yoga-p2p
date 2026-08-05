@@ -6,7 +6,6 @@
 // share sheet, which is about this application rather than about codes, and one
 // threshold that is now a warning rather than a wall.
 
-
 /**
  * Above this, a QR code needs so many modules that phone cameras stop
  * resolving it reliably at arm's length. Byte mode tops out at 2953 characters
@@ -22,6 +21,11 @@ export const QR_CHARACTER_BUDGET = 2200;
  * `<qr-invite>` splits anything longer into an animated sequence, so a link over
  * this is slower to scan but no longer refused. Rendering and decoding both live
  * in the package now - this file keeps only what is this application's own.
+ */
+/**
+ * @param {object} options
+ * @param {string} options.title
+ * @param {string} options.text
  */
 export async function sharePayload({ title, text }) {
 	if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
