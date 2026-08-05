@@ -171,6 +171,15 @@ export function createSignalling(node) {
 		acceptOffer,
 		acceptAnswer,
 		classify,
+		// The peer connections themselves, so diagnostics can report what WebRTC
+		// thinks. A stalled handshake stalls underneath libp2p, where the only
+		// symptom above is a screen that never changes.
+		get offers() {
+			return session.offers;
+		},
+		get inbound() {
+			return session.inbound;
+		},
 		close: () => session.close(),
 		discardUnusedOffers,
 		getOutboundSession: (/** @type {string} */ peerId) => session.getOutboundSession(peerId)
