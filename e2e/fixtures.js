@@ -39,8 +39,16 @@ export const test = base.extend({
 	}
 });
 
-/** @param {import('@playwright/test').Browser} browser */
-async function newActor(browser) {
+/**
+ * A fresh device: own storage partition, own passkey authenticator.
+ *
+ * Exported because the remote scenario builds its devices from browsers this
+ * file never launched - one local, one somewhere else entirely - and a second
+ * copy of this would drift from the fixtures the rest of the suite uses.
+ *
+ * @param {import('@playwright/test').Browser} browser
+ */
+export async function newActor(browser) {
 	const context = await browser.newContext({
 		permissions: ['clipboard-read', 'clipboard-write'],
 		// Normally unset, so the app follows the runner the way it follows a device.
@@ -87,6 +95,11 @@ export async function onboard(page, who) {
 
 /**
  * Open the connection assistant, onboarding on the way if needed.
+ *
+ * Note what this does *not* control: the ICE mode. A page that already runs a
+ * node navigates in-app, so no query string is applied - and the mode is read
+ * from the URL once and then kept in sessionStorage. A run that needs STUN has
+ * to load the connect page itself, before calling this. See e2e/remote.
  *
  * @param {Page} page
  * @param {string} who
