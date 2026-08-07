@@ -6,46 +6,87 @@ sidebar_position: 10
 # Connecting two devices
 
 There is no server bringing devices together. A person does that: they carry a
-short, signed code from one device to the other. After that the devices talk
-directly.
+short, signed invitation from one device to the other. After that the devices talk
+directly to each other.
 
-## Three ways, one procedure
+The invitation is already there when you open the screen. You do not create it —
+at a counter, with somebody standing in front of you, every step costs something.
 
-**QR code** — the way inside the studio. One device shows the code, the other
-scans it with the camera and shows an answer, which is scanned back.
+## Two ways, one invitation
 
-**Copy and paste** — when there is no camera, or the code grows too large to scan.
-Copy the text, paste it on the other device, carry the answer back.
+**The QR code** — the way inside the studio. The other device scans it, and that
+is all there is to it.
 
-**Share** — through a messenger, when the two are not in the same place.
+**The link** — when you are not in the same place. **Share invitation** opens the
+usual share sheet; the other side taps the link and their device answers by
+itself.
+
+This is not one or the other: the QR code **contains that same link**. It is one
+invitation in two forms, not a choice between two procedures.
+
+![Connecting](/img/screens/en/connect.png)
+
+## The reply has to come back
+
+A connection takes two steps, and this is the one people forget. Whoever opens an
+invitation produces a **reply** — their screen then shows it exactly the way yours
+showed the invitation. That reply has to come back: let it be scanned, or send it.
+Only then is the connection up.
+
+If the reply comes back through a messenger and you tap it, the browser usually
+opens a **new tab**. That is fine. It passes the reply to the tab where the
+invitation was made and tells you it can be closed. The connection happens where
+you started.
+
+## An invitation is valid for ten minutes
+
+After that it has expired, and the other side is told so. That is deliberate
+rather than a fault: somebody who photographs a code, or digs an old link out of a
+chat, should not be able to do anything with it.
+
+For the QR code at the counter this does not matter — the screen renews the
+invitation by itself as long as it is open. For a link you sent, it does: if it is
+opened after lunch, simply make a new one.
 
 <div class="no-server">
 
 **Think before sharing through a messenger**
-The code contains your device's network addresses. Sent through WhatsApp or email,
-they end up with the operator and in every chat the text is forwarded to. In the
-studio the QR code is the better way — it does not leave the room.
+An invitation contains your device's network addresses. Sent through WhatsApp or
+email, those reach the operator and every chat the link is forwarded through. The
+sensitive part sits after the `#` and is therefore never sent to a web server —
+but the messenger sees the string you hand it. Inside the studio the QR code is
+the better way: it does not leave the room.
 
 </div>
 
-![Connecting](/img/screens/en/connect.png)
+## Advanced: copy and paste
+
+The text route lives under **Advanced**. It is for a device with no camera and no
+share sheet — an older tablet at the counter, say. Copy the text, paste it on the
+other device, carry the reply back.
+
+It is deliberately not on show: two visible routes side by side lead to the
+question of which of the two strings is the right one, and nobody should have to
+ask it.
 
 ## When it does not work
 
-**The QR code will not scan.** Turn the display brightness up, hold it 20–30 cm
-away, give autofocus a moment. Otherwise: copy and paste.
+**The QR code will not scan.** Turn up the screen brightness, 20–30 cm away, give
+the autofocus a moment. Otherwise: share the link, or the text route under
+**Advanced**.
 
-**The app says the code is too large.** Then there is no QR code, only the text
-route. That is not a failure but a limit of what a camera reads reliably.
+**"This reply belongs to an invitation this tab did not make."** You opened a
+reply link, but the tab holding the invitation is gone — after a restart, for
+instance. Start again: new invitation, share it again.
 
 **It will not connect over a distance.** Some internet connections do not let two
-devices reach each other directly. In the studio, on the same Wi-Fi, this does not
-come up; from afar it can fail. The app says so rather than spinning forever. More
-under [What the app cannot do](/what-it-cannot-do).
+devices reach each other directly. Inside the studio, on the same Wi-Fi, this is
+not an issue; across distance it can fail. The app says so rather than spinning
+forever. More under [What the app cannot do](/what-it-cannot-do).
 
 ## Ending a connection
 
-The connect screen has **End connection**.
+The connection screen has **Hang up**.
 
-Use it at the desk. An open connection keeps synchronising long after the student
-has left. Nothing is lost — next time you pair again.
+Use it at the counter. An open connection keeps syncing even when the student left
+long ago. Nothing is lost — you pair again next time.
