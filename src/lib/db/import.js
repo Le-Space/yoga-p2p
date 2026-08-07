@@ -24,10 +24,10 @@
 export const SETUP_FORMAT = 'yogasuci/setup/1';
 
 /** Validity windows the ledger understands (see src/lib/ledger/types.ts). */
-const VALIDITY_STARTS = ['issue', 'firstRedeem'];
+export const VALIDITY_STARTS = ['issue', 'firstRedeem'];
 
 /** Package kinds the programme editor offers. */
-const PACKAGE_KINDS = ['single', 'day', 'week', 'ten', 'month', 'year'];
+export const PACKAGE_KINDS = ['single', 'day', 'week', 'ten', 'month', 'year'];
 
 /**
  * @typedef {object} Refusal
@@ -195,7 +195,13 @@ export function planImport(document, current = {}) {
 		}
 		if (alreadyHere('location', id, name.de)) continue;
 
-		plan.locations.push({ id, name });
+		// The postal address comes along. A studio's site always has one, the
+		// location form has a field for it, and leaving it behind means retyping
+		// the one thing the website states most plainly.
+		const address =
+			isPlainObject(entry) && typeof entry.address === 'string' ? entry.address.trim() : '';
+
+		plan.locations.push({ id, name, address });
 	}
 
 	// --- packages ----------------------------------------------------------

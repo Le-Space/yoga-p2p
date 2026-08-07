@@ -13,7 +13,9 @@
 	 * better tool for it. Rebuilding that editor inside a review screen would give
 	 * two places to change a course and one of them would drift.
 	 */
+	import { getLocale } from '$lib/paraglide/runtime.js';
 	import { planImport, parseSetupText } from '$lib/db/import.js';
+	import { buildSetupPrompt } from '$lib/db/setup-prompt.js';
 	import {
 		coursesStore,
 		packagesStore,
@@ -24,6 +26,8 @@
 	import { locationsStore, saveLocation } from '$lib/db/registry.js';
 	import * as m from '$lib/paraglide/messages.js';
 
+	let siteUrl = $state('');
+	let promptCopied = $state(false);
 	let pasted = $state('');
 	let error = $state('');
 	let applied = $state(0);
@@ -31,6 +35,13 @@
 	let plan = $state(null);
 	/** Rows the reader unticked. Keyed `kind:id`. */
 	let skipped = $state(/** @type {Record<string, boolean>} */ ({}));
+
+	async function copyPrompt() {
+		const locale = getLocale() === 'en' ? 'en' : 'de';
+		await navigator.clipboard.writeText(buildSetupPrompt({ url: siteUrl, locale }));
+		promptCopied = true;
+		setTimeout(() => (promptCopied = false), 4000);
+	}
 
 	function review() {
 		error = '';
@@ -63,7 +74,7 @@
 			// not exist yet is a course nobody can book.
 			for (const entry of plan.locations) {
 				if (!wanted(`location:${entry.id}`)) continue;
-				await saveLocation({ id: entry.id, name: entry.name });
+				await saveLocation({ id: entry.id, name: entry.name, address: entry.address });
 				count++;
 			}
 
@@ -101,7 +112,39 @@
 	<h2 class="text-lg font-medium">{m.import_title()}</h2>
 	<p class="mt-1 max-w-2xl text-sm text-muted">{m.import_intro()}</p>
 
-	<label class="mt-4 block text-sm text-muted" for="setup-paste">{m.import_paste_label()}</label>
+	<h3 class="mt-5 font-medium">{m.import_prompt_heading()}</h3>
+	<p class="mt-1 max-w-2xl text-sm text-muted">{m.import_prompt_hint()}</p>
+
+	<div class="mt-3 flex flex-wrap items-end gap-3">
+		<label class="grid gap-1 text-sm text-muted">
+			{m.import_url_label()}
+			<input
+				type="url"
+				inputmode="url"
+				placeholder="https://…"
+				data-testid="import-url"
+				bind:value={siteUrl}
+				class="w-72 max-w-full rounded-control border p-2"
+			/>
+		</label>
+		<button
+			type="button"
+			data-testid="import-copy-prompt"
+			onclick={copyPrompt}
+			class="rounded-control border border-border px-4 py-2"
+		>
+			{m.import_copy_prompt()}
+		</button>
+	</div>
+
+	{#if promptCopied}
+		<p class="mt-2 text-sm text-success" data-testid="import-prompt-copied">
+			{m.import_prompt_copied()}
+		</p>
+	{/if}
+
+	<h3 class="mt-6 font-medium">{m.import_paste_heading()}</h3>
+	<label class="mt-2 block text-sm text-muted" for="setup-paste">{m.import_paste_label()}</label>
 	<textarea
 		id="setup-paste"
 		data-testid="import-paste"

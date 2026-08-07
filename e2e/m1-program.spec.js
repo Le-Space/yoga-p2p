@@ -275,6 +275,16 @@ test.describe('taking a programme over from a pasted document', () => {
 		await alice.goto('/program/');
 		await expect(alice.getByTestId('import-paste')).toBeVisible(READY);
 
+		// Step 1: the prompt. It goes to the clipboard, carrying the studio's own
+		// address — nothing is sent anywhere, which is the point of the design.
+		await alice.getByTestId('import-url').fill('https://muenchen.sivananda.yoga/');
+		await alice.getByTestId('import-copy-prompt').click();
+		await expect(alice.getByTestId('import-prompt-copied')).toBeVisible();
+
+		const prompt = await alice.evaluate(() => navigator.clipboard.readText());
+		expect(prompt).toContain('https://muenchen.sivananda.yoga/');
+		expect(prompt).toContain('yogasuci/setup/1');
+
 		// Shaped like the real price list at muenchen.sivananda.yoga: one pass that
 		// maps cleanly, one that cannot be read as either visits or time — which is
 		// what "Workshop: 22 € oder 1 Streifen" reduces to — and a teacher.
