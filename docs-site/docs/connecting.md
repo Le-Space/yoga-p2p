@@ -6,40 +6,79 @@ sidebar_position: 10
 # Zwei Geräte verbinden
 
 Es gibt keinen Server, der Geräte zusammenbringt. Das übernimmt ein Mensch: Er
-trägt einen kurzen, unterschriebenen Code von einem Gerät zum anderen. Danach
+trägt eine kurze, unterschriebene Einladung von einem Gerät zum anderen. Danach
 sprechen die Geräte direkt miteinander.
 
-## Drei Wege, derselbe Vorgang
+Die Einladung ist schon da, wenn ihr den Schirm öffnet. Ihr müsst sie nicht
+erzeugen — an der Theke, mit jemandem davor, zählt jeder Handgriff.
 
-**QR-Code** — der Weg im Studio. Ein Gerät zeigt den Code, das andere scannt ihn
-mit der Kamera und zeigt eine Antwort, die wieder gescannt wird.
+## Zwei Wege, dieselbe Einladung
 
-**Kopieren und Einfügen** — wenn keine Kamera da ist oder der Code zu groß für
-einen Scan wird. Text kopieren, auf dem anderen Gerät einfügen, Antwort
-zurücktragen.
+**Der QR-Code** — der Weg im Studio. Das andere Gerät scannt ihn, und mehr ist es
+nicht.
 
-**Teilen** — über einen Messenger, wenn die beiden nicht am selben Ort sind.
+**Der Link** — wenn ihr nicht am selben Ort seid. **Einladung teilen** öffnet das
+gewohnte Teilen-Menü; die andere Seite tippt den Link an, und ihr Gerät antwortet
+von selbst.
+
+Das ist kein Entweder-oder: Der QR-Code **enthält denselben Link**. Es ist eine
+Einladung in zwei Formen, nicht die Wahl zwischen zwei Verfahren.
+
+![Verbinden](/img/screens/de/connect.png)
+
+## Die Antwort muss zurück
+
+Eine Verbindung braucht zwei Schritte, und das ist der, den man vergisst. Wer eine
+Einladung öffnet, erzeugt eine **Antwort** — sein Schirm zeigt sie danach genauso,
+wie eure Einladung angezeigt wurde. Diese Antwort muss zurück: scannen lassen oder
+zurückschicken. Erst dann steht die Verbindung.
+
+Kommt die Antwort per Messenger zurück und ihr tippt sie an, öffnet der Browser
+meist einen **neuen Tab**. Das ist in Ordnung. Er reicht die Antwort an das Tab
+weiter, in dem die Einladung entstanden ist, und sagt euch, dass er geschlossen
+werden kann. Verbunden wird dort, wo ihr angefangen habt.
+
+## Eine Einladung ist zehn Minuten gültig
+
+Danach ist sie verfallen, und die andere Seite bekommt das gesagt. Das ist kein
+Fehler, sondern Absicht: Wer einen Code abfotografiert oder einen alten Link aus
+einem Chat holt, soll damit nichts mehr anfangen können.
+
+Für den QR-Code an der Theke spielt das keine Rolle — der Schirm erneuert die
+Einladung von selbst, solange er offen ist. Für einen Link, den ihr verschickt,
+schon: Wird er erst nach der Mittagspause geöffnet, macht einfach einen neuen.
 
 <div class="no-server">
 
 **Beim Teilen über einen Messenger mitdenken**
-Der Code enthält die Netzwerkadressen eures Geräts. Über WhatsApp oder E-Mail
-geschickt, landen sie beim Betreiber und in jedem Chat, durch den der Text
-weitergereicht wird. Im Studio ist der QR-Code der bessere Weg — er verlässt den
-Raum nicht.
+Die Einladung enthält die Netzwerkadressen eures Geräts. Über WhatsApp oder E-Mail
+geschickt, landen sie beim Betreiber und in jedem Chat, durch den der Link
+weitergereicht wird. Der empfindliche Teil steht zwar hinter dem `#` und wird
+deshalb an keinen Webserver geschickt — aber der Messenger sieht die Zeichenkette,
+die ihr ihm gebt. Im Studio ist der QR-Code der bessere Weg: Er verlässt den Raum
+nicht.
 
 </div>
 
-![Verbinden](/img/screens/de/connect.png)
+## Erweitert: Kopieren und Einfügen
+
+Unter **Erweitert** liegt der Textweg. Er ist für ein Gerät ohne Kamera und ohne
+Teilen-Menü — ein älteres Tablet an der Theke etwa. Text kopieren, auf dem anderen
+Gerät einfügen, Antwort zurücktragen.
+
+Er liegt bewusst nicht offen: Zwei sichtbare Wege nebeneinander führen zu der
+Frage, welche der beiden Zeichenketten denn nun die richtige ist — und genau die
+sollte niemand stellen müssen.
 
 ## Wenn es nicht klappt
 
 **Der QR-Code lässt sich nicht scannen.** Displayhelligkeit hochdrehen, Abstand
-20–30 cm, dem Autofokus einen Moment lassen. Sonst: Kopieren und Einfügen.
+20–30 cm, dem Autofokus einen Moment lassen. Sonst: Link teilen oder der Textweg
+unter **Erweitert**.
 
-**Die App sagt, der Code sei zu groß.** Dann gibt es keinen QR-Code, sondern nur
-den Textweg. Das ist kein Fehler, sondern eine Grenze dessen, was eine Kamera
-zuverlässig liest.
+**„Diese Antwort gehört zu einer Einladung, die dieses Tab nicht erzeugt hat."**
+Ihr habt einen Antwort-Link geöffnet, aber das Tab mit der Einladung ist zu — nach
+einem Neustart etwa. Fangt neu an: neue Einladung, neu teilen.
 
 **Es verbindet nicht über größere Entfernung.** Manche Internetanschlüsse lassen
 zwei Geräte nicht direkt zueinander. Im Studio, im selben WLAN, ist das kein
