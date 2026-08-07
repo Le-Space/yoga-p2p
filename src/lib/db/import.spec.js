@@ -16,7 +16,13 @@ import { parseSetupText, planImport, readPrice, SETUP_FORMAT, slugify } from './
 const SIVANANDA = {
 	format: SETUP_FORMAT,
 	source: 'https://muenchen.sivananda.yoga/preise/',
-	locations: [{ id: 'luisenstrasse', name: { de: 'Luisenstraße 45', en: 'Luisenstrasse 45' } }],
+	locations: [
+		{
+			id: 'luisenstrasse',
+			name: { de: 'Luisenstraße 45', en: 'Luisenstrasse 45' },
+			address: 'Luisenstraße 45, 80333 München'
+		}
+	],
 	packages: [
 		{
 			id: 'drop-in',
@@ -96,7 +102,13 @@ describe('planImport with the Sivananda price list', () => {
 		// three rather than on the review screen.
 		const plan = planImport(SIVANANDA);
 
-		expect(plan.refused.map((r) => r.what)).toContain('1 teacher(s)');
+		expect(plan.refused.map((r) => r.what)).toContain('1 teacher');
+	});
+
+	it('brings the postal address along rather than making it be retyped', () => {
+		// The one thing a studio website states most plainly, and the location form
+		// has a field for it.
+		expect(planImport(SIVANANDA).locations[0].address).toBe('Luisenstraße 45, 80333 München');
 	});
 
 	it('records where the document came from', () => {

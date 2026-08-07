@@ -253,3 +253,78 @@ async function addPackage(page, { id, de, kind, units }) {
 
 	await expect(page.locator(`[data-package-id="package:${id}"]`)).toBeVisible();
 }
+
+test.describe('taking a programme over from a pasted document', () => {
+	test('nothing is written until the review is confirmed', async ({ alice }) => {
+		// The whole safety property of #43 in one scenario: a document produced by
+		// an assistant reading a website is confidently wrong often enough that it
+		// must never write on arrival.
+		test.setTimeout(240_000);
+
+		await onboard(alice);
+		await alice.getByTestId('studio-name').fill('Sivananda München');
+		await alice.getByTestId('studio-save').click();
+		await addLocation(alice, {
+			id: 'luisenstrasse',
+			de: 'Luisenstraße 45',
+			en: 'Luisenstrasse 45'
+		});
+
+		// The import lives with the programme rather than with the studio: it
+		// creates courses and passes, and that is the page those belong to.
+		await alice.goto('/program/');
+		await expect(alice.getByTestId('import-paste')).toBeVisible(READY);
+
+		// Step 1: the prompt. It goes to the clipboard, carrying the studio's own
+		// address — nothing is sent anywhere, which is the point of the design.
+		await alice.getByTestId('import-url').fill('https://muenchen.sivananda.yoga/');
+		await alice.getByTestId('import-copy-prompt').click();
+		await expect(alice.getByTestId('import-prompt-copied')).toBeVisible();
+
+		const prompt = await alice.evaluate(() => navigator.clipboard.readText());
+		expect(prompt).toContain('https://muenchen.sivananda.yoga/');
+		expect(prompt).toContain('yogasuci/setup/1');
+
+		// Shaped like the real price list at muenchen.sivananda.yoga: one pass that
+		// maps cleanly, one that cannot be read as either visits or time — which is
+		// what "Workshop: 22 € oder 1 Streifen" reduces to — and a teacher.
+		const document = JSON.stringify({
+			format: 'yogasuci/setup/1',
+			source: 'https://muenchen.sivananda.yoga/preise/',
+			packages: [
+				{ name: '10er-Karte', kind: 'ten', priceEUR: '175,-€', units: 10, validityDays: 365 },
+				{ name: 'Workshop', priceEUR: 22 }
+			],
+			teachers: [{ name: 'Swami Vishnudevananda' }]
+		});
+
+		await alice.getByTestId('import-paste').fill(`Gerne! \`\`\`json\n${document}\n\`\`\``);
+		await alice.getByTestId('import-review').click();
+
+		// Reviewed, not written: the package list is untouched at this point.
+		await expect(alice.getByTestId('import-row')).toHaveCount(1);
+		await expect(alice.getByTestId('package-item')).toHaveCount(0);
+
+		// What it could not take is on screen, with a reason, as prominently as
+		// what it could.
+		await expect(alice.getByTestId('import-refused')).toContainText('Workshop');
+		// The count, not the names: none of them are imported, so which ones they
+		// were changes nothing the reader can act on.
+		await expect(alice.getByTestId('import-refused')).toContainText('1 teacher');
+
+		// The price it read is offered for checking rather than asserted as fact.
+		await expect(alice.getByTestId('import-price')).toHaveValue('175');
+		await alice.getByTestId('import-price').fill('155');
+
+		await alice.getByTestId('import-apply').click();
+
+		await expect(alice.getByTestId('package-item')).toHaveCount(1, READY);
+		await expect(alice.getByTestId('package-item')).toContainText('155');
+
+		// And it survives a reload, because it went into the programme database
+		// rather than into a component's state.
+		await alice.reload();
+		await expect(alice.getByTestId('studio-ready')).toBeVisible(READY);
+		await expect(alice.getByTestId('package-item')).toHaveCount(1, READY);
+	});
+});

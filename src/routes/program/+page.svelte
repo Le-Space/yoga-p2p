@@ -7,6 +7,7 @@
 	 * the course. That is why the sessions are stored concretely and the
 	 * validity window is derived from them rather than typed in.
 	 */
+	import SetupImport from '$lib/components/SetupImport.svelte';
 	import StudioGate from '$lib/components/StudioGate.svelte';
 	import { locationsStore } from '$lib/db/registry.js';
 	import {
@@ -667,4 +668,11 @@
 			</form>
 		{/if}
 	</section>
+
+	<!--
+		Last on the page on purpose: somebody arriving here to change one price
+		should not meet a paste field first. An import is a setup step, and setup
+		happens once.
+	-->
+	<SetupImport />
 </StudioGate>
