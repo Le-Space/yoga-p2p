@@ -27,8 +27,10 @@ const ICE_GATHERING_TIMEOUT_MS = 15_000;
 // network behind carrier NAT can need minutes of ICE before it succeeds, and
 // the old 30 s cut those off mid-setup — which at a counter looks like "it just
 // does not work here". Nothing is lost by waiting, because a connection that
-// genuinely fails does not wait for this: waitForConnected rejects on the
-// 'failed' and 'closed' events as soon as they arrive.
+// genuinely fails never reaches this: the package rejects on the 'failed' and
+// 'closed' events as soon as they arrive. That is upstream's guarantee now, not
+// ours — which is why session.spec.js pins that these numbers arrive there
+// rather than re-testing the waiting itself.
 const CONNECTION_TIMEOUT_MS = 360_000;
 
 // The dial runs inside a retry loop, so each attempt has to stay short: one hung
@@ -199,42 +201,4 @@ export function createSignalling(node) {
 		discardUnusedOffers,
 		getOutboundSession: (/** @type {string} */ peerId) => session.getOutboundSession(peerId)
 	};
-}
-
-/**
- * Resolve when the connection is up; reject as soon as it is known to be dead.
- *
- * Exported for its test rather than for callers: CONNECTION_TIMEOUT_MS is six
- * minutes, which is only defensible because a real failure rejects here on the
- * event and never reaches the timeout. If that regressed, a counter would sit
- * and wait six minutes on a connection that was already gone.
- *
- * @param {RTCPeerConnection} peerConnection
- */
-export function waitForConnected(peerConnection) {
-	if (peerConnection.connectionState === 'connected') return Promise.resolve();
-
-	return new Promise((resolve, reject) => {
-		const timeout = setTimeout(() => {
-			cleanup();
-			reject(new Error('The connection timed out.'));
-		}, CONNECTION_TIMEOUT_MS);
-
-		function cleanup() {
-			clearTimeout(timeout);
-			peerConnection.removeEventListener('connectionstatechange', onChange);
-		}
-
-		function onChange() {
-			if (peerConnection.connectionState === 'connected') {
-				cleanup();
-				resolve(undefined);
-			} else if (['failed', 'closed'].includes(peerConnection.connectionState)) {
-				cleanup();
-				reject(new Error(`The connection is ${peerConnection.connectionState}.`));
-			}
-		}
-
-		peerConnection.addEventListener('connectionstatechange', onChange);
-	});
 }
