@@ -375,7 +375,7 @@ export function planImport(document, current = {}) {
 	// they were not imported, not left to discover it.
 	if (Array.isArray(document.teachers) && document.teachers.length) {
 		plan.refused.push({
-			what: `${document.teachers.length} teacher(s)`,
+			what: document.teachers.length === 1 ? '1 teacher' : `${document.teachers.length} teachers`,
 			reason: 'this app has no teacher directory yet — a course records a title, a place and a time'
 		});
 	}

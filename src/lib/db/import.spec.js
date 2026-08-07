@@ -96,7 +96,7 @@ describe('planImport with the Sivananda price list', () => {
 		// three rather than on the review screen.
 		const plan = planImport(SIVANANDA);
 
-		expect(plan.refused.map((r) => r.what)).toContain('1 teacher(s)');
+		expect(plan.refused.map((r) => r.what)).toContain('1 teacher');
 	});
 
 	it('records where the document came from', () => {
